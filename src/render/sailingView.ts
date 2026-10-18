@@ -13,6 +13,8 @@ import { createDamageNumbers } from './damageNumbers';
 import { createEffects } from './effects';
 import { rideWaves } from './ride';
 import { createScenery } from './scenery';
+import { createWake } from './wake';
+import { collectStamps, type Stamp } from './wakeStamps';
 import { createSky } from './sky';
 import { seaAmp } from '../world';
 
@@ -77,6 +79,8 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
   const fleet = createFleet(scene);
   const crew = createCrewRenderer();
   const ocean = createOcean(preset);
+  const wake = createWake(renderer, preset);
+  const stamps: Stamp[] = [];
   const sky = createSky();
   const look = lookFor(0);
   const scenery = createScenery();
@@ -164,6 +168,7 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
       resize();
       ocean.setQuality(preset);
+      wake.setQuality(preset);
     },
 
     addActor(id, model, dims): void {
@@ -191,6 +196,18 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
       for (const e of view.enemies) {
         const a = actors.get(e.id);
         if (a) place(a, e, e.sinking, time, wind.from, ampScale);
+      }
+      // Ships throw spray from their bows, more in a rough sea.
+      const spray = (st: { x: number; z: number; heading: number; speed: number; heave: number }, length: number): void => {
+        const dx = Math.cos(st.heading);
+        const dz = -Math.sin(st.heading);
+        const power = Math.min(Math.abs(st.speed) / 8, 1) ** 1.5 * (0.25 + 0.9 * view.seaState);
+        effects.spray(st.x + dx * length * 0.45, st.heave + 0.6, st.z + dz * length * 0.45, dx, dz, power, dt);
+      };
+      if (player && !view.sunk && !view.docked) spray(ship, player.dims.length);
+      for (const e of view.enemies) {
+        const a = actors.get(e.id);
+        if (a && e.sinking < 0) spray(e, a.dims.length);
       }
       // Burning ships smoke and flicker on their decks.
       if (player && ship.fire > 0 && !view.sunk) effects.burn(ship.x, player.dims.length * 0.1, ship.z, ship.fire, dt);
@@ -242,6 +259,10 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
       (scene.fog as THREE.Fog).far = look.fogFar;
       sun.intensity = look.sun;
       hemi.intensity = look.hemi;
+      // Ships and splashes paint foam and ripples into the wake map, which the sea then shows.
+      collectStamps(view, dt, player?.dims ?? null, (id) => actors.get(id)?.dims ?? null, camera.position.x, camera.position.z, wake.size / 2, stamps);
+      wake.update(renderer, dt, camera, stamps);
+      ocean.setWake(wake, preset.wake);
       ocean.update(camera, time, wind.from, ampScale, view.seaState, look);
       sky.update(camera, look, time, wind.from);
       fleet.update(view, camera, ampScale);
@@ -263,6 +284,7 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
       controls.dispose();
       ocean.dispose();
       sky.dispose();
+      wake.dispose();
       scenery.dispose();
       effects.dispose();
       aim.dispose();

@@ -14,6 +14,10 @@ uniform float uAmp;
 uniform float uChop;
 uniform float uFade;
 uniform float uCell0;
+uniform sampler2D uWake;
+uniform vec2 uWakeOrigin;
+uniform float uWakeSize;
+uniform float uWakeOn;
 uniform vec2 uDirs[${WAVE_COUNT}];
 varying vec3 vWorld;
 varying float vHeight;
@@ -27,6 +31,10 @@ void main() {
   w.xyz += disp;
   // Coarser clip-map levels sit a little lower, so where two levels overlap the finer one is always the one seen.
   w.y -= 0.04 * log2(length(modelMatrix[0].xyz) / uCell0);
+  // The wake map (ships' bow waves and troughs) pushes the surface up and down.
+  vec2 wuv = (w.xz - uWakeOrigin) / uWakeSize;
+  float wedge = smoothstep(0.0, 0.05, min(min(wuv.x, wuv.y), min(1.0 - wuv.x, 1.0 - wuv.y)));
+  w.y += texture2D(uWake, wuv).g * wedge * uWakeOn;
   vWorld = w.xyz;
   vHeight = disp.y;
   gl_Position = projectionMatrix * viewMatrix * w;
@@ -43,6 +51,11 @@ export function createSeaMaterial(terrain: THREE.Texture, noise: THREE.Texture):
       uAmp: { value: 1 },
       uChop: { value: chop(1) },
       uFade: { value: 1 },
+      uWake: { value: noise },
+      uWakeOrigin: { value: new THREE.Vector2() },
+      uWakeSize: { value: 360 },
+      uWakeTexel: { value: 1 / 1024 },
+      uWakeOn: { value: 0 },
       uCell0: { value: 1 },
       uDirs: { value: waveDirections(0).map(([x, z]) => new THREE.Vector2(x, z)) },
       uSea: { value: 0 },
@@ -61,6 +74,16 @@ export function createSeaMaterial(terrain: THREE.Texture, noise: THREE.Texture):
       uTerrainScale: { value: new THREE.Vector2(TERRAIN_TEX.min, TERRAIN_TEX.range) },
     },
   });
+}
+
+/** Point the sea at the foam and ripple map (`wake.ts`); with no map the shader ignores it. */
+export function setSeaWake(material: THREE.ShaderMaterial, wake: { texture: THREE.Texture; origin: THREE.Vector2; size: number; enabled: boolean }, texels: number): void {
+  const u = material.uniforms;
+  u.uWake!.value = wake.texture;
+  (u.uWakeOrigin!.value as THREE.Vector2).copy(wake.origin);
+  u.uWakeSize!.value = wake.size;
+  u.uWakeTexel!.value = 1 / texels;
+  u.uWakeOn!.value = wake.enabled ? 1 : 0;
 }
 
 /** Tell the shader about the mesh resolution (fine meshes keep short waves further out). */

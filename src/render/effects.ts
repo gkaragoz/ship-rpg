@@ -70,6 +70,8 @@ export interface Effects {
   spawn(events: readonly GameEvent[]): void;
   /** Call every frame for each burning ship: `intensity` 0..1 at a point on its deck. Emits flames and smoke at a dt-independent rate. */
   burn(x: number, y: number, z: number, intensity: number, dt: number): void;
+  /** Call every frame for a ship ploughing through the sea: spray flung up and aside at its bow, `intensity` 0..1, heading along (dirX, dirZ). */
+  spray(x: number, y: number, z: number, dirX: number, dirZ: number, intensity: number, dt: number): void;
   update(dt: number): void;
   dispose(): void;
 }
@@ -89,6 +91,7 @@ export function createEffects(): Effects {
   let next = 0;
   const flameAcc: EmitAccumulator = { carry: 0 };
   const smokeAcc: EmitAccumulator = { carry: 0 };
+  const sprayAcc: EmitAccumulator = { carry: 0 };
 
   const emit = (
     kind: Kind,
@@ -184,6 +187,15 @@ export function createEffects(): Effects {
       for (let n = emitAccumulator(smokeAcc, rate * SMOKE_RATIO, dt); n > 0; n--) {
         emit('smoke', x + jitter(2), y + 1.5, z + jitter(2), {
           color: 0x3a3a3a, life: 2.2 + Math.random(), start: 2, end: 7, vx: jitter(1.5) + 0.8, vy: 3 + Math.random() * 2, vz: jitter(1.5), opacity: 0.6,
+        });
+      }
+    },
+    spray(x, y, z, dirX, dirZ, intensity, dt): void {
+      const i = clamp01(intensity);
+      if (i < 0.05) return;
+      for (let n = emitAccumulator(sprayAcc, 70 * i, dt); n > 0; n--) {
+        emit('splash', x + jitter(1.2), y, z + jitter(1.2), {
+          color: 0xf4fbff, life: 0.6 + Math.random() * 0.4, start: 0.5 + i * 0.5, end: 1.4 + i, vx: -dirX * 2 + jitter(4), vy: 2.5 + Math.random() * (2 + 3 * i), vz: -dirZ * 2 + jitter(4), gravity: 9, opacity: 0.5,
         });
       }
     },

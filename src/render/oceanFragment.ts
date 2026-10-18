@@ -21,6 +21,11 @@ uniform float uSea;
 uniform vec2 uDirs[${WAVE_COUNT}];
 uniform sampler2D uTerrain;
 uniform sampler2D uNoise;
+uniform sampler2D uWake;
+uniform vec2 uWakeOrigin;
+uniform float uWakeSize;
+uniform float uWakeTexel;
+uniform float uWakeOn;
 uniform vec2 uTerrainMin;
 uniform vec2 uTerrainSize;
 uniform vec2 uTerrainScale;
@@ -48,6 +53,11 @@ void main() {
   vec4 n2 = texture2D(uNoise, mat2(0.8, 0.6, -0.6, 0.8) * vWorld.xz / 4.3 + vec2(wd.y, -wd.x) * uTime * 0.07 + 0.37);
   float detail = (0.3 + 0.9 * uSea) * (0.4 + 0.6 * (1.0 - smoothstep(150.0, 1000.0, dist)));
   vec2 tilt = ((n1.gb - 0.5) + 0.7 * (n2.gb - 0.5)) * detail;
+  // Foam and ripples left by ships and splashes (R foam, G height), fading out at the edge of the map.
+  vec2 wuv = (vWorld.xz - uWakeOrigin) / uWakeSize;
+  float wedge = smoothstep(0.0, 0.05, min(min(wuv.x, wuv.y), min(1.0 - wuv.x, 1.0 - wuv.y))) * uWakeOn;
+  vec4 wk = texture2D(uWake, wuv) * wedge;
+  tilt += vec2(texture2D(uWake, wuv + vec2(uWakeTexel, 0.0)).g - texture2D(uWake, wuv - vec2(uWakeTexel, 0.0)).g, texture2D(uWake, wuv + vec2(0.0, uWakeTexel)).g - texture2D(uWake, wuv - vec2(0.0, uWakeTexel)).g) * 5.0 * wedge;
   vec3 n = normalize(vNormal + vec3(tilt.x, 0.0, tilt.y));
 
   float wrap = clamp(dot(n, uSun) * 0.5 + 0.5, 0.0, 1.0);
@@ -81,7 +91,8 @@ void main() {
   float streak = smoothstep(0.62, 0.92, texture2D(uNoise, sp + vec2(uTime * 0.01, 0.0)).r) * smoothstep(0.55, 0.9, uSea) * smoothstep(0.3, 0.7, h01) * 0.4;
   float pulse = 0.5 + 0.5 * sin(depth * 3.0 - uTime * 1.3 + breakup * 4.0);
   float shore = (1.0 - smoothstep(0.2 + 0.5 * breakup, 1.8, depth)) * (0.55 + 0.45 * pulse);
-  float white = clamp(max(max(caps, streak), shore), 0.0, 1.0);
+  float trail = clamp(wk.r * 1.15 - (1.0 - breakup) * 0.4, 0.0, 1.0);
+  float white = clamp(max(max(max(caps, streak), shore), trail), 0.0, 1.0);
   col = mix(col, mix(vec3(0.78, 0.88, 0.91), vec3(1.0), diff), white * 0.9);
 
   // Sun glitter on the facets that face it, broader and weaker as the sea gets rough.

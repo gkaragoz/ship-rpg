@@ -3,7 +3,8 @@ import { WORLD_BOUNDS, terrainHeight } from '../world';
 import { createSeaMesh, type SeaMesh } from './oceanMesh';
 import { bakeSeaNoise } from './seaNoise';
 import type { SeaLook } from './seaLook';
-import { TERRAIN_TEX, createSeaMaterial, setSeaQuality, updateSeaMaterial } from './oceanShader';
+import { TERRAIN_TEX, createSeaMaterial, setSeaQuality, setSeaWake, updateSeaMaterial } from './oceanShader';
+import type { Wake } from './wake';
 import type { Quality } from './quality';
 
 export { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR } from './seaLook';
@@ -34,6 +35,8 @@ export interface Ocean {
   object: THREE.Object3D;
   /** Re-centre under the camera and advance the waves. */
   update(camera: THREE.Camera, time: number, windFrom: number, ampScale: number, seaState: number, look: SeaLook): void;
+  /** Use this foam and ripple map for the wakes of ships. */
+  setWake(wake: Wake, texels: number): void;
   /** Rebuild the sea mesh for another quality preset. */
   setQuality(quality: Quality): void;
   dispose(): void;
@@ -54,6 +57,9 @@ export function createOcean(quality: Quality): Ocean {
     update(camera, time, windFrom, ampScale, seaState, look): void {
       mesh.follow(camera);
       updateSeaMaterial(material, time, windFrom, ampScale, seaState, look);
+    },
+    setWake(wake, texels): void {
+      setSeaWake(material, wake, texels);
     },
     setQuality(next): void {
       setSeaQuality(material, next);
