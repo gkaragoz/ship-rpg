@@ -25,6 +25,7 @@
   - [ ] touch controls (no on-screen steering, sails or exit on mobile yet)
   - [ ] measure frame rate on a real browser/GPU (the embedded pane throttles rAF, so 60 fps is unverified; the sea is now a clip-map of ~26k / 47k / 104k triangles on low / medium / high, see 3b)
 - [x] 4. Islands, ports, navigation (11 ports on 8 islands, grounding, docking, fog-of-war chart and minimap)
+  - [x] port entry zones: a gold rectangle with posts and an anchor sign marks where a ship may dock; the HUD says when you are inside and must slow down (`PORT_ZONE`, `render/portZones.ts`, `tests/portZone.test.ts`)
   - [ ] polish: harbour town detail (forts, docks, ships at anchor), beach waves
   - [ ] polish: coast sounding/depth warning on the HUD
   - [x] save/load of discovered map and position (5f)

@@ -13,3 +13,5 @@ Environment rules and static world data shared by gameplay, rendering and UI. De
 - `noise.ts`: seeded `hash2`, `valueNoise`, `fbm`
 
 Add an island or port by adding data to `ISLANDS`; `tests/islands.test.ts` checks spacing, a town on land and a deep anchorage for every port.
+
+`ports.ts` also defines each port's **entry zone** (`PORT_ZONE`, `insidePortZone`, `portZoneCorners`): a 110 x 90 m rectangle across the anchorage that reaches further out to sea than towards the shore. A ship docks (`F`) only from inside it and slower than `DOCK.maxSpeed`; the sea view draws it (`render/portZones.ts`: gold border ribbon and corner posts following the waves, an anchor sign) and the minimap and chart mark every port with an anchor (`ui/anchorIcon.ts`).

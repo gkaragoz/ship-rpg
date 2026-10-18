@@ -227,9 +227,9 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
         prompt.hidden = false;
         prompt.textContent = `${nearestPort.name} limanına gir [F]`;
         prompt.className = 'hud-prompt';
-      } else if (nearestPort && nearestPort.distance < 200) {
+      } else if (nearestPort && (nearestPort.inZone || nearestPort.distance < 200)) {
         prompt.hidden = false;
-        prompt.textContent = 'Limana girmek için yavaşla (W/S: yelken)';
+        prompt.textContent = nearestPort.inZone ? 'Giriş bölgesindesin: limana girmek için yavaşla (W/S: yelken)' : 'Sarı giriş bölgesine yaklaş ve yavaşla (W/S: yelken)';
         prompt.className = 'hud-prompt';
       } else {
         prompt.hidden = true;

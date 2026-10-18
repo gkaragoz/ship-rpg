@@ -1,5 +1,5 @@
-/** Docking needs the ship this close to the anchorage and this slow. */
-export const DOCK = { range: 80, maxSpeed: 2.5 } as const;
+/** Docking needs the ship inside the port's marked entry zone (`PORT_ZONE`) and this slow. */
+export const DOCK = { maxSpeed: 2.5 } as const;
 /** A replacement comes this many seconds after a kill or an escape. */
 export const RESPAWN = 25;
 /** Seconds between one enemy arriving and the next of a group. */

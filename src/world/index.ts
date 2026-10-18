@@ -1,7 +1,7 @@
 export { NOMINAL_WIND, apparentWind, gustAt, sailEfficiency, windAt } from './wind';
 export { ISLANDS, WORLD_BOUNDS, terrainHeight } from './islands';
 export type { Island, PortDef } from './islands';
-export { PORTS, getPort } from './ports';
+export { PORTS, PORT_ZONE, getPort, insidePortZone, portZoneCentre, portZoneCorners, portZoneLocal } from './ports';
 export type { Port } from './ports';
 export { fbm, hash2, valueNoise } from './noise';
 export { NATIONS, getNation } from './nations';

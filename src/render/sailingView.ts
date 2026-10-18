@@ -12,6 +12,7 @@ import { enableShadows } from './shadows';
 import { QUALITIES } from './quality';
 import type { GraphicsSettings } from '../settings';
 import { createAimArcs } from './aimArcs';
+import { createPortZones } from './portZones';
 import { createDamageNumbers } from './damageNumbers';
 import { createEffects } from './effects';
 import { createImpacts } from './impacts';
@@ -91,9 +92,10 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
   effects.setDensity(graphics.particles);
   impacts.setDensity(graphics.particles);
   const aim = createAimArcs();
+  const portZones = createPortZones();
   const numbers = createDamageNumbers();
-  scene.add(scenery.group, aim.object, effects.group, impacts.group, numbers.group);
-  for (const layer of [effects.group, impacts.group, aim.object, numbers.group]) excludeFromOcclusion(layer);
+  scene.add(scenery.group, aim.object, portZones.object, effects.group, impacts.group, numbers.group);
+  for (const layer of [effects.group, impacts.group, aim.object, portZones.object, numbers.group]) excludeFromOcclusion(layer);
   enableShadows(scenery.group, false); // the terrain only receives: ships cast onto it in port
 
   const ballMesh = new THREE.InstancedMesh(
@@ -235,6 +237,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       ballMesh.count = n;
       ballMesh.instanceMatrix.needsUpdate = true;
       aim.update(view, ampScale);
+      portZones.update(view, ampScale);
       impacts.spawn(view.events);
       effects.update(dt);
       impacts.update(dt, (x, z) => waveHeight(x, z, time, wind.from, ampScale, 0, view.weather.tuning), -Math.cos(wind.from) * wind.speed, Math.sin(wind.from) * wind.speed);
@@ -303,6 +306,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       pipeline.dispose();
       scenery.dispose();
       effects.dispose();
+      portZones.dispose();
       impacts.dispose();
       aim.dispose();
       numbers.dispose();

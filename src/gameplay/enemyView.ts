@@ -90,13 +90,14 @@ export function playerView(
 }
 
 /** The closest port as the HUD sees it, from the player's ship. */
-export function portView(n: { port: Port; distance: number }, from: PlayerShip, dockable: boolean): PortView {
+export function portView(n: { port: Port; distance: number }, from: PlayerShip, dockable: boolean, inZone: boolean): PortView {
   return {
     id: n.port.id,
     name: n.port.name,
     distance: n.distance,
     direction: Math.atan2(-(n.port.anchor.z - from.z), n.port.anchor.x - from.x),
     dockable,
+    inZone,
   };
 }
 

@@ -1,5 +1,6 @@
 import type { GameView } from '../core';
 import { ISLANDS, PORTS, WORLD_BOUNDS, getNation, terrainHeight, type Island } from '../world';
+import { drawAnchor } from './anchorIcon';
 import './map.css';
 
 export interface MapUi {
@@ -135,10 +136,8 @@ export function createMapUi(host: HTMLElement): MapUi {
       if (!known.has(p.id)) continue;
       const x = sx(p.anchor.x);
       const y = sy(p.anchor.z);
-      ctx.fillStyle = p.id === view.docked ? '#ffffff' : '#c0392b';
-      ctx.beginPath();
-      ctx.arc(x, y, labels ? 4.5 : 3, 0, Math.PI * 2);
-      ctx.fill();
+      const inZone = view.nearestPort?.id === p.id && view.nearestPort.inZone;
+      drawAnchor(ctx, x, y, (labels ? 15 : 11) + (inZone ? 3 : 0), p.id === view.docked ? '#ffffff' : inZone ? '#ffd34d' : '#c0392b');
       if (labels) {
         ctx.lineWidth = 3;
         ctx.strokeStyle = 'rgba(245, 235, 205, 0.9)';

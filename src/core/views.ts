@@ -194,6 +194,8 @@ export interface PortView {
   direction: number;
   /** Close and slow enough to dock right now. */
   dockable: boolean;
+  /** Inside the port's marked entry zone (the ship may still be too fast to enter). */
+  inZone: boolean;
 }
 
 /** Another ship at sea; kinematic and shown at a distance-dependent level of detail. */

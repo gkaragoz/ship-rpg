@@ -2,7 +2,7 @@ import { stepCrashes } from './crashes';
 import { CONFIG, createRng } from '../core';
 import type { CommandResult, Controls, GameEvent, GameView, PortCommand, WindView } from '../core';
 import { getDeck, getShipSpec, type ShipSpec } from '../ships';
-import { DEFAULT_CLOCK, gustAt, hourAt, seaAmp, waveHeight, type ClockSettings, type Port, type Weather, type WeatherOverrides } from '../world';
+import { DEFAULT_CLOCK, gustAt, hourAt, insidePortZone, seaAmp, waveHeight, type ClockSettings, type Port, type Weather, type WeatherOverrides } from '../world';
 import { createExploration } from './exploration';
 import { COMBAT, ELEVATION, cannonsPerSide, windVelocity, type Ball, type Side } from './combat';
 import { planBroadside } from './gunnery';
@@ -106,11 +106,12 @@ export function createGame(init: ShipSpec | GameState): Game {
 
   const explore = createExploration(() => ship, st.discovered);
   const nearest = explore.nearest;
-  const canDock = (distance: number): boolean => distance <= DOCK.range && Math.abs(ship.speed) <= DOCK.maxSpeed;
+  /** In the marked entry zone of the port, and slow enough. */
+  const canDock = (port: Port): boolean => insidePortZone(port, ship.x, ship.z) && Math.abs(ship.speed) <= DOCK.maxSpeed;
 
   const toggleDock = (): void => {
     const n = dockedAt ? null : nearest();
-    dockedAt = n && canDock(n.distance) ? n.port : null;
+    dockedAt = n && canDock(n.port) ? n.port : null;
     ship.docked = !!dockedAt;
     if (dockedAt) {
       ship.speed = 0;
@@ -346,7 +347,7 @@ export function createGame(init: ShipSpec | GameState): Game {
     view(): GameView {
       if (dockedAt) syncShip(); // the yard's prices depend on the hull
       const n = nearest();
-      const nearestPort = n && portView(n, ship, !dockedAt && canDock(n.distance));
+      const nearestPort = n && portView(n, ship, !dockedAt && canDock(n.port), insidePortZone(n.port, ship.x, ship.z));
       const enemyViews = enemies.map((e) => enemyView(e, ship, feel(e.ship)));
       const afloat = enemies.filter((e) => e.sinking < 0);
       const drained = events;

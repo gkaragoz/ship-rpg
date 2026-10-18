@@ -15,6 +15,44 @@ export interface Port {
   outward: number;
 }
 
+/**
+ * The marked rectangle in front of every port: a ship inside it (and slow) may enter. It lies across the anchorage and
+ * reaches further out to sea than towards the shore (its centre is `centre` m seaward of the anchorage).
+ */
+export const PORT_ZONE = { centre: 35, halfLength: 55, halfWidth: 45 } as const;
+
+/** Centre of the port's entry zone in world (x, z). */
+export function portZoneCentre(port: Port): { x: number; z: number } {
+  return { x: port.anchor.x + Math.cos(port.outward) * PORT_ZONE.centre, z: port.anchor.z + Math.sin(port.outward) * PORT_ZONE.centre };
+}
+
+/** Position of `(x, z)` in the port zone's own axes: `along` out to sea from the zone's centre, `across` the coast line. */
+export function portZoneLocal(port: Port, x: number, z: number): { along: number; across: number } {
+  const o = portZoneCentre(port);
+  const dx = x - o.x;
+  const dz = z - o.z;
+  const c = Math.cos(port.outward);
+  const s = Math.sin(port.outward);
+  return { along: dx * c + dz * s, across: -dx * s + dz * c };
+}
+
+/** The four corners of the port zone in world (x, z), going round. */
+export function portZoneCorners(port: Port): { x: number; z: number }[] {
+  const o = portZoneCentre(port);
+  const c = Math.cos(port.outward);
+  const s = Math.sin(port.outward);
+  return ([[1, 1], [1, -1], [-1, -1], [-1, 1]] as const).map(([a, b]) => ({
+    x: o.x + c * a * PORT_ZONE.halfLength - s * b * PORT_ZONE.halfWidth,
+    z: o.z + s * a * PORT_ZONE.halfLength + c * b * PORT_ZONE.halfWidth,
+  }));
+}
+
+/** Is `(x, z)` inside the port's entry zone? */
+export function insidePortZone(port: Port, x: number, z: number): boolean {
+  const { along, across } = portZoneLocal(port, x, z);
+  return Math.abs(along) <= PORT_ZONE.halfLength && Math.abs(across) <= PORT_ZONE.halfWidth;
+}
+
 const COAST_HEIGHT = 0.3;
 const TOWN_INLAND = 30;
 /** Anchorage must be at least this deep (m) in a small patch, so every keel clears it. */
