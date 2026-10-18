@@ -1,5 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { createEnvironment } from './environment';
+import { QUALITIES, type QualityName } from './quality';
+import { rideWaves } from './ride';
+import { shipStamps, type Stamp } from './wakeStamps';
+import { WORLD_BOUNDS, seaAmp } from '../world';
 
 export interface GalleryView {
   /** Show one object centred and framed; null clears the stage. */
@@ -7,12 +12,22 @@ export interface GalleryView {
   setAutoRotate(on: boolean): void;
   /** Camera orbit and zoom speed, 1 is the default. */
   setCameraSensitivity(factor: number): void;
+  /** Switch graphics quality (sea mesh resolution, pixel ratio): the same settings as at sea. */
+  setQuality(quality: QualityName): void;
   update(dt: number): void;
   render(): void;
   dispose(): void;
 }
 
-const SKY = 0x9cc3d5;
+/** The gallery's weather: a fresh breeze from the north and a light sea, so the ship rides gentle waves. */
+const GALLERY_WIND_FROM = Math.PI / 2;
+const GALLERY_SEA = 0.18;
+
+/**
+ * Where the gallery's ship floats: open water beyond the archipelago's corner (the sea shader's depth map is clamped at the
+ * world's edge, and its corner is deep), so there is no shore foam or lagoon green around it.
+ */
+const GALLERY_CENTER = { x: WORLD_BOUNDS.minX - 3000, z: WORLD_BOUNDS.minZ - 3000 };
 
 /** Screen areas (px) covered by UI; the subject is framed in the remaining space. */
 export interface Insets {
@@ -23,31 +38,21 @@ export interface Insets {
 
 const NO_INSETS: Insets = { left: 0, top: 0, bottom: 0 };
 
-/** Orbit-camera stage with sea, light and a gently bobbing subject. */
-export function createGalleryView(host: HTMLElement, getInsets: () => Insets = () => NO_INSETS): GalleryView {
+/** Orbit-camera stage in the same sea and sky as the sailing view, with a ship riding the waves. */
+export function createGalleryView(host: HTMLElement, getInsets: () => Insets = () => NO_INSETS, quality: QualityName = 'medium'): GalleryView {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  let preset = QUALITIES[quality];
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SKY);
-  scene.fog = new THREE.Fog(SKY, 150, 900);
-  scene.add(new THREE.HemisphereLight(0xdcecf5, 0x2b4a5a, 1.4));
-  const sun = new THREE.DirectionalLight(0xfff1d6, 2.4);
-  sun.position.set(-60, 90, 40);
-  scene.add(sun);
-
-  const sea = new THREE.Mesh(
-    new THREE.PlaneGeometry(3000, 3000),
-    new THREE.MeshStandardMaterial({ color: 0x24607f, roughness: 0.9, flatShading: true }),
-  );
-  sea.rotation.x = -Math.PI / 2;
-  scene.add(sea);
+  const env = createEnvironment(renderer, scene, preset);
 
   const pivot = new THREE.Group();
+  pivot.position.set(GALLERY_CENTER.x, 0, GALLERY_CENTER.z);
   scene.add(pivot);
 
-  const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 3000);
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 4000);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.autoRotate = true;
@@ -75,7 +80,11 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets = (
   resize();
 
   let subject: THREE.Object3D | null = null;
+  let dims = { length: 12, beam: 4 };
   let elapsed = 0;
+  let lastRender = performance.now();
+  const stamps: Stamp[] = [];
+  const rest = { x: GALLERY_CENTER.x, z: GALLERY_CENTER.z, heading: 0, roll: 0 };
 
   return {
     setSubject(next): void {
@@ -83,10 +92,12 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets = (
       subject = next;
       if (!next) return;
       pivot.add(next);
+      pivot.updateMatrixWorld(true); // the framing below measures the ship where it stands in the world
       resize(); // panels may have changed size since the last resize
       const box = new THREE.Box3().setFromObject(next);
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
+      dims = { length: size.x, beam: size.z };
       // The canvas spans the whole host but the ship must fit the area left free by
       // the panels, so scale the visible extent by that free fraction.
       const w = Math.max(host.clientWidth, 1);
@@ -109,20 +120,31 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets = (
     setAutoRotate(on): void {
       controls.autoRotate = on;
     },
+    setQuality(next): void {
+      preset = QUALITIES[next];
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
+      resize();
+      env.setQuality(preset);
+    },
     update(dt): void {
       elapsed += dt;
-      pivot.position.y = Math.sin(elapsed * 1.2) * 0.08;
-      pivot.rotation.z = Math.sin(elapsed * 0.9) * 0.012;
+      // The ship floats on the waves of the sea it stands in.
+      rideWaves(pivot, rest, dims, elapsed, GALLERY_WIND_FROM, seaAmp(GALLERY_SEA));
       controls.update();
     },
     render(): void {
+      const now = performance.now();
+      const dt = Math.min((now - lastRender) / 1000, 0.1);
+      lastRender = now;
+      stamps.length = 0;
+      if (subject) shipStamps({ x: GALLERY_CENTER.x, z: GALLERY_CENTER.z, heading: 0, speed: 0, length: dims.length, beam: dims.beam, sinking: -1 }, dt, GALLERY_SEA, stamps);
+      env.update({ camera, time: elapsed, dt, windFrom: GALLERY_WIND_FROM, seaState: GALLERY_SEA, stamps });
       renderer.render(scene, camera);
     },
     dispose(): void {
       observer.disconnect();
       controls.dispose();
-      sea.geometry.dispose();
-      (sea.material as THREE.Material).dispose();
+      env.dispose();
       renderer.dispose();
       renderer.forceContextLoss(); // release the WebGL context; browsers cap how many stay alive
       renderer.domElement.remove();

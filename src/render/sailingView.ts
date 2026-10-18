@@ -5,17 +5,14 @@ import { CONFIG } from '../core';
 import type { Ship, ShipLod } from '../ships';
 import { createCrewRenderer } from './crew';
 import { createFleet } from './fleet';
-import { createOcean } from './ocean';
+import { createEnvironment } from './environment';
 import { QUALITIES, type QualityName } from './quality';
-import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR, lookFor } from './seaLook';
 import { createAimArcs } from './aimArcs';
 import { createDamageNumbers } from './damageNumbers';
 import { createEffects } from './effects';
 import { rideWaves } from './ride';
 import { createScenery } from './scenery';
-import { createWake } from './wake';
 import { collectStamps, type Stamp } from './wakeStamps';
-import { createSky } from './sky';
 import { seaAmp } from '../world';
 
 export interface ShipDims {
@@ -71,25 +68,16 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(HORIZON_COLOR, FOG_NEAR, FOG_FAR);
-  const hemi = new THREE.HemisphereLight(0xdcecf5, 0x2b4a5a, 1.4);
-  scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff1d6, 2.4);
-  sun.position.copy(SUN_DIR).multiplyScalar(100);
-  scene.add(sun);
+  const env = createEnvironment(renderer, scene, preset);
 
   const fleet = createFleet(scene);
   const crew = createCrewRenderer();
-  const ocean = createOcean(preset);
-  const wake = createWake(renderer, preset);
   const stamps: Stamp[] = [];
-  const sky = createSky();
-  const look = lookFor(0);
   const scenery = createScenery();
   const effects = createEffects();
   const aim = createAimArcs();
   const numbers = createDamageNumbers();
-  scene.add(ocean.object, sky.mesh, scenery.group, aim.object, effects.group, numbers.group);
+  scene.add(scenery.group, aim.object, effects.group, numbers.group);
 
   const ballMesh = new THREE.InstancedMesh(
     new THREE.SphereGeometry(0.4, 8, 6),
@@ -174,8 +162,7 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
       preset = QUALITIES[next];
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
       resize();
-      ocean.setQuality(preset);
-      wake.setQuality(preset);
+      env.setQuality(preset);
     },
 
     addActor(id, model, dims): void {
@@ -259,19 +246,9 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
       controls.update();
       camera.position.y = Math.max(camera.position.y, 1.5);
 
-      // The day's look follows the sea state: bright and clear when calm, grey, dark and close in a storm.
-      lookFor(view.seaState, look);
-      (scene.fog as THREE.Fog).color.copy(look.horizon);
-      (scene.fog as THREE.Fog).near = look.fogNear;
-      (scene.fog as THREE.Fog).far = look.fogFar;
-      sun.intensity = look.sun;
-      hemi.intensity = look.hemi;
       // Ships and splashes paint foam and ripples into the wake map, which the sea then shows.
-      collectStamps(view, dt, player?.dims ?? null, (id) => actors.get(id)?.dims ?? null, camera.position.x, camera.position.z, wake.size / 2, stamps);
-      wake.update(renderer, dt, camera, stamps);
-      ocean.setWake(wake, preset.wake);
-      ocean.update(camera, time, wind.from, ampScale, view.seaState, look);
-      sky.update(camera, look, time, wind.from);
+      collectStamps(view, dt, player?.dims ?? null, (id) => actors.get(id)?.dims ?? null, camera.position.x, camera.position.z, env.wake.size / 2, stamps);
+      env.update({ camera, time, dt, windFrom: wind.from, seaState: view.seaState, stamps });
       fleet.update(view, camera, ampScale);
       crew?.update(view.crew, camera);
       shake = Math.max(0, shake - dt * 2.5);
@@ -289,9 +266,7 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
       fleet.dispose();
       crew?.dispose();
       controls.dispose();
-      ocean.dispose();
-      sky.dispose();
-      wake.dispose();
+      env.dispose();
       scenery.dispose();
       effects.dispose();
       aim.dispose();

@@ -29,7 +29,8 @@ const ORDERED = [...SHIP_SPECS].sort((a, b) => b.stats.rank - a.stats.rank);
 export function startGalleryMode(host: HTMLElement, selectedId: string | undefined, onSail: (spec: ShipSpec) => void): Mode {
   // The panel is created after the view; the view reads its insets lazily.
   const panel: { ui?: GalleryUI } = {};
-  const view = createGalleryView(host, () => panel.ui?.insets() ?? { left: 0, top: 0, bottom: 0 });
+  const store = getSettings();
+  const view = createGalleryView(host, () => panel.ui?.insets() ?? { left: 0, top: 0, bottom: 0 }, store.get().graphics.water);
 
   let current: Ship | null = null;
   const ui = createGalleryUI(host, ORDERED.map(toItem), {
@@ -48,9 +49,13 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
     },
   });
   panel.ui = ui;
-  const store = getSettings();
   const settingsUI = createSettingsUI(host, store);
+  let water = store.get().graphics.water;
   const applySettings = (): void => {
+    if (store.get().graphics.water !== water) {
+      water = store.get().graphics.water;
+      view.setQuality(water);
+    }
     view.setCameraSensitivity(store.get().game.cameraSensitivity);
     applyGameSettings(store.get().game);
   };
