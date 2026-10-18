@@ -1,61 +1,57 @@
-/**
- * Ocean surface as a sum of travelling sines. The same definition drives the vertex
- * shader (via `waveGlsl`) and the CPU (`waveHeight`), so ships ride the visible waves.
- */
-export interface WaveSpec {
-  /** Direction offset from the wind's travel direction, radians. */
-  dir: number;
-  /** Wavelength in metres. */
-  length: number;
-  /** Amplitude in metres at amplitude scale 1. */
-  amplitude: number;
+import { SHORT_WAVE, WAVES, WAVE_TERMS, chop, waveDirection } from '../world';
+
+export { waveHeight } from '../world';
+
+/** Wave count the shader loops over (the `uDirs` uniform has this many entries). */
+export const WAVE_COUNT = WAVES.length;
+
+/** Per-wave travel directions (x, z) for the wind, written into the `uDirs` uniform every frame. */
+export function waveDirections(windFrom: number): [number, number][] {
+  return WAVES.map((_, i) => waveDirection(i, windFrom));
 }
 
-export const WAVES: readonly WaveSpec[] = [
-  { dir: 0, length: 60, amplitude: 0.55 },
-  { dir: 0.5, length: 35, amplitude: 0.3 },
-  { dir: -0.6, length: 22, amplitude: 0.18 },
-  { dir: 1.1, length: 13, amplitude: 0.09 },
-];
-
-const GRAVITY = 9.81;
-
-/** Deep-water wave number and phase speed for a wavelength. */
-const wave = (length: number): { k: number; omega: number } => {
-  const k = (2 * Math.PI) / length;
-  return { k, omega: k * Math.sqrt(GRAVITY / k) };
-};
+export { chop };
 
 /**
- * Surface height (m) at world (x, z); `windFrom` is the wind's origin angle (see core/views).
- * `minLength` leaves out waves shorter than that: the shader fades those with distance, so
- * far-away overlays pass 50 to sit on the long swell they are sure to be above.
- */
-export function waveHeight(x: number, z: number, time: number, windFrom: number, ampScale = 1, minLength = 0): number {
-  let h = 0;
-  for (const w of WAVES) {
-    if (w.length < minLength) continue;
-    const { k, omega } = wave(w.length);
-    const a = windFrom + Math.PI + w.dir;
-    h += w.amplitude * Math.sin(k * (Math.cos(a) * x - Math.sin(a) * z) - omega * time);
-  }
-  return h * ampScale;
-}
-
-/** Waves shorter than this fade out with distance (`lod`) so far water does not shimmer. */
-const SHORT_WAVE = 50;
-
-/**
- * GLSL `float oceanHeight(vec2 p, float lod)` matching `waveHeight` at lod = 1; needs
- * uniforms uTime, uWind, uAmp. `lod` (1 near, 0 far) scales the short waves.
+ * GLSL for the Gerstner sum of `world/sea.ts`. Needs uniforms `uTime`, `uAmp`, `uChop` (see `chop`) and
+ * `uDirs[WAVE_COUNT]` (see `waveDirections`). `oceanWaves(p, lod, disp, nrm, jac)` gives, for the rest position
+ * `p`, the displacement of the surface point, its unit normal and the Jacobian of the horizontal map
+ * (below ~0.7 the crest is pinching: foam). `lod` (1 near, 0 far) scales the short waves down.
  */
 export function waveGlsl(): string {
   const f = (n: number): string => n.toFixed(6);
-  const terms = WAVES.map((w) => {
-    const { k, omega } = wave(w.length);
-    const a = `uWind + ${f(Math.PI + w.dir)}`;
+  const terms = WAVES.map((w, i) => {
+    const t = WAVE_TERMS[i];
+    if (!t) return '';
     const fade = w.length < SHORT_WAVE ? ' * lod' : '';
-    return `  h += ${f(w.amplitude)} * sin(${f(k)} * dot(p, vec2(cos(${a}), -sin(${a}))) - ${f(omega)} * uTime)${fade};`;
+    return `  {
+    vec2 d = uDirs[${i}];
+    float th = ${f(t.k)} * dot(p, d) - ${f(t.omega)} * uTime;
+    float s = sin(th);
+    float c = cos(th);
+    float a = ${f(w.amplitude)} * uAmp${fade};
+    float ka = ${f(t.k)} * a;
+    h += a * s;
+    pull += uChop * a * c * d;
+    slope += ka * c * d;
+    float sc = uChop * ka * s;
+    dxx -= sc * d.x * d.x;
+    dxz -= sc * d.x * d.y;
+    dzz -= sc * d.y * d.y;
+  }`;
   });
-  return `float oceanHeight(vec2 p, float lod) {\n  float h = 0.0;\n${terms.join('\n')}\n  return h * uAmp;\n}`;
+  return `void oceanWaves(vec2 p, float lod, out vec3 disp, out vec3 nrm, out float jac) {
+  float h = 0.0;
+  vec2 pull = vec2(0.0);
+  vec2 slope = vec2(0.0);
+  float dxx = 0.0;
+  float dxz = 0.0;
+  float dzz = 0.0;
+${terms.join('\n')}
+  vec3 tx = vec3(1.0 + dxx, slope.x, dxz);
+  vec3 tz = vec3(dxz, slope.y, 1.0 + dzz);
+  nrm = normalize(cross(tz, tx));
+  jac = (1.0 + dxx) * (1.0 + dzz) - dxz * dxz;
+  disp = vec3(pull.x, h, pull.y);
+}`;
 }

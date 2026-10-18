@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { GameView } from '../core';
-import { CONFIG, clamp } from '../core';
+import { CONFIG } from '../core';
 import type { Ship, ShipLod } from '../ships';
 import { createCrewRenderer } from './crew';
 import { createFleet } from './fleet';
@@ -12,6 +12,7 @@ import { createEffects } from './effects';
 import { rideWaves } from './ride';
 import { createScenery } from './scenery';
 import { createSky } from './sky';
+import { seaAmp } from '../world';
 
 export interface ShipDims {
   length: number;
@@ -166,7 +167,7 @@ export function createSailingView(host: HTMLElement): SailingView {
 
     draw(view): void {
       const { ship, wind, time } = view;
-      const ampScale = clamp(0.6 + wind.speed / 16, 0.6, 1.4);
+      const ampScale = seaAmp(view.seaState);
       const now = performance.now();
       const dt = Math.min((now - lastClock) / 1000, 0.1);
       lastClock = now;

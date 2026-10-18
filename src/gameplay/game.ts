@@ -1,7 +1,7 @@
 import { CONFIG, createRng } from '../core';
 import type { BallView, Controls, GameEvent, GameView, PortView } from '../core';
 import { getDeck, type ShipSpec } from '../ships';
-import { PORTS, getPort, terrainHeight, windAt, type Port } from '../world';
+import { PORTS, getPort, seaStateAt, terrainHeight, windAt, type Port } from '../world';
 import { createExploration } from './exploration';
 import { COMBAT, ballHitZone, cannonsPerSide, fireBroadside, stepBall, type Ball, type Side } from './combat';
 import { stepAffliction, strike } from './damage';
@@ -28,6 +28,8 @@ export interface Game {
     setRigging(fraction: number): void;
     /** Set the player's flooding and fire, 0…1. */
     setAffliction(flooding: number, fire: number): void;
+    /** Force the sea state, 0 (glassy) … 1 (storm); `null` returns to the weather. */
+    setSea(state: number | null): void;
   };
 }
 
@@ -68,6 +70,7 @@ export function createGame(spec: ShipSpec): Game {
   let kills = 0;
   let time = 0;
   let wind = windAt(time);
+  let seaOverride: number | null = null;
   const deck = getDeck(spec.id); // only ships with a walkable GLB deck carry a visible crew
   const crew = deck ? createCrew(deck, crewCountFor(spec.length)) : null;
   const npcs = createNpcFleet({ x: ship.x, z: ship.z }); // patrols around the start, on open water
@@ -238,6 +241,9 @@ export function createGame(spec: ShipSpec): Game {
       setRigging(fraction): void {
         ship.rigging = Math.min(Math.max(fraction, 0), 1);
       },
+      setSea(state): void {
+        seaOverride = state === null ? null : Math.min(Math.max(state, 0), 1);
+      },
       setAffliction(flooding, fire): void {
         ship.flooding = Math.min(Math.max(flooding, 0), 1);
         ship.fire = Math.min(Math.max(fire, 0), 1);
@@ -293,6 +299,7 @@ export function createGame(spec: ShipSpec): Game {
       return {
         time,
         wind,
+        seaState: seaOverride ?? seaStateAt(time, wind.speed),
         others: npcs.view(),
         crew: crew?.view() ?? [],
         ship: playerView(ship, spec, { hp, maxHp, reload }, afloat),

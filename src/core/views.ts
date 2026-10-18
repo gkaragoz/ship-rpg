@@ -192,6 +192,8 @@ export interface GameView {
   time: number;
   ship: ShipView;
   wind: WindView;
+  /** How rough the sea is, 0 (glassy) … 1 (storm): drives the waves, the sky and how the ships handle. */
+  seaState: number;
   /** Ambient ships sailing their patrols (distinct from `enemies`, which fight). */
   others: OtherShipView[];
   crew: CrewView[];

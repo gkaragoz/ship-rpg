@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { WORLD_BOUNDS, terrainHeight } from '../world';
-import { waveGlsl } from './waves';
+import { WAVE_COUNT, chop, waveDirections, waveGlsl } from './waves';
 
 export const SUN_DIR = new THREE.Vector3(-0.45, 0.5, -0.35).normalize();
 export const HORIZON_COLOR = new THREE.Color(0xb7d4e0);
@@ -19,18 +19,22 @@ const TERRAIN_TEX = { width: 1024, height: 640, min: -25, range: 30 };
 
 const vertexShader = /* glsl */ `
 uniform float uTime;
-uniform float uWind;
 uniform float uAmp;
+uniform float uChop;
+uniform vec2 uDirs[${WAVE_COUNT}];
 varying vec3 vWorld;
 varying float vHeight;
+varying vec3 vNormal;
+varying float vJac;
 ${waveGlsl()}
 void main() {
   vec4 w = modelMatrix * vec4(position, 1.0);
   float lod = 1.0 - smoothstep(150.0, 420.0, distance(w.xz, cameraPosition.xz));
-  float h = oceanHeight(w.xz, lod);
-  w.y += h;
+  vec3 disp;
+  oceanWaves(w.xz, lod, disp, vNormal, vJac);
+  w.xyz += disp;
   vWorld = w.xyz;
-  vHeight = h;
+  vHeight = disp.y;
   gl_Position = projectionMatrix * viewMatrix * w;
 }`;
 
@@ -48,9 +52,10 @@ uniform vec2 uTerrainSize;
 uniform vec2 uTerrainScale;
 varying vec3 vWorld;
 varying float vHeight;
+varying vec3 vNormal;
+varying float vJac;
 void main() {
-  vec3 n = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
-  if (n.y < 0.0) n = -n;
+  vec3 n = normalize(vNormal);
   vec3 v = normalize(cameraPosition - vWorld);
   float diff = clamp(dot(n, uSun), 0.0, 1.0);
   float fres = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 3.0);
@@ -139,8 +144,9 @@ export function createOcean(): Ocean {
       polygonOffsetUnits: far ? 2 : 0,
       uniforms: {
         uTime: { value: 0 },
-        uWind: { value: 0 },
         uAmp: { value: 1 },
+        uChop: { value: chop(1) },
+        uDirs: { value: waveDirections(0).map(([x, z]) => new THREE.Vector2(x, z)) },
         uSun: { value: SUN_DIR },
         uDeep: { value: new THREE.Color(0x0e3a55) },
         uShallow: { value: new THREE.Color(0x2f86a0) },
@@ -180,8 +186,10 @@ export function createOcean(): Ocean {
       );
       for (const material of [nearMaterial, farMaterial]) {
         material.uniforms.uTime!.value = time;
-        material.uniforms.uWind!.value = windFrom;
         material.uniforms.uAmp!.value = ampScale;
+        material.uniforms.uChop!.value = chop(ampScale);
+        const dirs = material.uniforms.uDirs!.value as THREE.Vector2[];
+        waveDirections(windFrom).forEach(([x, z], i) => dirs[i]?.set(x, z));
       }
     },
     dispose(): void {

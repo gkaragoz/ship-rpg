@@ -6,3 +6,5 @@ export type { Port } from './ports';
 export { fbm, hash2, valueNoise } from './noise';
 export { NATIONS, getNation } from './nations';
 export type { Nation } from './nations';
+export { SEA_NAMES, SHORT_WAVE, WAVES, WAVE_TERMS, chop, seaAmp, seaName, seaStateAt, waveDirection, waveHeight, waveSlope } from './sea';
+export type { WaveSpec } from './sea';
