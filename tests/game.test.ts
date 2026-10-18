@@ -11,9 +11,11 @@ describe('createGame view', () => {
     const game = createGame(spec);
     game.update(1 / 60, { rudder: 0, sailStep: 0 });
     const v = game.view();
-    expect(v.others).toHaveLength(4);
-    expect(new Set(v.others.map((o) => o.id)).size).toBe(4);
-    expect(v.others.map((o) => o.specId)).toEqual(['tartane', 'sloop', 'brig', 'galleon']);
+    expect(v.others).toHaveLength(12);
+    expect(new Set(v.others.map((o) => o.id)).size).toBe(12);
+    // every patrol sails a real ship that has a GLB model
+    for (const o of v.others) expect(getShipSpec(o.specId), o.specId).toBeDefined();
+    expect(new Set(v.others.map((o) => o.specId)).size).toBeGreaterThanOrEqual(10);
     expect(v.crew).toEqual([]);
   });
 

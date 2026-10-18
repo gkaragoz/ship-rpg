@@ -265,7 +265,8 @@ describe.each(SHIP_SPECS.filter((s) => s.id !== 'tartane').map((s) => s.id))('%s
     expect(length).toBeGreaterThanOrEqual(spec.length);
     expect(length).toBeLessThanOrEqual(spec.length * 1.15 + spec.bowsprit + 1);
     expect(beam).toBeGreaterThanOrEqual(spec.beam * 0.9);
-    expect(beam).toBeLessThanOrEqual(spec.beam * 1.15 + (spec.oars > 0 ? spec.length * 0.4 : 0));
+    // cannon muzzles (0.45 m each side) and the hung anchors stand out of the hull; oars much more
+    expect(beam).toBeLessThanOrEqual(spec.beam * 1.15 + 1.2 + (spec.oars > 0 ? spec.length * 0.4 : 0));
     expect(lo[1] ?? 0).toBeLessThan(0);
   });
 
@@ -278,7 +279,8 @@ describe.each(SHIP_SPECS.filter((s) => s.id !== 'tartane').map((s) => s.id))('%s
       expect(s[2]).toBeGreaterThanOrEqual(0);
     }
     expect(meta.obstacles.filter((o) => o.type === 'circle')).toHaveLength(spec.masts.length);
-    expect(meta.obstacles.filter((o) => o.type === 'rect')).toHaveLength((spec.forecastle ? 1 : 0) + (spec.sterncastle ? 1 : 0));
+    // one rect per castle plus the hatch coaming added to the full-quality model
+    expect(meta.obstacles.filter((o) => o.type === 'rect')).toHaveLength((spec.forecastle ? 1 : 0) + (spec.sterncastle ? 1 : 0) + 1);
   });
 
   it('was built from the current spec (re-run make_ships.py after changing specs.ts)', () => {

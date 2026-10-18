@@ -14,13 +14,21 @@ interface Patrol {
 
 /**
  * Spread from "alongside" to "on the horizon" so the level-of-detail ladder (≈60 m / ≈216 m for a
- * 12 m ship) is visible from the start: the near patrols pass within a few lengths of the player.
+ * 12 m ship, five and eighteen lengths for bigger ones) is visible from the start: the near patrols pass within a few lengths of the player.
  */
 export const PATROLS: readonly Patrol[] = [
   { specId: 'tartane', cx: 0, cz: 0, a: 70, b: 110, phase: 0.4, dir: 1 },
+  { specId: 'lugger', cx: -30, cz: 50, a: 120, b: 90, phase: 1.3, dir: -1 },
   { specId: 'sloop', cx: 40, cz: -60, a: 170, b: 130, phase: 2.2, dir: -1 },
+  { specId: 'schooner', cx: -120, cz: -40, a: 230, b: 170, phase: 3.0, dir: 1 },
   { specId: 'brig', cx: -80, cz: 60, a: 330, b: 260, phase: 4.1, dir: 1 },
+  { specId: 'xebec', cx: 150, cz: -100, a: 300, b: 380, phase: 0.9, dir: -1 },
+  { specId: 'caravel', cx: -200, cz: 150, a: 420, b: 300, phase: 2.7, dir: 1 },
+  { specId: 'pinnace', cx: 60, cz: 200, a: 380, b: 450, phase: 5.0, dir: -1 },
+  { specId: 'corvette', cx: -150, cz: -200, a: 520, b: 400, phase: 3.6, dir: 1 },
   { specId: 'galleon', cx: 120, cz: 90, a: 560, b: 470, phase: 5.4, dir: -1 },
+  { specId: 'frigate', cx: 0, cz: -300, a: 700, b: 520, phase: 1.8, dir: 1 },
+  { specId: 'battleship', cx: -50, cz: 100, a: 820, b: 640, phase: 4.6, dir: -1 },
 ];
 
 /** Cruising speed of a patrol in m/s. */

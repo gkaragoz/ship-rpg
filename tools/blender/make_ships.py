@@ -52,7 +52,7 @@ def darker(hex_color, factor):
 
 def swatches(spec):
     return dict(hull=spec['hullColor'], hull_lower=darker(spec['hullColor'], 0.5), trim=spec['trimColor'],
-                deck=0xB08A58, wood=0x4A3321, sail=0xEFE6CF, dark=0x140E08, flag=0xC0392B)
+                deck=0xB08A58, wood=0x4A3321, sail=0xEFE6CF, dark=0x140E08, flag=0xC0392B, iron=0x3A3A40)
 
 
 def build_lod(level, spec, masts, atlas, mat, glass_mat, root):
@@ -73,6 +73,7 @@ def build_lod(level, spec, masts, atlas, mat, glass_mat, root):
         shipbuilder.build_ports(body, spec)
     if cfg['oars']:
         shipbuilder.build_oars(body, spec)
+    extra = shipbuilder.build_hero(body, spec, masts, cfg) if cfg['hero'] else []
     body.to_object(f"LOD{level}_Body", mat, lod)
 
     pivots = 0
@@ -80,7 +81,7 @@ def build_lod(level, spec, masts, atlas, mat, glass_mat, root):
         for kind, mb in shipbuilder.build_sails(mast, cfg, atlas):
             base = B(mast.base)
             pivot = empty(f"LOD{level}_m{i}_trim-{kind}", lod, base)
-            mb.to_object(f"LOD{level}_m{i}_{kind.capitalize()}Sail", mat, pivot, shift=base)
+            mb.to_object(f"LOD{level}_m{i}_{kind.capitalize()}Sail", mat, pivot, shift=base, smooth=True)
             pivots += 1
 
     lantern = None
@@ -91,7 +92,7 @@ def build_lod(level, spec, masts, atlas, mat, glass_mat, root):
             glass.to_object("LOD0_Glass", glass_mat, lod)
         else:
             glass.bm.free()
-    return lantern
+    return lantern, extra
 
 
 def spec_hash(spec):
@@ -99,7 +100,7 @@ def spec_hash(spec):
     return fnv1a(json.dumps(spec, sort_keys=True, separators=(',', ':'), ensure_ascii=False))
 
 
-def build_meta(spec, masts, report, lantern, budget):
+def build_meta(spec, masts, report, lantern, budget, extra):
     L = spec['length']
     deck = []
     for i in range(15):
@@ -113,6 +114,7 @@ def build_meta(spec, masts, report, lantern, budget):
             run = c['length'] * L + 0.3
             x0, x1 = (-L / 2 - 1, -L / 2 + run) if sign == 1 else (L / 2 - run, L / 2 + 1)
             obstacles.append(dict(type="rect", x0=round(x0, 3), x1=round(x1, 3), z0=-50, z1=50))
+    obstacles += extra
     first = masts[0].base if masts else (0.0, 0.0, 0.0)
     lantern = lantern or (-L / 2, shipbuilder.deck_height(spec, 0), 0.0)
     return dict(id=spec['id'], length=L, beam=spec['beam'], lods=report['lods'], budgets=budget,
@@ -131,10 +133,11 @@ def build_ship(spec_id):
         glass_mat = emissive_material(f"{spec_id}_glass", (1.0, 0.82, 0.48), 3.0)
         root = empty(spec_id)
         masts = [Mast(spec, m) for m in spec['masts']]
-        lantern = None
+        lantern, extra = None, []
         for level in (0, 1, 2):
-            got = build_lod(level, spec, masts, atlas, mat, glass_mat, root)
+            got, more = build_lod(level, spec, masts, atlas, mat, glass_mat, root)
             lantern = lantern or got
+            extra = extra or more
         objs = sc.new_objects()
         lods = {}
         for level in (0, 1, 2):
@@ -149,7 +152,7 @@ def build_ship(spec_id):
         validate_ship(report, budget)
         atlas.save(OUT / f"{spec_id}_atlas.png")
         size = export_glb(OUT / f"{spec_id}.glb", objs, root)
-        meta = build_meta(spec, masts, report, lantern, budget)
+        meta = build_meta(spec, masts, report, lantern, budget, extra)
         meta['bytes'] = size
         write_json(OUT / f"{spec_id}.meta.json", meta)
     return meta

@@ -196,15 +196,16 @@ class MB:
                     fs.append(self.face((idx[(i + 1, j)], idx[(i + 1, j + 1)], idx[(i, j + 1)]), swatch))
         return fs
 
-    def to_object(self, name, material, parent=None, shift=(0, 0, 0)):
-        """Turn the bmesh into an object. `shift` is subtracted from every vertex (pivot-local mesh)."""
+    def to_object(self, name, material, parent=None, shift=(0, 0, 0), smooth=False):
+        """Turn the bmesh into an object. `shift` is subtracted from every vertex (pivot-local mesh);
+        `smooth` shades the surface smoothly (sails), otherwise it stays faceted like the hull."""
         if any(shift):
             bmesh.ops.translate(self.bm, vec=-Vector(shift), verts=self.bm.verts)
         me = bpy.data.meshes.new(name)
         self.bm.to_mesh(me)
         self.bm.free()
         for p in me.polygons:
-            p.use_smooth = False
+            p.use_smooth = smooth
         me.materials.append(material)
         ob = bpy.data.objects.new(name, me)
         bpy.context.scene.collection.objects.link(ob)
