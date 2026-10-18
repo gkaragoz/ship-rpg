@@ -10,6 +10,8 @@ export const ENEMY_HULL_FACTOR = 0.7;
 export interface Enemy {
   id: string;
   spec: ShipSpec;
+  /** Nation id it sails for. */
+  nation: string;
   ship: PlayerShip;
   hp: number;
   maxHp: number;
@@ -25,12 +27,12 @@ export interface Enemy {
 }
 
 /** The enemy fights on the same sailing model as the player, driven by `aiStep`. */
-export function createEnemy(id: string, spec: ShipSpec, x: number, z: number, heading: number): Enemy {
+export function createEnemy(id: string, spec: ShipSpec, x: number, z: number, heading: number, nation = 'pirate'): Enemy {
   const ship = createPlayerShip(x, z, heading);
   ship.sailTarget = 1;
   ship.sailLevel = 1;
   const maxHp = Math.round(spec.stats.hp * ENEMY_HULL_FACTOR);
-  return { id, spec, ship, hp: maxHp, maxHp, reload: { port: COMBAT.enemyReload / 2, starboard: COMBAT.enemyReload / 2 }, sinking: -1, fleeing: false, lostFor: 0, gone: false };
+  return { id, spec, nation, ship, hp: maxHp, maxHp, reload: { port: COMBAT.enemyReload / 2, starboard: COMBAT.enemyReload / 2 }, sinking: -1, fleeing: false, lostFor: 0, gone: false };
 }
 
 /** How many enemies are afloat at once: one at first, a second after 2 kills, a third after 4. */

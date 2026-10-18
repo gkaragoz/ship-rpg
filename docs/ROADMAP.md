@@ -31,10 +31,10 @@
   - [ ] 5a.1d feedback polish (from QA): a "turn broadside" hint and an off-range indicator (which way to turn), arrows for off-screen hits and damage numbers, low-hull alarm, reload-ready click, a volume setting and persisting the mute choice (the mute and aim toggles now show a short notice), reduced-motion option for shake and the hurt flash, colour-blind-safe zones (shape or pulse rate, not only gold vs green), a hint that sound starts on the first key press, ambience variety (creak, rigging)
   - [ ] 5a.1 tests to add: `aimArcs` state selection (gold / green / dim) and dispose, shake restores the camera, HUD flash/marker/glow with a fake view, more `targetInZone` edges (both sides with speed drift, an unarmed ship, a target astern)
   - [ ] 5a.1e runtime QA leftovers: the hit marker is a fixed HUD mark, not at the impact point (a world-space marker would be clearer); zone fore-and-aft is thin (~20 m) so the enemy is rarely inside it: confirm it is as intended; docking and sinking hiding the zones were checked in code only
-  - [ ] 5a.2 enemy behaviour, in three sub-slices (QA once at the end, a commit after each):
+  - [x] 5a.2 enemy behaviour, in three sub-slices (QA once at the end, a commit after each):
     - [x] 5a.2a flee and escape: an enemy below 25% hull breaks off and runs downwind; an enemy that has lost you (over 1.5 km away for 30 s) gives up and is replaced later; the player can escape by outrunning it
     - [x] 5a.2b several enemies: up to three at once as kills mount, each targeted separately (nearest in the HUD, all on the minimap)
-    - [ ] 5a.2c nationality: each enemy flies a flag (English, French, Spanish, Dutch, pirate) on its ship, shown in the target panel; the player flies his own
+    - [x] 5a.2c nationality: each enemy flies a flag (English, French, Spanish, Dutch, pirate) on its ship, shown in the target panel; the player flies his own
   - [ ] 5a.3 damage model: sail and rigging damage reduce speed and turning, leaks, fire
   - [ ] 5a.4 balance (runtime QA: an even Brig-vs-Schooner fight was lost twice, hits cost the target only 2–13% hull; handicap added, needs measuring): headless duel table per ship pairing (win rates), tune reload, damage, spawn; Tartane vs Lugger is a guaranteed loss unless it docks
   - [ ] 5b. Gold wallet and cargo hold (state in gameplay, shown in the HUD), crew count and its effect on reload speed; boarding a defeated ship for loot, crew losses, XP and captain level

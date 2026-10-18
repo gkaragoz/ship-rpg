@@ -76,6 +76,8 @@ export interface EnemyView {
   id: string;
   specId: string;
   name: string;
+  /** Nation id (see `world/nations.ts`). */
+  nation: string;
   x: number;
   z: number;
   heading: number;

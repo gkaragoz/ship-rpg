@@ -24,6 +24,8 @@ const SPAWN_DISTANCE = 650;
 const RESPAWN = 25;
 /** Seconds between one enemy arriving and the next of a group. */
 const STAGGER = 12;
+/** Nations the enemies sail for, in turn: until factions arrive (5e) everyone is hostile. */
+const ENEMY_NATIONS = ['pirate', 'spanish', 'french', 'english', 'dutch'] as const;
 /** Fraction of hull strength a moored ship repairs per second. */
 const REPAIR_RATE = 0.02;
 
@@ -87,7 +89,7 @@ export function createGame(spec: ShipSpec): Game {
       const x = ship.x + Math.cos(angle) * SPAWN_DISTANCE;
       const z = ship.z - Math.sin(angle) * SPAWN_DISTANCE;
       if (terrainHeight(x, z) < -(enemySpec.draft + 8)) {
-        enemies.push(createEnemy(`e${++enemyCounter}`, enemySpec, x, z, angle + Math.PI));
+        enemies.push(createEnemy(`e${++enemyCounter}`, enemySpec, x, z, angle + Math.PI, ENEMY_NATIONS[(enemyCounter - 1) % ENEMY_NATIONS.length]));
         return;
       }
     }
@@ -237,6 +239,7 @@ export function createGame(spec: ShipSpec): Game {
         id: e.id,
         specId: e.spec.id,
         name: e.spec.name,
+        nation: e.nation,
         x: e.ship.x,
         z: e.ship.z,
         heading: e.ship.heading,

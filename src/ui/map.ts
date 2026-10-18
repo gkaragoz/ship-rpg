@@ -1,5 +1,5 @@
 import type { GameView } from '../core';
-import { ISLANDS, PORTS, WORLD_BOUNDS, terrainHeight, type Island } from '../world';
+import { ISLANDS, PORTS, WORLD_BOUNDS, getNation, terrainHeight, type Island } from '../world';
 import './map.css';
 
 export interface MapUi {
@@ -155,8 +155,8 @@ export function createMapUi(host: HTMLElement): MapUi {
         ctx.save();
         ctx.translate(sx(e.x), sy(e.z));
         ctx.rotate(-e.heading);
-        ctx.fillStyle = '#e8402c';
-        ctx.strokeStyle = '#2a0a06';
+        ctx.fillStyle = `#${getNation(e.nation).flag.toString(16).padStart(6, '0')}`;
+        ctx.strokeStyle = '#f3ead2';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(7, 0);

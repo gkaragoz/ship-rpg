@@ -4,6 +4,7 @@ import { createGame } from '../gameplay';
 import { createSailingView } from '../render';
 import { createShip, getShipSpec, type Ship, type ShipSpec } from '../ships';
 import { createHud, createMapUi, createPortPanel } from '../ui';
+import { getNation } from '../world';
 import type { Mode } from './mode';
 
 const PORT = ['KeyA', 'ArrowLeft'];
@@ -23,7 +24,7 @@ const GAME_KEYS = [...PORT, ...STARBOARD, ...MORE_SAIL, ...LESS_SAIL];
 export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () => void): Mode {
   const input = createInput();
   const game = createGame(spec);
-  const ship = createShip(spec);
+  const ship = createShip(spec, { flag: getNation('free').flag }); // the player is a free captain
   const view = createSailingView(host);
   view.setPlayer(ship.root, { length: spec.length, beam: spec.beam });
   const hud = createHud(host, spec.name);
@@ -82,7 +83,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
       if (!es) {
         const enemySpec = getShipSpec(e.specId);
         if (!enemySpec) continue;
-        es = createShip(enemySpec);
+        es = createShip(enemySpec, { flag: getNation(e.nation).flag });
         enemyShips.set(e.id, es);
         view.addActor(e.id, es.root, { length: enemySpec.length, beam: enemySpec.beam });
       }

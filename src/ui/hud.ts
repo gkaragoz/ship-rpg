@@ -1,4 +1,5 @@
 import type { GameView } from '../core';
+import { getNation } from '../world';
 import './hud.css';
 
 export interface Hud {
@@ -77,7 +78,11 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   // Nearest enemy.
   const target = el('div', 'hud-target');
   target.hidden = true;
+  const targetChip = el('span', 'hud-chip');
   const targetName = el('div');
+  targetName.prepend(targetChip);
+  const targetText = el('span');
+  targetName.append(targetText);
   const targetBar = bar('hud-hull');
   target.append(targetName, targetBar.root);
 
@@ -149,7 +154,9 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
       for (const e of view.enemies) if (e.sinking < 0 && (!foe || e.distance < foe.distance)) foe = e;
       target.hidden = !foe || foe.distance > 900 || view.sunk;
       if (foe) {
-        targetName.textContent = `${foe.name}${foe.fleeing ? ' (kaçıyor)' : ''} · ${Math.round(foe.distance)} m · ${bearing(foe.direction).toFixed(0).padStart(3, '0')}°`;
+        const nation = getNation(foe.nation);
+        targetChip.style.background = `#${nation.flag.toString(16).padStart(6, '0')}`;
+        targetText.textContent = `${nation.name} ${foe.name}${foe.fleeing ? ' (kaçıyor)' : ''} · ${Math.round(foe.distance)} m · ${bearing(foe.direction).toFixed(0).padStart(3, '0')}°`;
         targetBar.fill.style.width = pct(foe.hp / foe.maxHp);
       }
 

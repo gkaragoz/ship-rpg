@@ -57,7 +57,7 @@
 .hud-gun.ready > div { background: #ffe066; }
 .hud-panel .hud-bar + .hud-bar { margin-top: 5px; }
 .hud-target {
-  position: absolute; left: 50%; top: 52px; transform: translateX(-50%); width: 240px; padding: 6px 12px; font-size: 13px;
+  position: absolute; left: 50%; top: 52px; transform: translateX(-50%); width: 320px; padding: 6px 12px; font-size: 13px;
   text-align: center; background: rgba(11, 26, 36, 0.8); border: 1px solid #e8643c; border-radius: 4px;
 }
 .hud-target[hidden] { display: none; }
@@ -75,7 +75,7 @@
 .hud-sunk h2 { margin: 0 0 6px; font-size: 44px; color: #ffb199; }
 .hud-sunk p { margin: 0; font-size: 18px; }
 @media (max-width: 700px) {
-  .hud-target { top: 8px; width: 180px; }
+  .hud-target { top: 8px; width: 230px; font-size: 12px; }
 }
 .hud-gun.hot > div { background: #6dff8f; box-shadow: 0 0 6px #6dff8f; }
 
@@ -96,3 +96,4 @@
   .hud-prompt { left: 8px; right: auto; top: 56px; bottom: auto; transform: none; max-width: 55%; white-space: normal; font-size: 13px; padding: 4px 10px; }
   .hud-hitmarker { top: 84px; }
 }
+.hud-chip { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border: 1px solid #f3ead2; border-radius: 2px; vertical-align: -1px; }
