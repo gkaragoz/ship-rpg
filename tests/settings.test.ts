@@ -31,6 +31,7 @@ describe('sanitize', () => {
     expect(s.graphics.antialias).toBe(DEFAULTS.graphics.antialias);
     expect(s.graphics.shadows).toBe('high');
     expect(s.graphics.particles).toBe(0.25);
+    expect(sanitize({ graphics: { toneMapping: 'filmic', exposure: 5 } }).graphics).toMatchObject({ toneMapping: DEFAULTS.graphics.toneMapping, exposure: 2 });
     expect(s.graphics.fpsLimit).toBe(60);
     expect(s.audio).toEqual({ ...DEFAULTS.audio, master: 1, music: 0.25, muted: true });
     expect(s.game.hudScale).toBe(0.7);

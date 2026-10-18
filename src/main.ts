@@ -28,6 +28,8 @@ void Promise.all([loadShipAssets(), loadCrewAssets()]).then(() => {
   root.replaceChildren();
   showGallery();
   const settings = getSettings();
+  // In dev the store is on window, to try settings from the console: __settings.patch({ graphics: { antialias: 'fxaa' } }).
+  if (import.meta.env.DEV) (window as unknown as { __settings?: typeof settings }).__settings = settings;
   let lastRender = 0;
   startLoop({
     update: (dt) => mode?.update(dt),

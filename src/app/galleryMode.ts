@@ -30,7 +30,7 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
   // The panel is created after the view; the view reads its insets lazily.
   const panel: { ui?: GalleryUI } = {};
   const store = getSettings();
-  const view = createGalleryView(host, () => panel.ui?.insets() ?? { left: 0, top: 0, bottom: 0 }, store.get().graphics.water);
+  const view = createGalleryView(host, () => panel.ui?.insets() ?? { left: 0, top: 0, bottom: 0 }, store.get().graphics);
 
   let current: Ship | null = null;
   const ui = createGalleryUI(host, ORDERED.map(toItem), {
@@ -50,12 +50,8 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
   });
   panel.ui = ui;
   const settingsUI = createSettingsUI(host, store);
-  let water = store.get().graphics.water;
   const applySettings = (): void => {
-    if (store.get().graphics.water !== water) {
-      water = store.get().graphics.water;
-      view.setQuality(water);
-    }
+    view.setGraphics(store.get().graphics);
     view.setCameraSensitivity(store.get().game.cameraSensitivity);
     applyGameSettings(store.get().game);
   };

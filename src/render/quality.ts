@@ -10,16 +10,14 @@ export interface Quality {
   grid: number;
   /** Cell size (m) of the finest level; each level further out doubles it. */
   cell: number;
-  /** Highest device pixel ratio the renderer uses. */
-  pixelRatio: number;
   /** Side in texels of the foam and ripple map ships paint into (`wake.ts`). */
   wake: number;
 }
 
 export const QUALITIES: Readonly<Record<QualityName, Quality>> = {
-  low: { name: 'low', grid: 48, cell: 2, pixelRatio: 1, wake: 512 },
-  medium: { name: 'medium', grid: 64, cell: 1.5, pixelRatio: 1.5, wake: 1024 },
-  high: { name: 'high', grid: 96, cell: 1, pixelRatio: 2, wake: 1024 },
+  low: { name: 'low', grid: 48, cell: 2, wake: 512 },
+  medium: { name: 'medium', grid: 64, cell: 1.5, wake: 1024 },
+  high: { name: 'high', grid: 96, cell: 1, wake: 1024 },
 };
 
 export const QUALITY_ORDER: readonly QualityName[] = ['low', 'medium', 'high'];

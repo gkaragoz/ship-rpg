@@ -9,6 +9,7 @@ export type LightQuality = 'low' | 'medium' | 'high';
 export type TextureQuality = 'low' | 'medium' | 'high';
 export type OcclusionMode = 'off' | 'ssao' | 'gtao';
 export type GiMode = 'off' | 'sky' | 'ssgi';
+export type ToneMapping = 'none' | 'aces' | 'agx';
 
 export interface GraphicsSettings {
   /** The preset these values match; `custom` once any one is changed away from every preset. */
@@ -28,6 +29,9 @@ export interface GraphicsSettings {
   ambientOcclusion: OcclusionMode;
   globalIllumination: GiMode;
   bloom: boolean;
+  /** How the bright sky and sun are brought into the screen's range, and the exposure before it (0.5 … 2). */
+  toneMapping: ToneMapping;
+  exposure: number;
   /** Fog and sea reach as a fraction of the default (0.5 … 1.5). */
   viewDistance: number;
   /** Share of spray, smoke and rain particles drawn (0.25 … 1). */
@@ -69,8 +73,8 @@ export interface Settings {
 
 export type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
 
-/** What a preset sets: everything but the label itself, `autoQuality` and `fpsLimit`, which stay as chosen. */
-type PresetValues = Omit<GraphicsSettings, 'preset' | 'autoQuality' | 'fpsLimit'>;
+/** What a preset sets: everything but the label itself, the frame limit, the automatic step-down, tone mapping and exposure, which stay as chosen. */
+type PresetValues = Omit<GraphicsSettings, 'preset' | 'autoQuality' | 'fpsLimit' | 'toneMapping' | 'exposure'>;
 
 export const PRESETS: Readonly<Record<'low' | 'medium' | 'high', PresetValues>> = {
   low: {
@@ -89,7 +93,7 @@ export const PRESETS: Readonly<Record<'low' | 'medium' | 'high', PresetValues>> 
 
 export const DEFAULTS: Settings = {
   version: 1,
-  graphics: { preset: 'medium', ...PRESETS.medium, fpsLimit: 0, autoQuality: true },
+  graphics: { preset: 'medium', ...PRESETS.medium, toneMapping: 'aces', exposure: 1, fpsLimit: 0, autoQuality: true },
   audio: { master: 0.8, sfx: 1, ambience: 0.8, music: 0.6, muted: false },
   game: { hudScale: 1, showHints: true, cameraSensitivity: 1 },
   debug: { overlay: false, detail: 'full' },
@@ -135,6 +139,8 @@ export function sanitize(raw: unknown): Settings {
     ambientOcclusion: oneOf(g.ambientOcclusion, ['off', 'ssao', 'gtao'], d.graphics.ambientOcclusion),
     globalIllumination: oneOf(g.globalIllumination, ['off', 'sky', 'ssgi'], d.graphics.globalIllumination),
     bloom: bool(g.bloom, d.graphics.bloom),
+    toneMapping: oneOf(g.toneMapping, ['none', 'aces', 'agx'], d.graphics.toneMapping),
+    exposure: num(g.exposure, 0.5, 2, d.graphics.exposure),
     viewDistance: num(g.viewDistance, 0.5, 1.5, d.graphics.viewDistance),
     particles: num(g.particles, 0.25, 1, d.graphics.particles),
     fpsLimit: oneOf(g.fpsLimit, [0, 30, 60, 90, 144], d.graphics.fpsLimit),
@@ -170,7 +176,7 @@ export function merge(base: Settings, patch: DeepPartial<Settings>): Settings {
   return sanitize(out);
 }
 
-/** `base` with a graphics preset applied (`autoQuality` and `fpsLimit` are kept). */
+/** `base` with a graphics preset applied (the frame limit, step-down, tone mapping and exposure are kept). */
 export function withPreset(base: Settings, name: 'low' | 'medium' | 'high'): Settings {
   return merge(base, { graphics: { ...PRESETS[name] } });
 }

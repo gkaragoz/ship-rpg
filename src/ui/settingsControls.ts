@@ -59,6 +59,32 @@ export const CONTROLS: readonly Control[] = [
     },
   },
   {
+    tab: 'graphics', kind: 'select', label: 'Kenar yumuşatma', hint: 'MSAA en temizi ama daha pahalı; FXAA ucuzdur.',
+    options: [['off', 'Kapalı'], ['fxaa', 'FXAA'], ['msaa2', 'MSAA 2x'], ['msaa4', 'MSAA 4x'], ['msaa8', 'MSAA 8x']],
+    get: (s) => s.graphics.antialias,
+    set: (v) => ({ graphics: { antialias: v as Settings['graphics']['antialias'] } }),
+  },
+  {
+    tab: 'graphics', kind: 'range', label: 'Çözünürlük ölçeği', hint: 'İç çözünürlük; 100 % altı hızlandırır, üstü keskinleştirir.',
+    min: 0.5, max: 2, step: 0.05, format: percent,
+    get: (s) => s.graphics.renderScale,
+    set: (v) => ({ graphics: { renderScale: v } }),
+  },
+  {
+    tab: 'graphics', kind: 'toggle', label: 'Parlama (bloom)', get: (s) => s.graphics.bloom, set: (v) => ({ graphics: { bloom: v } }),
+  },
+  {
+    tab: 'graphics', kind: 'select', label: 'Ton eşleme', hint: 'Parlak gökyüzü ve güneşi ekran aralığına sığdırır.',
+    options: [['none', 'Kapalı'], ['aces', 'ACES'], ['agx', 'AgX']],
+    get: (s) => s.graphics.toneMapping,
+    set: (v) => ({ graphics: { toneMapping: v as Settings['graphics']['toneMapping'] } }),
+  },
+  {
+    tab: 'graphics', kind: 'range', label: 'Pozlama', min: 0.5, max: 2, step: 0.05, format: (v) => v.toFixed(2),
+    get: (s) => s.graphics.exposure,
+    set: (v) => ({ graphics: { exposure: v } }),
+  },
+  {
     tab: 'graphics', kind: 'select', label: 'Su kalitesi', hint: 'Deniz ağı çözünürlüğü ve gemi izi haritası.',
     options: [['low', 'Düşük'], ['medium', 'Orta'], ['high', 'Yüksek']],
     get: (s) => s.graphics.water,

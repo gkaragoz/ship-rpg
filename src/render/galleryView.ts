@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createEnvironment } from './environment';
-import { QUALITIES, type QualityName } from './quality';
+import { createPipeline } from './pipeline';
+import { QUALITIES } from './quality';
+import type { GraphicsSettings } from '../settings';
 import { rideWaves } from './ride';
 import { shipStamps, type Stamp } from './wakeStamps';
 import { WORLD_BOUNDS, seaAmp } from '../world';
@@ -12,8 +14,8 @@ export interface GalleryView {
   setAutoRotate(on: boolean): void;
   /** Camera orbit and zoom speed, 1 is the default. */
   setCameraSensitivity(factor: number): void;
-  /** Switch graphics quality (sea mesh resolution, pixel ratio): the same settings as at sea. */
-  setQuality(quality: QualityName): void;
+  /** Apply the graphics settings: the same as at sea. */
+  setGraphics(graphics: GraphicsSettings): void;
   update(dt: number): void;
   render(): void;
   dispose(): void;
@@ -36,13 +38,10 @@ export interface Insets {
   bottom: number;
 }
 
-const NO_INSETS: Insets = { left: 0, top: 0, bottom: 0 };
-
 /** Orbit-camera stage in the same sea and sky as the sailing view, with a ship riding the waves. */
-export function createGalleryView(host: HTMLElement, getInsets: () => Insets = () => NO_INSETS, quality: QualityName = 'medium'): GalleryView {
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  let preset = QUALITIES[quality];
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
+export function createGalleryView(host: HTMLElement, getInsets: () => Insets, graphics: GraphicsSettings): GalleryView {
+  const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  let preset = QUALITIES[graphics.water];
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
@@ -65,10 +64,11 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets = (
     const i = getInsets();
     return { left: Math.min(i.left, w * 0.4), top: Math.min(i.top, h * 0.3), bottom: Math.min(i.bottom, h * 0.45) };
   };
+  const pipeline = createPipeline(renderer, scene, camera, graphics);
   const resize = (): void => {
     const w = Math.max(host.clientWidth, 1);
     const h = Math.max(host.clientHeight, 1);
-    renderer.setSize(w, h);
+    pipeline.setSize(w, h);
     camera.aspect = w / h;
     // Shift the image so the free area, not the whole canvas, is centred.
     const { left, top, bottom } = clampInsets(w, h);
@@ -120,11 +120,12 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets = (
     setAutoRotate(on): void {
       controls.autoRotate = on;
     },
-    setQuality(next): void {
-      preset = QUALITIES[next];
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
-      resize();
-      env.setQuality(preset);
+    setGraphics(next): void {
+      pipeline.apply(next);
+      if (QUALITIES[next.water] !== preset) {
+        preset = QUALITIES[next.water];
+        env.setQuality(preset);
+      }
     },
     update(dt): void {
       elapsed += dt;
@@ -133,18 +134,20 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets = (
       controls.update();
     },
     render(): void {
+      renderer.info.reset();
       const now = performance.now();
       const dt = Math.min((now - lastRender) / 1000, 0.1);
       lastRender = now;
       stamps.length = 0;
       if (subject) shipStamps({ x: GALLERY_CENTER.x, z: GALLERY_CENTER.z, heading: 0, speed: 0, length: dims.length, beam: dims.beam, sinking: -1 }, dt, GALLERY_SEA, stamps);
       env.update({ camera, time: elapsed, dt, windFrom: GALLERY_WIND_FROM, seaState: GALLERY_SEA, stamps });
-      renderer.render(scene, camera);
+      pipeline.render();
     },
     dispose(): void {
       observer.disconnect();
       controls.dispose();
       env.dispose();
+      pipeline.dispose();
       renderer.dispose();
       renderer.forceContextLoss(); // release the WebGL context; browsers cap how many stay alive
       renderer.domElement.remove();

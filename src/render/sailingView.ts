@@ -6,7 +6,9 @@ import type { Ship, ShipLod } from '../ships';
 import { createCrewRenderer } from './crew';
 import { createFleet } from './fleet';
 import { createEnvironment } from './environment';
-import { QUALITIES, type QualityName } from './quality';
+import { createPipeline } from './pipeline';
+import { QUALITIES } from './quality';
+import type { GraphicsSettings } from '../settings';
 import { createAimArcs } from './aimArcs';
 import { createDamageNumbers } from './damageNumbers';
 import { createEffects } from './effects';
@@ -46,8 +48,8 @@ export interface SailingView {
   setLodOverride(lod: ShipLod | null): void;
   /** Show or hide the gun landing zones. */
   setAimVisible(on: boolean): void;
-  /** Switch graphics quality (sea mesh resolution, pixel ratio). */
-  setQuality(quality: QualityName): void;
+  /** Apply the graphics settings (sea quality, antialiasing, render scale, tone mapping, bloom). */
+  setGraphics(graphics: GraphicsSettings): void;
   /** Camera orbit and zoom speed, 1 is the default. */
   setCameraSensitivity(factor: number): void;
   /** Show another ship (an enemy) under `id`; the ids come from `GameView.enemies`. */
@@ -61,10 +63,9 @@ export interface SailingView {
 const UP = new THREE.Vector3(0, 1, 0);
 
 /** Open-sea scene: waves, sky and a chase camera that follows the player's ship. */
-export function createSailingView(host: HTMLElement, quality: QualityName = 'medium'): SailingView {
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  let preset = QUALITIES[quality];
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
+export function createSailingView(host: HTMLElement, graphics: GraphicsSettings): SailingView {
+  const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' }); // antialiasing is the pipeline's job
+  let preset = QUALITIES[graphics.water];
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
@@ -94,10 +95,11 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
   controls.enableDamping = true;
   controls.maxPolarAngle = Math.PI / 2 - 0.04;
 
+  const pipeline = createPipeline(renderer, scene, camera, graphics);
   const resize = (): void => {
     const w = Math.max(host.clientWidth, 1);
     const h = Math.max(host.clientHeight, 1);
-    renderer.setSize(w, h);
+    pipeline.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   };
@@ -158,11 +160,12 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
       controls.zoomSpeed = factor;
     },
 
-    setQuality(next): void {
-      preset = QUALITIES[next];
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
-      resize();
-      env.setQuality(preset);
+    setGraphics(next): void {
+      pipeline.apply(next);
+      if (QUALITIES[next.water] !== preset) {
+        preset = QUALITIES[next.water];
+        env.setQuality(preset);
+      }
     },
 
     addActor(id, model, dims): void {
@@ -179,6 +182,7 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
     },
 
     draw(view): void {
+      renderer.info.reset(); // the counters cover the whole frame, wake and post passes included
       const { ship, wind, time } = view;
       const ampScale = seaAmp(view.seaState);
       const now = performance.now();
@@ -255,7 +259,7 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
       shakeOffset.set((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)).multiplyScalar(shake * 1.6);
       camera.position.add(shakeOffset);
       try {
-        renderer.render(scene, camera);
+        pipeline.render();
       } finally {
         camera.position.sub(shakeOffset); // never leave the shake on the camera, even if drawing throws
       }
@@ -267,6 +271,7 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
       crew?.dispose();
       controls.dispose();
       env.dispose();
+      pipeline.dispose();
       scenery.dispose();
       effects.dispose();
       aim.dispose();

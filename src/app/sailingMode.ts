@@ -35,7 +35,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   const urlQuality = new URLSearchParams(window.location.search).has('quality');
   const autoQuality = createAutoQuality();
   let lastRender = performance.now();
-  const view = createSailingView(host, store.get().graphics.water);
+  const view = createSailingView(host, store.get().graphics);
   view.setPlayer(ship.root, { length: spec.length, beam: spec.beam });
   const hud = createHud(host, spec.name);
   // Enemy ships: a model per id the game reports, created on first sight and dropped when gone.
@@ -49,13 +49,9 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     onOpenChange: (open) => (paused = open),
   });
   // Settings reach the view, the sound and the page whenever they change (and once now).
-  let water = store.get().graphics.water;
   const applySettings = (): void => {
     const s = store.get();
-    if (s.graphics.water !== water) {
-      water = s.graphics.water;
-      view.setQuality(water);
-    }
+    view.setGraphics(s.graphics);
     audio.setVolumes(s.audio);
     view.setCameraSensitivity(s.game.cameraSensitivity);
     applyGameSettings(s.game);
