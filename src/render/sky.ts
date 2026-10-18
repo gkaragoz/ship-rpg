@@ -91,7 +91,8 @@ export function createSky(): Sky {
       u.uCover!.value = look.cover;
       u.uStorm!.value = look.storm;
       // clouds blow the way the wind blows
-      (u.uDrift!.value as THREE.Vector2).set(Math.cos(windFrom + Math.PI) * time * 0.004, -Math.sin(windFrom + Math.PI) * time * 0.004);
+      // (the offset is added to the lookup, so the pattern moves the other way: with the wind)
+      (u.uDrift!.value as THREE.Vector2).set(-Math.cos(windFrom + Math.PI) * time * 0.004, Math.sin(windFrom + Math.PI) * time * 0.004);
     },
     dispose(): void {
       geometry.dispose();

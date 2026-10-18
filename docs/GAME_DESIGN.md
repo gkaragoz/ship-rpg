@@ -22,8 +22,9 @@ Planned in phases, see `ROADMAP.md`.
 - Wind: 8 ± 3 ± 1 m/s (about 4–12), direction swings about ±37° (periods 97 s and 31 s). Wind factor is clamped to 0.3–1.5 and speed is capped at 1.15× top, so wind above ~9 m/s adds nothing on a good point of sail.
 - Easing: sail change 0.5/s, rudder 2/s, acceleration 0.35/s, drag 0.15/s (about 3 s up, 7 s down). Rudder use costs 5% speed per second at full lock.
 - Heel: 0.14 rad × sail level × sin(wind angle) × wind factor; lean out of turns 0.06 rad.
-- Waves: the sea state (0 glassy … 1 storm, from the wind plus rare storm cells, see `SEA.md`) scales amplitude 0.4–2.6×; the ship takes 80% of the pitch and 60% of the wave roll.
-- Camera: mouse drag and wheel orbit the ship (0.7–8× ship length); the camera swings with the ship's heading changes but is not pulled back behind it after a manual orbit.
+- Waves: the sea state (0 glassy … 1 storm, from the wind plus rare storm cells, see `SEA.md`) scales amplitude 0.4–2.6×. Ships ride them as springs (`gameplay/buoyancy.ts`): heave follows the mean surface under the hull, pitch 80% and wave roll 60% of the slope, with natural periods that grow with length (12 m: heave ~3.8 s; 64 m: ~11.6 s), so small ships follow every crest and big ones swing slowly; a moored ship feels 30% of the swell.
+- **Sea state effects** (none below 0.3, full at 1; the duel simulator and `docs/BALANCE.md` assume fair weather): head seas cost up to 22% speed × a size factor (30 m / length, 0.5–1.6), turning up to 20%, ships with freeboard under ~2.1 m take green water over the bow (up to 0.02 flooding/s, pumps clear 0.003/s), and a rolling hull widens its broadside's scatter up to ~1.5×. Sea state comes from the wind plus rare storm cells (first after ~17 min, storms about a tenth of the time); the HUD shows it (Sakin … Fırtına), ambience gets louder, and `?sea=0…1` / `__game.dev.setSea(x)` force it.
+- Camera: mouse drag and wheel orbit the ship (0.7–14× ship length); the camera swings with the ship's heading changes but is not pulled back behind it after a manual orbit.
 - Names: `ShipView.knots` is the original game's speed unit, not real knots.
 - Language: the in-game UI text is Turkish; docs and code are English. Localisation is not planned yet.
 - Known simplifications: no tacking penalty, leeway or luffing in irons (sails brace but do not flap).

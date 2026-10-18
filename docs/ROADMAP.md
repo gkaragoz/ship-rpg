@@ -8,16 +8,16 @@
 - [x] 2e. Hero details on LOD0 (muzzles, rudder, anchors, ratlines, hatch, smooth sails) and a 12-ship NPC fleet
 - [x] 2g. Quality parity: all 16 ships come from the generic builder with the same LOD0 extras (tartane regenerated; deck seams, plank lines, rivets, barrels, lantern post added to every ship).
 - [ ] 2f. Per-ship polish (figureheads, boats, stern galleries), lazy GLB loading, NPC steering instead of fixed ellipses (patrols can currently overlap)
-- [ ] 3b. Production sea (`docs/SEA.md`): [x] Gerstner waves + sea state, [x] clip-map mesh + quality presets (539k → 124k triangles), [ ] shading, foam, storm look, [ ] ship buoyancy and sea-state handling, [ ] wake and bow wave, [ ] final perf comparison
+- [x] 3b. Production sea (`docs/SEA.md`): Gerstner waves + sea state, clip-map mesh + quality presets (539k → 124k triangles), shading/foam/clouds/storm look, ship buoyancy springs and sea-state handling, wake map + bow wave + spray. Open: aim zones ignore the gun scatter of a rolling hull; detail-layer count and MSAA are not quality settings yet; frame rate on a real mid-range GPU is unmeasured (the dev machine runs at its 165 fps cap)
 - [x] 3. Ocean + wind + playable ship (wave ocean, sky, wind and polar, chase camera, HUD)
-  - [ ] polish: ship wake and foam
+  - [x] polish: ship wake and foam (3b)
   - [ ] polish: sails luff when in irons
   - [ ] polish: sound (wind, water, creak)
   - [ ] tuning pass on turn rate, acceleration and speed scale by playing
   - [ ] tests for HUD bearing maths and the wave-riding sampling
-  - [ ] sea detail: add a fine normal layer and foam (smooth analytic normals and per-wave distance fade done in 3b)
+  - [x] sea detail: fine normal layers, whitecaps and wind streaks, per-wave distance fade (3b)
   - [ ] touch controls (no on-screen steering, sails or exit on mobile yet)
-  - [ ] measure frame rate on a real browser/GPU (the embedded pane throttles rAF, so 60 fps is unverified; the sea is now a ~47k-triangle clip-map, see 3b)
+  - [ ] measure frame rate on a real browser/GPU (the embedded pane throttles rAF, so 60 fps is unverified; the sea is now a clip-map of ~26k / 47k / 104k triangles on low / medium / high, see 3b)
 - [x] 4. Islands, ports, navigation (11 ports on 8 islands, grounding, docking, fog-of-war chart and minimap)
   - [ ] polish: harbour town detail (forts, docks, ships at anchor), beach waves
   - [ ] polish: coast sounding/depth warning on the HUD

@@ -49,7 +49,7 @@ void main() {
   vec2 wd = uDirs[0];
 
   // Two drifting detail layers tilt the smooth wave normal; they fade a little with distance.
-  vec4 n1 = texture2D(uNoise, vWorld.xz / 13.0 + wd * uTime * 0.045);
+  vec4 n1 = texture2D(uNoise, vWorld.xz / 13.0 - wd * uTime * 0.045);
   vec4 n2 = texture2D(uNoise, mat2(0.8, 0.6, -0.6, 0.8) * vWorld.xz / 4.3 + vec2(wd.y, -wd.x) * uTime * 0.07 + 0.37);
   float detail = (0.3 + 0.9 * uSea) * (0.4 + 0.6 * (1.0 - smoothstep(150.0, 1000.0, dist)));
   vec2 tilt = ((n1.gb - 0.5) + 0.7 * (n2.gb - 0.5)) * detail;
@@ -88,7 +88,7 @@ void main() {
   float pinch = smoothstep(0.6, 0.22, vJac);
   float caps = clamp(pinch * (0.5 + 1.5 * smoothstep(0.4, 0.9, h01)) * seaF * 1.2 - (1.0 - breakup) * 0.7, 0.0, 1.0);
   vec2 sp = vec2(dot(vWorld.xz, wd) / 42.0, dot(vWorld.xz, vec2(-wd.y, wd.x)) / 4.0);
-  float streak = smoothstep(0.62, 0.92, texture2D(uNoise, sp + vec2(uTime * 0.01, 0.0)).r) * smoothstep(0.55, 0.9, uSea) * smoothstep(0.3, 0.7, h01) * 0.4;
+  float streak = smoothstep(0.62, 0.92, texture2D(uNoise, sp - vec2(uTime * 0.01, 0.0)).r) * smoothstep(0.55, 0.9, uSea) * smoothstep(0.3, 0.7, h01) * 0.4;
   float pulse = 0.5 + 0.5 * sin(depth * 3.0 - uTime * 1.3 + breakup * 4.0);
   float shore = (1.0 - smoothstep(0.2 + 0.5 * breakup, 1.8, depth)) * (0.55 + 0.45 * pulse);
   float trail = clamp(wk.r * 1.15 - (1.0 - breakup) * 0.4, 0.0, 1.0);

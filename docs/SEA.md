@@ -29,11 +29,25 @@ Stylised but rich: smooth analytic wave normals plus two scrolling detail layers
 ## Ships on the sea (`gameplay/buoyancy.ts`)
 - **Motion.** Every simulated hull (player and enemies) has a `Body`: heave, pitch and wave roll are springs that chase the surface sampled under the bow, stern and both sides (`waveHeight`), stepped on the fixed 60 Hz game step. The natural periods grow with length (`periods`: a 12 m tartane about 3.8 s heave, a 64 m battleship 11.6 s), so small ships follow every crest and big ones filter the chop and swing slowly. A moored hull feels 30 % of the swell. `GameView.ship/enemies` carry `heave`, `pitch`, `waveRoll`; `render/ride.ts` only draws them (ambient patrol ships still sample the waves in the renderer).
 - **Handling** (`seaEffects`, passed to `stepPlayerShip`; the duel simulator passes none, so `docs/BALANCE.md` is unchanged). Nothing changes below sea state 0.3. Above it: head seas cost up to 22 % of speed (× a size factor: small ships suffer more, large ones less), turning is blunted up to 20 %, and ships with low freeboard take green water over the bow (flooding, more than the pumps clear): the tartane in a full storm, never a battleship.
-- **Gunnery.** `gunScatter`: a rolling, pitching hull widens its broadside's sideways spread by up to ~1.5× in a storm; fair weather is unaffected. (The aim-zone display does not include it yet.)
+- **Gunnery.** `gunScatter`: a rolling, pitching hull widens its broadside's sideways spread by up to ~1.5× in a storm; fair weather is unaffected. (The aim-zone display does not include it yet: in a storm it overstates accuracy.)
+- **Green water** applies to every ship at sea (enemies too, and a ship lying stopped), costs hull through the existing flooding drain and slows the ship to 55 % at full flooding; the crew's pumps (0.003/s) cannot keep up in a full storm, so a low ship must run before the sea or reach harbour.
+- **Wake range.** The map covers 180 m around the camera; zoomed far out, the player's own wake is not painted.
 - **HUD and sound.** The panel shows the sea (`Sakin … Fırtına`, red in a storm); the ambience gets louder with the sea state.
 
 ## Ships and water (`render/wake.ts`, `wakeStamps.ts`)
-- **Wake map.** A 360 m square of sea around the camera is kept as a half-float ping-pong render target (512² on low, 1024² on medium/high): **R foam, G ripple height (m)**. Each frame a pass scrolls it with the camera (snapped to texels), fades the foam (0.45 /s) and the ripples (1.6 /s) and spreads both a little; then ships and splashes are painted in as soft instanced ellipses (one draw call, ≤ 96 stamps). Without half-float render targets (`EXT_color_buffer_float`) the map is switched off and the rest still works.
+- **Wake map.** A 360 m square of sea around the camera is kept as a half-float ping-pong render target (512² on low, 1024² on medium/high): **R foam, G ripple height (m)**. Each frame a pass scrolls it with the camera (snapped to texels), fades the foam (0.45 /s) and the ripples (1.6 /s) and spreads both a little; then ships and splashes are painted in as soft instanced ellipses (one draw call, ≤ 96 stamps). Without half-float render targets (`EXT_color_buffer_float` or `EXT_color_buffer_half_float`) the map is switched off and the rest still works.
 - **Stamps** (`shipStamps`, per frame so they are frame-rate independent): a foam ring along the waterline, a **bow wave** (a crest pushed up in front with foam), a **stern wash** (a trough and lots of foam, wider than the hull) and two arms behind, all scaled by speed and sea state; a foundering hull churns a disc of foam; splashes, hits and sinkings paint one-off bursts. Player, enemies and patrol ships all take part.
 - **In the shader** the map lifts and lowers the surface (vertex), adds foam through a noise breakup and tilts the normals along the ripples (fragment).
 - **Spray.** `effects.spray` throws sprites up and aside at the bow of every ship under way, more with speed and in a rough sea.
+
+## Performance: before and after
+Measured with `?perf` in the embedded browser pane (same scene, player under way, 12 patrol ships, crew aboard). The dev machine runs at its 165 fps display cap before and after, so frame time is not a discriminating number here; triangles and draw calls are.
+
+| | triangles | draw calls | sea mesh |
+|---|---|---|---|
+| Before (two flat grids) | 539,370 | 62 | ~462k triangles |
+| low | ~105k | ~108 | ~26k |
+| medium (default) | ~125k | ~106 | ~47k |
+| high | ~183k | ~103–115 | ~104k |
+
+The wake pass adds two small render-target passes plus one instanced draw per frame (1024² half float on medium/high, 512² on low); the sea pixel shader is heavier than before (detail layers, wake lookups), which is why the quality preset scales the pixel ratio and the automatic step-down exists. Not yet measured on a mid-range GPU.
