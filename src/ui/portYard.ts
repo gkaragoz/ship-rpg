@@ -1,14 +1,8 @@
 import type { GameView, PortCommand } from '../core';
 import { el } from './dom';
+import { reasonText } from './portMarket';
 
 const gold = (n: number): string => Math.round(n).toLocaleString('tr-TR');
-
-const REASONS: Record<string, string> = {
-  'no-gold': 'Altının yetmiyor',
-  'hold-too-small': 'Ambar küçük: önce yükü sat',
-  'same-ship': 'Bu senin geminin kendisi',
-  'not-sold': 'Bu tersane yapmıyor',
-};
 
 /** The shipyard tab: repair the ship, and buy another (the yard buys yours in part exchange). */
 export function createYardTab(send: (cmd: PortCommand) => void): { root: HTMLElement; update(view: GameView): void } {
@@ -50,15 +44,18 @@ export function createYardTab(send: (cmd: PortCommand) => void): { root: HTMLEle
       if (!yard) return;
       if (key !== yard.offers.map((o) => o.specId).join()) build(view);
       info.textContent = `Gemin ${view.ship.name}: tersane ${gold(yard.tradeIn)} altına alır · tam onarım ${gold(yard.repairCost)} altın`;
-      repair.disabled = yard.repairCost <= 0;
+      repair.disabled = yard.repairCost <= 0 || yard.repairCost > view.captain.gold;
+      repair.title = yard.repairCost > view.captain.gold ? reasonText({ ok: false, reason: 'no-gold' }) : '';
       for (const r of rows) {
         const o = yard.offers.find((x) => x.specId === r.id);
         if (!o) continue;
         r.price.textContent = gold(o.price);
         r.net.textContent = gold(o.net);
+        r.net.classList.toggle('port-refund', o.net < 0);
         r.row.classList.toggle('current', o.current);
         r.buy.disabled = !!o.reason;
-        r.buy.title = o.reason ? (REASONS[o.reason] ?? 'Olmaz') : `${gold(o.net)} altına al`;
+        const trimmed = o.trim > 0 ? ` · ${o.trim} tayfa terhis edilir` : '';
+        r.buy.title = o.reason ? reasonText({ ok: false, reason: o.reason }) : (o.net < 0 ? `${gold(-o.net)} altın alırsın` : `${gold(o.net)} altına al`) + trimmed;
         r.buy.textContent = o.current ? 'Senin' : 'Satın al';
       }
     },

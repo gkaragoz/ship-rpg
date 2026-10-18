@@ -29,9 +29,22 @@ describe('the yard', () => {
     const st = newGameState(spec('brig'));
     expect(repairCost(st, spec('brig'))).toBe(0);
     st.ship.hp = spec('brig').stats.hp / 2;
-    expect(repairCost(st, spec('brig'))).toBe(10000);
+    expect(repairCost(st, spec('brig'))).toBe(12000);
     st.ship.rigging = 0;
-    expect(repairCost(st, spec('brig'))).toBe(14000);
+    expect(repairCost(st, spec('brig'))).toBe(16000);
+  });
+
+  it('mending a ship before selling it never pays: repair costs at least what it adds to the trade-in', () => {
+    for (const s of SHIP_SPECS) {
+      for (const share of [0, 0.25, 0.5, 0.9]) {
+        const st = newGameState(s);
+        st.ship.hp = s.stats.hp * share;
+        const before = tradeInValue(st, s);
+        const cost = repairCost(st, s);
+        st.ship.hp = s.stats.hp;
+        expect(tradeInValue(st, s) - before, `${s.id} ${share}`).toBeLessThanOrEqual(cost);
+      }
+    }
   });
 
   it('refuses what the yard does not build, the same ship, a hold too small, and too little gold', () => {
@@ -114,6 +127,29 @@ describe('in the game', () => {
     expect(game.spec.id).toBe('tartane');
     const small = dockedAt('douwesen-pirates', (s) => (s.captain.gold = 1e7));
     expect(small.command({ type: 'buyShip', specId: 'galleon' }).reason).toBe('not-sold');
+  });
+
+  it('a repair needs the gold, and an arriving short-handed ship gets volunteers', () => {
+    const poor = dockedAt('douwesen', (s) => {
+      s.ship.hp = 1;
+      s.captain.gold = 0;
+      s.crew = 1;
+    });
+    expect(poor.command({ type: 'repair' }).reason).toBe('no-gold');
+    expect(poor.view().company.count).toBe(Math.ceil(spec('tartane').stats.crew * 0.25)); // a port finds a quarter of a crew
+    expect(poor.view().company.count).toBeGreaterThanOrEqual(3);
+  });
+
+  it('the offer says how many sailors a smaller ship would send ashore, and a swap keeps heading and place', () => {
+    const game = dockedAt('redmond', (s) => ((s.captain.gold = 1e7), (s.ship.specId = 'brig'), (s.crew = 150)));
+    const offers = game.view().port!.shipyard.offers;
+    expect(offers.find((o) => o.specId === 'sloop')!.trim).toBe(50);
+    expect(offers.find((o) => o.specId === 'galleon')!.trim).toBe(0);
+    const before = game.view().ship;
+    game.command({ type: 'buyShip', specId: 'sloop' });
+    const after = game.view().ship;
+    expect([after.x, after.z, after.heading]).toEqual([before.x, before.z, before.heading]);
+    expect(game.view().company.count).toBe(100);
   });
 
   it('a paid repair mends the hull and the rigging, and the yard shows its price', () => {

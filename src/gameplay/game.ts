@@ -23,6 +23,7 @@ import { restoreShip, boardingView, captainView, cargoView, companyView, snapsho
 import { runCommand, servicesView } from './harbour';
 import { runYard } from './shipyard';
 import { changeClock } from './clockState';
+import { COMPANY } from './company';
 import { createDesk } from './desk';
 import { awardXp, killXp } from './plunder';
 
@@ -111,7 +112,10 @@ export function createGame(init: ShipSpec | GameState): Game {
     const n = dockedAt ? null : nearest();
     dockedAt = n && canDock(n.distance) ? n.port : null;
     ship.docked = !!dockedAt;
-    if (dockedAt) ship.speed = 0;
+    if (dockedAt) {
+      ship.speed = 0;
+      st.crew = Math.max(st.crew, Math.ceil(spec.stats.crew * COMPANY.volunteers));
+    }
   };
 
   // --- enemies -----------------------------------------------------------------------------

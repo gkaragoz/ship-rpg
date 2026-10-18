@@ -9,8 +9,8 @@ export const YARD = {
   goldPerPrice: 1000,
   /** The yard buys your ship for this share of its price, scaled by its condition (hull share × 0.6 + 0.4). */
   tradeInShare: 0.5,
-  /** Repair costs this share of the price for a hull from 0 to full, and a little for the rigging. */
-  hullRepairShare: 0.25,
+  /** Repair costs this share of the price for a hull from 0 to full (never less than what the yard adds to its offer for your ship, so mending before selling does not pay), and a little for the rigging. */
+  hullRepairShare: 0.3,
   riggingRepairShare: 0.05,
 } as const;
 
@@ -69,6 +69,7 @@ export function shipyardView(st: GameState, current: ShipSpec, portId: string): 
       hold: s.stats.hold,
       crew: s.stats.crew,
       cannons: s.stats.cannons,
+      trim: Math.max(0, st.crew - s.stats.crew),
       current: s.id === current.id,
       reason: reason ?? undefined,
     };

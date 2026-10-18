@@ -323,6 +323,8 @@ export interface ShipOfferView {
   hold: number;
   crew: number;
   cannons: number;
+  /** Sailors who would have to leave: the new ship's company is smaller than the crew aboard. */
+  trim: number;
   /** This is the ship you sail. */
   current: boolean;
   /** Why it cannot be bought now: not-sold, same-ship, hold-too-small or no-gold. */

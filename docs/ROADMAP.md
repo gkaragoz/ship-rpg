@@ -33,7 +33,7 @@
   - [ ] chart: fixed extent clips the ship marker near the south edge; no touch way to close it
   - [ ] runtime check of grounding in the browser (covered by unit tests only; upwind approaches end in irons)
   - [ ] ports feel empty: NPC ships sailing between islands (phase 5)
-  - [ ] harbour services (market, shipyard to buy/switch ships, tavern) behind the placeholder panel (phase 5)
+  - [x] harbour services (market, shipyard to buy/switch ships, tavern) behind the port panel (5c, 5d)
   - [ ] tests: HUD bearing maths now also cover the nearest-port bearing; `createGame` dock speed limit; reachability of every anchorage for the deepest keel
 - [ ] 5. Combat, trade, RPG layer, in slices (each ends with tests, docs, QA and a commit):
   - [x] 5a. Broadside cannons and one enemy ship. Done when: the player can fire either broadside (Q/E) with a visible reload, see balls, smoke and splashes, damage an enemy that hunts and fires back, sink it, be sunk, and restart (R); docking is F and a moored ship is safe and repairs.
@@ -53,7 +53,7 @@
     - [ ] 5a.2e left from QA: HUD and map tests with a fake view; an escape rule that works for slower ships (done in 5a.4c by the speed cap: a slower runner is hunted by nothing faster; an equal-speed chase simply goes on, see BALANCE.md); no reward yet for kill vs escape; enemy hull below 25% never recovers; a cornered fleeing enemy cannot fire; killing was slow (fixed by the 5a.4 tuning: decisive duels in 60–160 s)
   - [ ] 5a.5 follow-ups from the balance work: equal-speed chases never end (the enemy does not give up and cannot catch you either: decide a pursuit timeout or a visibility rule); the guard has no upper bound on win rates (Brig, Corvette, Frigate, Pinnace win 90–100% as a bot); fights are 1v1 in the sim but up to 3 in the game; the picker repeats a type for Barque, Caravel, Galleon and Battleship; re-measure after 5a.3 (damage model) and 5b (crew changes reload); big slow-turning ships still depend on their broadside geometry; a human playtest to calibrate the bot-vs-human gap; the Tartane has no way to fight (decide: boarding in 5b?)
   - [x] 5a.3 damage model, in five sub-slices (a commit after each, QA once at the end; the balance guard and `docs/BALANCE.md` are re-measured in 5a.3e):
-    - [x] 5a.3a hit zones and rigging: where a ball strikes decides what it damages (waterline / hull / rigging by its height); rigging hits wreck sails, which cut speed and turning for both sides; repair is slow at sea and fast in harbour
+    - [x] 5a.3a hit zones and rigging: where a ball strikes decides what it damages (waterline / hull / rigging by its height); rigging hits wreck sails, which cut speed and turning for both sides; repair is slow at sea and fast in harbour (hull repair at the quay is now slow and paid at the shipyard, 5d)
     - [x] 5a.3b leaks: waterline hits open leaks that flood the ship (hull points drain, speed drops) until pumped out or repaired
     - [x] 5a.3c fire: hits can start fires that burn hull and sails until they burn out, are put out, or the ship docks
     - [x] 5a.3d visuals: torn sails, a ship sitting low and listing when flooded, flames and smoke on the model, HUD Su/Yangın rows, the enemy's rigging bar and its flooding/fire in the target panel

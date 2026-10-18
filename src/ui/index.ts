@@ -11,4 +11,5 @@ export type { WorldControls } from './weatherPanel';
 export { createSettingsUI } from './settings';
 export type { SettingsHandlers, SettingsUI } from './settings';
 export { createPortPanel } from './portPanel';
+export { reasonText } from './portMarket';
 export type { PortPanel } from './portPanel';

@@ -76,6 +76,7 @@ export function reasonText(r: CommandResult): string {
     case 'no-stock': return 'Ambarda o kadar yok';
     case 'crew-full': return 'Gemide daha fazla yer yok';
     case 'no-crew': return 'O kadar tayfa yok';
+    case 'busy': return 'Gemi hazırlanıyor…';
     case 'nothing-to-repair': return 'Onarılacak bir şey yok';
     case 'hold-too-small': return 'Ambar küçük: önce yükü sat';
     case 'not-sold': return 'Bu tersane yapmıyor';

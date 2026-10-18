@@ -8,6 +8,8 @@ export const COMPANY = {
   minFactor: 0.3,
   /** Crew killed by a hit, as a share of (damage ÷ max hull × crew), by where the ball struck. */
   casualty: { hull: 0.6, waterline: 0.6, rigging: 0.15 } as Record<HitZone, number>,
+  /** A port always finds this share of a full company for a ship that arrives short-handed (a lost boarding must not strand the player). */
+  volunteers: 0.25,
   /** Share of the crew that fights in a boarding party; the rest sail the ship. */
   boardingShare: 0.9,
 } as const;

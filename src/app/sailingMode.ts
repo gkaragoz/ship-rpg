@@ -4,7 +4,7 @@ import { createGame } from '../gameplay';
 import { createAutoQuality, createSailingView, lowerQuality, nextQuality } from '../render';
 import { getSettings } from '../settings';
 import { createShip, getShipSpec, requestShipAsset, type Ship, type ShipLod, type ShipSpec } from '../ships';
-import { createHud, createMapUi, createPortPanel, createSettingsUI, weatherTab } from '../ui';
+import { createHud, createMapUi, createPortPanel, createSettingsUI, reasonText, weatherTab } from '../ui';
 import { getNation, sunState, weatherAt, type Weather } from '../world';
 import { gameLines, renderLines } from './debugLines';
 import { applyGameSettings } from './gameSettings';
@@ -58,12 +58,19 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   // Enemy ships: a model per id the game reports, created on first sight and dropped when gone.
   const enemyShips = new Map<string, Ship>();
   const map = createMapUi(host);
+  let buying = false;
   const portPanel = createPortPanel(host, (cmd) => {
     if (cmd.type !== 'buyShip') return game.command(cmd);
     // A new ship: check the offer, then have its model (and deck) loaded before the game swaps it in.
     const offer = lastView?.port?.shipyard.offers.find((o) => o.specId === cmd.specId);
     if (!offer || offer.reason) return { ok: false, reason: offer?.reason ?? 'not-sold' };
-    void requestShipAsset(cmd.specId).finally(() => game.command(cmd));
+    if (buying) return { ok: false, reason: 'busy' };
+    buying = true;
+    void requestShipAsset(cmd.specId).finally(() => {
+      buying = false;
+      const r = game.command(cmd); // the world moved on while the model loaded: say so if the purchase no longer works
+      hud.notice(r.ok ? `Yeni gemi: ${getShipSpec(cmd.specId)?.name ?? ''}` : reasonText(r));
+    });
     return { ok: true };
   });
   const audio = createAudio();
