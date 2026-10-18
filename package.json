@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run lint && npm test"
+    "check": "npm run typecheck && npm run lint && npm test",
+    "export:specs": "vite-node tools/exportSpecs.ts"
   },
   "dependencies": {
     "three": "^0.170.0"
