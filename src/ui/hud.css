@@ -93,7 +93,8 @@
 @keyframes hud-mark { 0% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); } }
 
 @media (max-width: 700px) {
-  .hud-prompt { left: 8px; right: auto; top: 56px; bottom: auto; transform: none; max-width: 55%; white-space: normal; font-size: 13px; padding: 4px 10px; }
+  .hud-prompt { left: 8px; right: auto; top: 66px; bottom: auto; transform: none; max-width: 55%; white-space: normal; font-size: 13px; padding: 4px 10px; }
   .hud-hitmarker { top: 84px; }
 }
 .hud-chip { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border: 1px solid #f3ead2; border-radius: 2px; vertical-align: -1px; }
+.hud-target > div:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

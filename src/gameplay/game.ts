@@ -12,6 +12,15 @@ export interface Game {
   update(dt: number, controls: Controls): void;
   /** Snapshot for render and UI. Drains `events`, so call it once per frame. */
   view(): GameView;
+  /** Hooks for tests and for poking at the game from the browser console in dev; the game never calls them. */
+  readonly dev: {
+    /** Set every live enemy's hull to this fraction of its maximum. */
+    damageEnemies(fraction: number): void;
+    /** Move the player's ship (it keeps heading and speed). */
+    teleportPlayer(x: number, z: number): void;
+    /** Pretend this many enemies have been sunk: changes how many attack at once. */
+    setKills(n: number): void;
+  };
 }
 
 /** Docking needs the ship this close to the anchorage and this slow. */
@@ -190,6 +199,19 @@ export function createGame(spec: ShipSpec): Game {
 
   return {
     spec,
+    dev: {
+      damageEnemies(fraction): void {
+        for (const e of enemies) if (e.sinking < 0) e.hp = Math.max(1, Math.round(e.maxHp * fraction));
+      },
+      teleportPlayer(x, z): void {
+        ship.x = x;
+        ship.z = z;
+        explore.discover();
+      },
+      setKills(n): void {
+        kills = n;
+      },
+    },
     update(dt, controls): void {
       time += dt;
       wind = windAt(time);

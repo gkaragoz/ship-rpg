@@ -24,6 +24,8 @@ const GAME_KEYS = [...PORT, ...STARBOARD, ...MORE_SAIL, ...LESS_SAIL];
 export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () => void): Mode {
   const input = createInput();
   const game = createGame(spec);
+  // In dev, expose the game on window so it can be poked from the browser console (e.g. __game.dev.setKills(4)).
+  if (import.meta.env.DEV) (window as unknown as { __game?: typeof game }).__game = game;
   const ship = createShip(spec, { flag: getNation('free').flag }); // the player is a free captain
   const view = createSailingView(host);
   view.setPlayer(ship.root, { length: spec.length, beam: spec.beam });
@@ -123,6 +125,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     dispose(): void {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('pointerdown', onPointer);
+      if (import.meta.env.DEV) delete (window as unknown as { __game?: typeof game }).__game;
       input.dispose();
       hud.dispose();
       map.dispose();
