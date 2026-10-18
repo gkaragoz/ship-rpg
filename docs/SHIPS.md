@@ -54,3 +54,15 @@ Ship local space: metres, +x bow, +y up, waterline y = 0. Hull is lofted from st
 | Corvette | 3 square (spanker) | small stern |
 | Frigate | 3 square (spanker) | stern |
 | Battleship | 3 square (spanker) | fore + stern |
+
+## Blender reference model: Tartane
+A hand-blocked low-poly Tartane built in Blender through the local Llama + `blender-mcp` pipeline, exported as `tartane.glb` (outside the repo, in `C:/blender_exports/`; the game itself still generates ships procedurally, so this is a visual/proportion reference only). Same local space as above (+x bow, +y up, waterline 0 after the glTF Y-up export).
+
+| Item | Value |
+|---|---|
+| Hull | 15 stations, L 12.0 · B 3.96 · draft 1.2 · freeboard 1.35 · sheer 0.7 (matches `specs.ts`) |
+| Mesh bounds | x −6.3…8.0 (rudder → bowsprit), y −1.2…11.4 (keel → masthead), z ±1.98 |
+| Rig | 1 mast at x 0.96, lateen yard (~47° from horizontal, low end forward), jib, forestay, backstay, 4 shrouds |
+| Parts (15 meshes) | Hull, Deck, DeckSeams, PlankLines, Wale, Rail, Rivets, Props (rudder, tiller, hatch, 3 barrels), Spars, Sail, Jib, Rigging, Anchor, LanternFrame, Lantern |
+| Budget | 1,910 tris, 2 materials (`Tartane_Atlas` 256×256 palette + emissive `Tartane_LanternGlass`) |
+| Known limits | UVs collapsed onto flat palette swatches (no painted texture); iron is not metallic; sail is a single-sided billowed triangle |
