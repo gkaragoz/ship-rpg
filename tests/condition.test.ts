@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { SHIP_SPECS, createShip, getShipSpec } from '../src/ships';
 import type { Ship } from '../src/ships';
 import { clothClock } from '../src/ships/clothState';
+import { shipClothUniforms } from './clothUtil';
 
 // A frozen clock: the sails do not move between calls, so snapshots compare exactly.
 beforeEach(() => {
@@ -62,30 +63,20 @@ describe('setCondition rigging', () => {
     expect(sailColor(b)).toBe(before);
   });
 
-  it('shrinks sails and combines with setSailTrim', () => {
-    let t = 0;
-    clothClock.now = () => t;
+  it('tears the cloth in the shader with the rigging damage and keeps the pivots unscaled', () => {
     const s = galleon();
-    const settle = (windRel: number, level: number): void => {
-      for (let i = 0; i < 10; i++) {
-        t += 2; // a call never counts more than 2 s; this is long enough for the sails to ease all the way
-        s.setSailTrim(windRel, level);
-      }
-    };
+    const tear = shipClothUniforms(s.root).uTear as { value: number };
     const sq = named(s, 'trim-square')[0] as THREE.Object3D;
     s.setSailTrim(0.5, 1);
+    s.setCondition(PRISTINE, 0);
+    expect(tear.value).toBe(0);
+    s.setCondition({ ...PRISTINE, rigging: 0.5 }, 0); // half way to the worst damage
+    expect(tear.value).toBeCloseTo(0.5, 1);
     s.setCondition({ ...PRISTINE, rigging: 0 }, 0);
-    expect(sq.scale.y).toBeCloseTo(0.55, 5);
-    settle(0.5, 0.5);
-    expect(sq.scale.y).toBeCloseTo((0.04 + 0.96 * 0.5) * 0.55, 2);
-    settle(0.5, 0); // furled
-    expect(sq.visible).toBe(false);
-    s.setCondition({ ...PRISTINE, rigging: 0.4 }, 1);
-    expect(sq.visible).toBe(false);
-    settle(-1, 1);
-    s.setCondition({ ...PRISTINE, rigging: 0.4 }, 1);
-    const aft = named(s, 'trim-aft')[0];
-    if (aft) expect(aft.scale.z).toBeLessThan(-0.8);
+    expect(tear.value).toBe(1);
+    expect(sq.scale.y).toBe(1);
+    s.setCondition(PRISTINE, 0);
+    expect(tear.value).toBe(0);
   });
 });
 

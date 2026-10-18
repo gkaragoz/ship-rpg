@@ -199,6 +199,16 @@ const compileHook = (m: THREE.Material, vertexShader: string): FakeShader => {
   return shader;
 };
 
+describe('cloth uniforms', () => {
+  it('start open, filled, calm: a ship nobody trims (the gallery) shows full sails', () => {
+    const u = createClothUniforms();
+    expect(u.furl.value.toArray()).toEqual([0, 0, 0, 0]); // Vector4() alone would be (0, 0, 0, 1): fore-and-aft sails furled
+    expect(u.flutter.value.toArray()).toEqual([0, 0]);
+    expect(u.tear.value).toBe(0);
+    expect(u.detail.value).toBe(1);
+  });
+});
+
 describe('cloth shader contract', () => {
   it('hooks into the chunks three.js really has', () => {
     for (const lib of [THREE.ShaderLib.standard, THREE.ShaderLib.physical]) {

@@ -12,6 +12,7 @@
     "test": "vitest run",
     "check": "npm run typecheck && npm run lint && npm test",
     "export:specs": "vite-node tools/exportSpecs.ts",
+    "bake:cloth": "vite-node tools/cloth/bake.ts",
     "balance": "vite-node scripts/balance.ts",
     "balance:sweep": "vite-node scripts/sweep.ts",
     "balance:chase": "vite-node scripts/chase.ts"

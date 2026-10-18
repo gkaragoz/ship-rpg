@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SHIP_SPECS, createShip } from '../src/ships';
 import { clothClock } from '../src/ships/clothState';
+import { shipClothUniforms } from './clothUtil';
 
 const EXPECTED_IDS = [
   'tartane', 'barque', 'yacht', 'lugger', 'sloop', 'galeoth', 'xebec', 'schooner',
@@ -99,56 +100,70 @@ describe('Ship.setSailTrim', () => {
     return out;
   };
 
-  it('shrinks the scaled sails smoothly when furled, hides them only once almost gone, and sets them again', () => {
+  it('furls tier by tier through the cloth uniforms, smoothly, and never hides the sails', () => {
     const ship = createShip(brig);
+    const u = shipClothUniforms(ship.root);
+    const furl = u.uFurl?.value as THREE.Vector4;
     const sq = trims(ship.root, 'trim-square');
     trim(ship, 1.5, 1);
-    expect(sq.every((o) => o.visible && o.scale.y > 0.99)).toBe(true);
-    let prev = 1;
+    expect([furl.x, furl.y, furl.z]).toEqual([0, 0, 0]);
+    let prev = [0, 0, 0];
+    const first = [Infinity, Infinity, Infinity];
     for (let i = 0; i < 8 * 30; i++) {
       time.t += 1 / 30;
       ship.setSailTrim(1.5, 0);
-      const y = sq[0]?.scale.y ?? 0;
-      expect(y).toBeLessThanOrEqual(prev + 1e-9);
-      expect(prev - y).toBeLessThan(0.1); // never a pop
-      prev = y;
+      [furl.x, furl.y, furl.z].forEach((f, k) => {
+        expect(f).toBeGreaterThanOrEqual((prev[k] as number) - 1e-9);
+        expect(f - (prev[k] as number)).toBeLessThan(0.1); // never a pop
+        if (f > 0.02 && first[k] === Infinity) first[k] = time.t;
+      });
+      prev = [furl.x, furl.y, furl.z];
+      expect(sq.every((o) => o.visible && o.scale.y === 1)).toBe(true); // gathered by the shader, never scaled or hidden
     }
-    expect(sq.every((o) => !o.visible)).toBe(true);
+    expect(first[0]).toBeLessThan(first[1] as number); // the lowest tier first
+    expect(first[1]).toBeLessThan(first[2] as number);
+    expect(prev.every((f) => f > 0.99)).toBe(true);
     trim(ship, 1.5, 1);
-    expect(sq.every((o) => o.visible && o.scale.y > 0.99)).toBe(true);
+    expect([furl.x, furl.y, furl.z].every((f) => f < 0.01)).toBe(true);
     ship.dispose();
   });
 
   it('swings the yards and sheets through the bow smoothly and belies fore-and-aft sails to leeward', () => {
     const ship = createShip(brig);
+    const u = shipClothUniforms(ship.root);
+    const belly = u.uBelly?.value as THREE.Vector2;
+    const furl = u.uFurl?.value as THREE.Vector4;
     trim(ship, 1.0, 1); // wind from port
-    const aft = trims(ship.root, 'trim-aft')[0];
     const square = trims(ship.root, 'trim-square')[0];
-    expect(aft?.scale.z).toBeGreaterThan(0.8);
+    expect(belly.y).toBeGreaterThan(0.8);
     const closeBrace = square?.rotation.y ?? 0;
     expect(closeBrace).toBeGreaterThan(0.4);
 
-    let prevZ = aft?.scale.z ?? 0;
+    let prevB = belly.y;
     let prevBrace = closeBrace;
+    let minAbs = Infinity;
     for (let i = 0; i < 8 * 30; i++) {
       time.t += 1 / 30;
       ship.setSailTrim(-1.0, 1); // tack: wind from starboard now
-      const z = aft?.scale.z ?? 0;
       const brace = square?.rotation.y ?? 0;
-      expect(Math.abs(z)).toBeGreaterThanOrEqual(0.06 - 1e-9); // the mirror never collapses
-      expect(Math.abs(z - prevZ)).toBeLessThan(0.2); // and never flips in one step
+      expect(Math.abs(belly.y - prevB)).toBeLessThan(0.06); // the belly passes through zero, never flips
       expect(Math.abs(brace - prevBrace)).toBeLessThan(0.1);
-      prevZ = z;
+      expect(belly.x).toBeGreaterThanOrEqual(0); // and a square sail is never backed through the mast
+      minAbs = Math.min(minAbs, Math.abs(belly.y));
+      prevB = belly.y;
       prevBrace = brace;
     }
-    expect(aft?.scale.z).toBeLessThan(-0.8);
+    expect(minAbs).toBeLessThan(0.1);
+    expect(belly.y).toBeLessThan(-0.8);
     expect(square?.rotation.y).toBeCloseTo(-closeBrace, 1);
 
     trim(ship, 3.0, 1); // running
     expect(Math.abs(square?.rotation.y ?? 1)).toBeLessThan(Math.abs(closeBrace));
-    trim(ship, 1.0, 0.5); // half sail: reefed to about half the height
-    expect(square?.scale.y).toBeGreaterThan(0.4);
-    expect(square?.scale.y).toBeLessThan(0.65);
+    trim(ship, 1.0, 0.5); // half sail: the lowest tier is gathered, the next half way, the top one open
+    expect(furl.x).toBeGreaterThan(0.95);
+    expect(furl.y).toBeGreaterThan(0.3);
+    expect(furl.y).toBeLessThan(0.7);
+    expect(furl.z).toBeLessThan(0.05);
     ship.dispose();
   });
 
