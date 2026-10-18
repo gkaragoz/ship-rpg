@@ -3,11 +3,11 @@ import type { BallView, Controls, GameEvent, GameView, PortView } from '../core'
 import type { ShipSpec } from '../ships';
 import { PORTS, getPort, terrainHeight, windAt, type Port } from '../world';
 import { createExploration } from './exploration';
-import { COMBAT, aimZone, ballHitZone, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball, type Side } from './combat';
+import { COMBAT, ballHitZone, cannonsPerSide, fireBroadside, stepBall, type Ball, type Side } from './combat';
 import { stepAffliction, strike } from './damage';
-import { enemyView } from './enemyView';
+import { enemyView, playerView } from './enemyView';
 import { MAX_ENEMIES, aiStep, createEnemy, desiredEnemies, findSpawn, lostTrack, pickEnemySpec, type Enemy } from './enemy';
-import { SAILING, createPlayerShip, maxSpeed, stepPlayerShip } from './sailing';
+import { createPlayerShip, stepPlayerShip } from './sailing';
 
 export interface Game {
   readonly spec: ShipSpec;
@@ -280,41 +280,13 @@ export function createGame(spec: ShipSpec): Game {
       };
       const enemyViews = enemies.map((e) => enemyView(e, ship));
       const ballViews: BallView[] = balls.map((b) => ({ id: b.id, owner: b.owner, x: b.x, y: b.y, z: b.z }));
-      const zone = aimZone(spec, ship.speed);
       const afloat = enemies.filter((e) => e.sinking < 0);
       const drained = events;
       events = [];
       return {
         time,
         wind,
-        ship: {
-          x: ship.x,
-          z: ship.z,
-          heading: ship.heading,
-          speed: ship.speed,
-          knots: ship.speed / SAILING.speedScale,
-          maxKnots: maxSpeed(spec) / SAILING.speedScale,
-          rudder: ship.rudder,
-          sailLevel: ship.sailLevel,
-          sailTarget: ship.sailTarget,
-          efficiency: ship.efficiency,
-          roll: ship.roll,
-          hp,
-          maxHp,
-          rigging: ship.rigging,
-          flooding: ship.flooding,
-          fire: ship.fire,
-          guns: cannonsPerSide(spec),
-          aim: zone,
-          inRange: {
-            port: afloat.some((e) => targetInZone(zone, ship, 'port', e.ship, e.spec.length)),
-            starboard: afloat.some((e) => targetInZone(zone, ship, 'starboard', e.ship, e.spec.length)),
-          },
-          reload: {
-            port: reload.port / COMBAT.playerReload,
-            starboard: reload.starboard / COMBAT.playerReload,
-          },
-        },
+        ship: playerView(ship, spec, { hp, maxHp, reload }, afloat),
         nearestPort,
         docked: dockedAt?.id ?? null,
         grounded: ship.grounded > 0,
