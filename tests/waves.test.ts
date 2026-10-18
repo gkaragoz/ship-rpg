@@ -13,6 +13,15 @@ describe('waveHeight', () => {
     }
   });
 
+  it('can leave out short waves, leaving only the long swell', () => {
+    const swellOnly = waveHeight(10, 10, 3, 1, 1, 50);
+    const all = waveHeight(10, 10, 3, 1);
+    expect(swellOnly).not.toBeCloseTo(all, 3);
+    const longest = WAVES.filter((w) => w.length >= 50).reduce((a, w) => a + w.amplitude, 0);
+    expect(Math.abs(swellOnly)).toBeLessThanOrEqual(longest + 1e-9);
+    expect(waveHeight(10, 10, 3, 1, 1, 0)).toBe(all);
+  });
+
   it('scales with the amplitude factor and moves with time', () => {
     const base = waveHeight(10, 10, 3, 1);
     expect(waveHeight(10, 10, 3, 1, 2)).toBeCloseTo(base * 2);

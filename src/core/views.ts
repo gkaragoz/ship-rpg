@@ -28,6 +28,21 @@ export interface WindView {
   speed: number;
 }
 
+/** Where a broadside lands (metres): see `gameplay/combat.ts` `aimZone`. */
+export interface AimZoneView {
+  /** Distance from the centreline to the muzzles (half the beam). */
+  side: number;
+  /** Distances from the ship's centreline between which balls land abeam. */
+  near: number;
+  far: number;
+  /** Half the length along the hull over which guns are spread. */
+  halfSpan: number;
+  /** Forward drift of the landing zone from the ship's own speed. */
+  drift: number;
+  /** Extra sideways scatter at the far edge. */
+  spread: number;
+}
+
 export interface ShipView {
   x: number;
   z: number;
@@ -52,6 +67,9 @@ export interface ShipView {
   guns: number;
   /** Broadside readiness: 0 = loaded and ready … 1 = just fired. */
   reload: { port: number; starboard: number };
+  aim: AimZoneView;
+  /** A live enemy lies inside that side's landing zone right now. */
+  inRange: { port: boolean; starboard: boolean };
 }
 
 export interface EnemyView {

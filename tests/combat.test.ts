@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRng, type WindView } from '../src/core';
 import { createGame } from '../src/gameplay';
-import { COMBAT, ballHits, cannonsPerSide, fireBroadside, stepBall, type Ball } from '../src/gameplay/combat';
+import { COMBAT, aimZone, ballHits, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball } from '../src/gameplay/combat';
 import { aiStep, createEnemy, pickEnemySpec } from '../src/gameplay/enemy';
 import { getShipSpec } from '../src/ships';
 
@@ -245,5 +245,79 @@ describe('createGame combat', () => {
     for (let i = 0; i < 60 * 20; i++) game.update(DT, { rudder: 0, sailStep: 0 });
     expect(game.view().ship.hp).toBeGreaterThan(hurt); // repaired, never hit again while moored
     expect(game.view().sunk).toBe(false);
+  });
+});
+
+describe('aimZone', () => {
+  /** Where a fired ball touches the sea, in the ship's frame: forward and starboard distances from its centre. */
+  const landing = (b: Ball, from: { x: number; z: number; heading: number }): { fwd: number; stbd: number } => {
+    for (let i = 0; i < 480 * 8 && b.y > 0; i++) stepBall(b, 1 / 480);
+    const dx = b.x - from.x;
+    const dz = b.z - from.z;
+    const c = Math.cos(from.heading);
+    const s = Math.sin(from.heading);
+    return { fwd: dx * c - dz * s, stbd: dx * s + dz * c };
+  };
+
+  it.each(['sloop', 'brig', 'galleon', 'battleship'])('%s: every ball of both broadsides lands inside the zone', (id) => {
+    const sp = spec(id);
+    const from = { x: 120, z: -40, heading: 0.7 };
+    const speed = 5;
+    const zone = aimZone(sp, speed);
+    for (const side of ['starboard', 'port'] as const) {
+      for (let seed = 1; seed <= 12; seed++) {
+        let n = 0;
+        const { balls } = fireBroadside('player', { ...from, speed }, sp, side, createRng(seed), () => ++n);
+        for (const b of balls) {
+          const l = landing(b, from);
+          const across = side === 'starboard' ? l.stbd : -l.stbd;
+          expect(across).toBeGreaterThan(zone.near - 1);
+          expect(across).toBeLessThan(zone.far + 1);
+          expect(l.fwd).toBeGreaterThan(zone.drift - zone.halfSpan - zone.spread - 2);
+          expect(l.fwd).toBeLessThan(zone.drift + zone.halfSpan + zone.spread + 2);
+        }
+      }
+    }
+  });
+
+  it('starts beside the hull, grows with the ship speed drift and is the same for both sides', () => {
+    const z0 = aimZone(brig, 0);
+    expect(z0.near).toBeGreaterThan(brig.beam / 2);
+    expect(z0.far).toBeGreaterThan(z0.near);
+    expect(z0.drift).toBe(0);
+    expect(aimZone(brig, 8).drift).toBeGreaterThan(5);
+    expect(z0.far - z0.near).toBeGreaterThan(60); // a usefully wide band, per the elevation range
+    expect(z0.halfSpan).toBeCloseTo(brig.length * 0.3, 5);
+  });
+});
+
+describe('targetInZone', () => {
+  const zone = aimZone(brig, 0);
+  const shooter = { x: 0, z: 0, heading: 0 }; // facing east: starboard is +z (south)
+  const mid = (zone.near + zone.far) / 2;
+
+  it('is true for a target abeam within the landing band, on the right side only', () => {
+    expect(targetInZone(zone, shooter, 'starboard', { x: 0, z: mid }, 25)).toBe(true);
+    expect(targetInZone(zone, shooter, 'port', { x: 0, z: mid }, 25)).toBe(false);
+    expect(targetInZone(zone, shooter, 'port', { x: 0, z: -mid }, 25)).toBe(true);
+  });
+
+  it('is false when too close, too far or far ahead or astern', () => {
+    expect(targetInZone(zone, shooter, 'starboard', { x: 0, z: zone.near - 40 }, 25)).toBe(false);
+    expect(targetInZone(zone, shooter, 'starboard', { x: 0, z: zone.far + 60 }, 25)).toBe(false);
+    expect(targetInZone(zone, shooter, 'starboard', { x: 200, z: mid }, 25)).toBe(false);
+    expect(targetInZone(zone, shooter, 'starboard', { x: -200, z: mid }, 25)).toBe(false);
+  });
+
+  it('follows the shooter heading: facing north the starboard side is east (+x)', () => {
+    const north = { x: 0, z: 0, heading: Math.PI / 2 }; // forward (0, -1), starboard (1, 0)
+    expect(targetInZone(zone, north, 'starboard', { x: mid, z: 0 }, 25)).toBe(true);
+    expect(targetInZone(zone, north, 'starboard', { x: -mid, z: 0 }, 25)).toBe(false);
+  });
+
+  it('is reported in the game view when an enemy sits in a zone', () => {
+    const v = createGame(brig).view();
+    expect(v.ship.inRange).toEqual({ port: false, starboard: false }); // the enemy starts 650 m away
+    expect(v.ship.aim.side).toBeCloseTo(brig.beam / 2, 5);
   });
 });

@@ -77,3 +77,4 @@
 @media (max-width: 700px) {
   .hud-target { top: 8px; width: 180px; }
 }
+.hud-gun.hot > div { background: #6dff8f; box-shadow: 0 0 6px #6dff8f; }

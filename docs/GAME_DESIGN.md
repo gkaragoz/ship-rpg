@@ -11,7 +11,7 @@ Pirates of the Caribbean (2003) feel: free sailing on an open sea map, islands w
 Planned in phases, see `ROADMAP.md`.
 
 ## Implemented: open-sea sailing (phase 3)
-- **Controls:** `A`/`D` (or ←/→) rudder, `W`/`S` (or ↑/↓) one sail step (furled / half / full), `Q`/`E` port/starboard broadside, `F` dock/undock, `M` chart, `R` restart after sinking, mouse drag orbits the chase camera, `Esc` back to the gallery.
+- **Controls:** `A`/`D` (or ←/→) rudder, `W`/`S` (or ↑/↓) one sail step (furled / half / full), `Q`/`E` port/starboard broadside, `G` aim zones, `F` dock/undock, `M` chart, `R` restart after sinking, mouse drag orbits the chase camera, `Esc` back to the gallery.
 - **Wind:** slowly shifting direction and strength (default from the north, ~8 m/s). The HUD compass shows the wind relative to the bow.
 - **Point of sail:** drive depends on the angle to the wind (polar in `world/wind.ts`): 0 in irons, ~35% close-hauled, ~85% beam reach, best on a broad reach (~120°), ~80% dead downwind.
 - **Speed:** top speed = original `speed` stat × 0.7 m/s, scaled by sail level, sail efficiency and wind strength (capped at 1.15×).
@@ -43,5 +43,6 @@ Planned in phases, see `ROADMAP.md`.
 - **Enemy handicap:** until the player has an aim aid (5a.1) the enemy has 70% of its type's hull points, reloads in 10 s and spreads its shots 1.6× wider. Runtime QA saw a Brig lose twice to an even Schooner, so this is a first tuning, to be replaced by a measured balance table (5a.4).
 - **Enemy AI** (`gameplay/enemy.ts`): same sailing model as the player (wind, turning, grounding), fully rigged; it closes in, turns broadside at 130–300 m, fires when you are within ±20° of abeam and 180 m, stays out of the no-go zone (±43° of the wind) and turns away from shoals it sees 90 m ahead. Its type is the armed ship (8+ cannons) whose hull strength is closest to 80% of yours.
 - **Repair and harbour:** a moored ship repairs 2% of its hull per second and is safe: enemies neither fire at nor hit a docked ship (the escape for a ship that cannot win, e.g. the unarmed Tartane). Restart (`R`) pressed while the ship is still going down is honoured once the sunk screen shows.
+- **Aim aid (5a.1a):** each broadside shows its landing zone on the sea (`G` toggles): from `aimZone` in `gameplay/combat.ts`, the same ballistics the balls use (a test fires hundreds of balls and checks they land inside it). Near/far edges, a span of 60% of the hull length, shifted forward by the ship's speed. Gold when loaded, green when an enemy lies inside (the HUD gun bar glows green too), grey while reloading, plus a line from the hull to the far edge. The zones are 100–200 m abeam, so zoom the camera out (wheel, up to 14 ship lengths) to see them whole.
 - **HUD:** hull bar, left/right reload bars, nearest enemy name/distance/bearing/hull, kill toast; the minimap shows enemy ships as red triangles.
 - **Not yet:** boarding and loot, crew, XP, damage to sails/rigging/speed, several enemies, enemy flags/nations, fleeing at low hull.

@@ -3,7 +3,7 @@ import type { BallView, Controls, EnemyView, GameEvent, GameView, PortView } fro
 import type { ShipSpec } from '../ships';
 import { PORTS, getPort, terrainHeight, windAt, type Port } from '../world';
 import { createExploration } from './exploration';
-import { COMBAT, ballHits, cannonsPerSide, fireBroadside, stepBall, type Ball, type Side } from './combat';
+import { COMBAT, aimZone, ballHits, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball, type Side } from './combat';
 import { aiStep, createEnemy, pickEnemySpec, type Enemy } from './enemy';
 import { SAILING, createPlayerShip, maxSpeed, stepPlayerShip } from './sailing';
 
@@ -238,6 +238,8 @@ export function createGame(spec: ShipSpec): Game {
         direction: Math.atan2(-(e.ship.z - ship.z), e.ship.x - ship.x),
       }));
       const ballViews: BallView[] = balls.map((b) => ({ id: b.id, owner: b.owner, x: b.x, y: b.y, z: b.z }));
+      const zone = aimZone(spec, ship.speed);
+      const afloat = enemies.filter((e) => e.sinking < 0);
       const drained = events;
       events = [];
       return {
@@ -258,6 +260,11 @@ export function createGame(spec: ShipSpec): Game {
           hp,
           maxHp,
           guns: cannonsPerSide(spec),
+          aim: zone,
+          inRange: {
+            port: afloat.some((e) => targetInZone(zone, ship, 'port', e.ship, e.spec.length)),
+            starboard: afloat.some((e) => targetInZone(zone, ship, 'starboard', e.ship, e.spec.length)),
+          },
           reload: {
             port: reload.port / COMBAT.playerReload,
             starboard: reload.starboard / COMBAT.playerReload,

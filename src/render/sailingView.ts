@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { GameView } from '../core';
 import { CONFIG, clamp } from '../core';
 import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR, createOcean } from './ocean';
+import { createAimArcs } from './aimArcs';
 import { createEffects } from './effects';
 import { createScenery } from './scenery';
 import { createSky } from './sky';
@@ -25,6 +26,8 @@ export interface SailingView {
   /** Set the player's ship model (origin at the waterline, +x bow) and its size. */
   setPlayer(model: THREE.Object3D, dims: ShipDims): void;
   /** Show another ship (an enemy) under `id`; the ids come from `GameView.enemies`. */
+  /** Show or hide the gun landing zones. */
+  setAimVisible(on: boolean): void;
   addActor(id: string, model: THREE.Object3D, dims: ShipDims): void;
   removeActor(id: string): void;
   /** Place the ship and camera for this snapshot and render. */
@@ -51,7 +54,8 @@ export function createSailingView(host: HTMLElement): SailingView {
   const sky = createSky();
   const scenery = createScenery();
   const effects = createEffects();
-  scene.add(ocean.object, sky.mesh, scenery.group, effects.group);
+  const aim = createAimArcs();
+  scene.add(ocean.object, sky.mesh, scenery.group, aim.object, effects.group);
 
   const ballMesh = new THREE.InstancedMesh(
     new THREE.SphereGeometry(0.4, 8, 6),
@@ -126,8 +130,12 @@ export function createSailingView(host: HTMLElement): SailingView {
       player = { model: next, dims: nextDims };
       scene.add(next);
       controls.minDistance = nextDims.length * 0.7;
-      controls.maxDistance = nextDims.length * 8;
+      controls.maxDistance = nextDims.length * 14; // far enough out to survey the gun landing zones
       lastHeading = null; // re-frame the camera on the next draw
+    },
+
+    setAimVisible(on): void {
+      aim.setVisible(on);
     },
 
     addActor(id, model, dims): void {
@@ -167,6 +175,7 @@ export function createSailingView(host: HTMLElement): SailingView {
       }
       ballMesh.count = n;
       ballMesh.instanceMatrix.needsUpdate = true;
+      aim.update(view, ampScale);
       effects.spawn(view.events);
       effects.update(dt);
 
@@ -198,6 +207,7 @@ export function createSailingView(host: HTMLElement): SailingView {
       sky.dispose();
       scenery.dispose();
       effects.dispose();
+      aim.dispose();
       ballMesh.geometry.dispose();
       (ballMesh.material as THREE.Material).dispose();
       ballMesh.dispose();

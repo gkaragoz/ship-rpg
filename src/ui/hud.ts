@@ -72,7 +72,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const targetBar = bar('hud-hull');
   target.append(targetName, targetBar.root);
 
-  const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · Q/E top · F liman · M harita · Fare: kamera · Esc: galeri');
+  const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · Q/E top · G nişan · F liman · M harita · Fare: kamera · Esc: galeri');
   const prompt = el('div', 'hud-prompt');
   prompt.hidden = true;
   const toast = el('div', 'hud-toast');
@@ -114,6 +114,9 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
       gunStbd.fill.style.width = pct(1 - ship.reload.starboard);
       gunPort.root.classList.toggle('ready', ship.reload.port <= 0);
       gunStbd.root.classList.toggle('ready', ship.reload.starboard <= 0);
+      // Glow when a loaded broadside has an enemy in its landing zone: that is the moment to fire.
+      gunPort.root.classList.toggle('hot', ship.reload.port <= 0 && ship.inRange.port);
+      gunStbd.root.classList.toggle('hot', ship.reload.starboard <= 0 && ship.inRange.starboard);
 
       // Nearest port: distance, compass bearing and a marker on the compass ring.
       portMark.hidden = !nearestPort;

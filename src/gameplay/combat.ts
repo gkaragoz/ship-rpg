@@ -46,6 +46,47 @@ export const COMBAT = {
   maxAge: 6,
 } as const;
 
+/** Muzzle height above the sea. */
+export const muzzleHeight = (spec: ShipSpec): number => Math.max(1.2, spec.freeboard - 0.8);
+
+export interface AimZone {
+  /** Distance from the centreline to the muzzles (half the beam). */
+  side: number;
+  /** Distances from the ship's centreline (m) between which balls land abeam. */
+  near: number;
+  far: number;
+  /** Half the length (m) along the hull over which the guns are spread. */
+  halfSpan: number;
+  /** How far forward (m) the ship's own speed carries the landing zone. */
+  drift: number;
+  /** Extra sideways scatter (m) at the far edge. */
+  spread: number;
+}
+
+/** Seconds a ball fired at `elev` takes to come down to the sea from the muzzle. */
+const flightTime = (elev: number, y: number): number => {
+  const vy = COMBAT.ballSpeed * Math.sin(elev);
+  return (vy + Math.sqrt(vy * vy + 2 * COMBAT.gravity * y)) / COMBAT.gravity;
+};
+
+/** Where a broadside lands, from the same ballistics `fireBroadside` uses (see tests). */
+export function aimZone(spec: ShipSpec, shipSpeed: number): AimZone {
+  const y = muzzleHeight(spec);
+  const lo = flightTime(COMBAT.elevationMin, y);
+  const hi = flightTime(COMBAT.elevationMax, y);
+  const range = (elev: number, t: number): number => COMBAT.ballSpeed * Math.cos(elev) * t;
+  const near = range(COMBAT.elevationMin, lo);
+  const far = range(COMBAT.elevationMax, hi);
+  return {
+    side: spec.beam / 2,
+    near: spec.beam / 2 + near,
+    far: spec.beam / 2 + far,
+    halfSpan: 0.3 * spec.length,
+    drift: shipSpeed * ((lo + hi) / 2),
+    spread: Math.tan(COMBAT.yawJitter) * far,
+  };
+}
+
 export const cannonsPerSide = (spec: ShipSpec): number => Math.min(COMBAT.maxPerVolley, Math.floor(spec.stats.cannons / 2));
 
 /**
@@ -70,7 +111,7 @@ export function fireBroadside(
   const sign = side === 'starboard' ? 1 : -1;
   const dirX = s * sign;
   const dirZ = c * sign;
-  const y = Math.max(1.2, spec.freeboard - 0.8);
+  const y = muzzleHeight(spec);
   // Keep a big ship's firepower when its guns exceed the ball cap: heavier hits, same total.
   const damage = spec.stats.shot * COMBAT.damagePerLb * (spec.stats.cannons / 2 / n);
 
@@ -122,4 +163,22 @@ export function ballHits(b: Ball, target: Pick<Hull, 'x' | 'z' | 'heading'>, spe
     b.y > -spec.draft &&
     b.y < spec.freeboard + 1.5
   );
+}
+
+/** True if the target's hull would be hit by a broadside on `side` fired now: its centre lies in the landing zone. */
+export function targetInZone(
+  zone: AimZone,
+  shooter: Pick<Hull, 'x' | 'z' | 'heading'>,
+  side: Side,
+  target: Pick<Hull, 'x' | 'z'>,
+  targetLength: number,
+): boolean {
+  const dx = target.x - shooter.x;
+  const dz = target.z - shooter.z;
+  const c = Math.cos(shooter.heading);
+  const s = Math.sin(shooter.heading);
+  const along = dx * c - dz * s;
+  const across = (dx * s + dz * c) * (side === 'starboard' ? 1 : -1);
+  const slack = targetLength / 2 + zone.spread;
+  return across > zone.near - slack * 0.5 && across < zone.far + slack * 0.5 && Math.abs(along - zone.drift) < zone.halfSpan + slack;
 }

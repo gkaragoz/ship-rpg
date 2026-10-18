@@ -14,6 +14,7 @@ const FIRE_PORT = 'KeyQ';
 const FIRE_STARBOARD = 'KeyE';
 const RESTART = 'KeyR';
 const MAP = 'KeyM';
+const AIM = 'KeyG';
 const GAME_KEYS = [...PORT, ...STARBOARD, ...MORE_SAIL, ...LESS_SAIL];
 
 /** Free sailing on the open sea with the chosen ship. Esc returns via `onExit`. */
@@ -29,9 +30,11 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   const map = createMapUi(host);
   const portPanel = createPortPanel(host);
 
+  let aimOn = true;
   const onKey = (e: KeyboardEvent): void => {
     if (e.code === 'Escape') onExit();
     else if (e.code === MAP && !e.repeat) map.toggle();
+    else if (e.code === AIM && !e.repeat) view.setAimVisible((aimOn = !aimOn));
     else if (GAME_KEYS.includes(e.code)) e.preventDefault(); // keep arrows from scrolling the page
   };
   window.addEventListener('keydown', onKey);
