@@ -1,22 +1,21 @@
-# Crew characters (reference assets)
+# Crew characters
 
-Old-school (RuneScape-style) blocky low-poly sailors, built in Blender by the local **Llama + `blender-mcp`** pipeline. The game itself still generates ships procedurally; these GLBs are *not* in the repo (they live in `C:/blender_exports/crew/`) and are not wired into the game yet.
+Old-school (RuneScape-style) blocky low-poly sailors, built in Blender by the local **Llama + `blender-mcp`** pipeline (`tools/blender/make_crew.py`). They live in the repo under `public/models/crew/` and walk the deck of the player's ship in the sailing mode (`gameplay/crew.ts` decides where, `render/crew.ts` draws them). Contract and LOD policy: `SHIP_ASSETS.md`; how to regenerate: `BLENDER_PIPELINE.md`.
 
-## Files (`C:/blender_exports/crew/`)
+## Files (`public/models/crew/`)
 | File | What |
 |---|---|
 | `Male_Standard / Male_Broad / Male_Stout.glb` | male body types (normal, broad shoulders, round belly) |
 | `Female_Standard / Female_Sturdy / Female_Stout.glb` | female body types (slim, sturdy, round) |
 | `crew_atlas.png` | 256×256 grayscale detail atlas (face, stripes, cloth, leather, hair, felt); embedded in every GLB |
 | `crew.json` | metadata: palettes, parts, LOD triangle counts, animation frame ranges |
-| `make_crew.py` | the generator (run via Llama: `exec` the file with `__name__ == "__main__"` in `execute_blender_code`) |
-| `demo.html` | three.js wander demo (serve the folder, e.g. `python -m http.server`) |
+| `tools/blender/make_crew.py` | the generator (run via Llama, see `BLENDER_PIPELINE.md`) |
 
 ## Model
 - 12 bones: `Root, Hips, Spine, Head, UpperArm/LowerArm/UpperLeg/LowerLeg .L/.R`; every piece is rigidly bound (one bone, weight 1.0).
 - Heights 1.60–1.76 m. Space: **+Y up, characters face +Z** (rotate `root.rotation.y = atan2(dx, dz)` to steer).
 - **LODs** as child groups `LOD0 / LOD1 / LOD2` (toggle `.visible`, share one skeleton): ~280–310 / 156 / 84 triangles. LOD0 also contains every optional part (hide the unused ones): `Hair_Short, Hair_Long, Beard, Hat_Wide, Hat_Bandana, Hat_Cap`.
-- **Colour variety:** 7 materials (`Skin, Shirt, Pants, Boots, Belt, Hair, Hat`), each = atlas texture × `baseColorFactor`. Clone the materials per crew member and set `material.color` from `crew.json → palette` (see `demo.html`). Striped vs plain shirt is baked per variant (UV region).
+- **Colour variety:** 7 materials (`Skin, Shirt, Pants, Boots, Belt, Hair, Hat`), each = atlas texture × `baseColorFactor`. Clone the materials per crew member and set `material.color` from `crew.json → palette` (see `src/render/crew.ts`). Striped vs plain shirt is baked per variant (UV region).
 - **Animations** (24 fps, in-place, looping): `Idle` 48 f, `Walk` 24 f (~1.4 m/s), `Run` 16 f (~3.6 m/s).
 
 ## three.js gotchas

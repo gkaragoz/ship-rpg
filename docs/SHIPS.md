@@ -55,14 +55,20 @@ Ship local space: metres, +x bow, +y up, waterline y = 0. Hull is lofted from st
 | Frigate | 3 square (spanker) | stern |
 | Battleship | 3 square (spanker) | fore + stern |
 
-## Blender reference model: Tartane
-A hand-blocked low-poly Tartane built in Blender through the local Llama + `blender-mcp` pipeline, exported as `tartane.glb` (outside the repo, in `C:/blender_exports/`; the game itself still generates ships procedurally, so this is a visual/proportion reference only). Same local space as above (+x bow, +y up, waterline 0 after the glTF Y-up export).
+## Tartane (Blender GLB, 3 LODs)
+The tartane is the first ship made in Blender through the Llama + `blender-mcp` pipeline (`tools/blender/make_tartane.py`), shipped as
+`public/models/ships/tartane.glb` + `tartane.meta.json` and used by the gallery and the sailing mode (procedural fallback). Same local
+space as above. Contract, budgets and LOD policy: `SHIP_ASSETS.md`.
 
 | Item | Value |
 |---|---|
 | Hull | 15 stations, L 12.0 · B 3.96 · draft 1.2 · freeboard 1.35 · sheer 0.7 (matches `specs.ts`) |
-| Mesh bounds | x −6.3…8.0 (rudder → bowsprit), y −1.2…11.4 (keel → masthead), z ±1.98 |
-| Rig | 1 mast at x 0.96, lateen yard (~47° from horizontal, low end forward), jib, forestay, backstay, 4 shrouds |
-| Parts (15 meshes) | Hull, Deck, DeckSeams, PlankLines, Wale, Rail, Rivets, Props (rudder, tiller, hatch, 3 barrels), Spars, Sail, Jib, Rigging, Anchor, LanternFrame, Lantern |
-| Budget | 1,910 tris, 2 materials (`Tartane_Atlas` 256×256 palette + emissive `Tartane_LanternGlass`) |
-| Known limits | UVs collapsed onto flat palette swatches (no painted texture); iron is not metallic; sail is a single-sided billowed triangle |
+| Mesh bounds | x −6.3…8.0 (rudder → bowsprit), y −1.2…11.0 (keel → masthead), z ±1.98 |
+| Rig | 1 mast at x 0.96, lateen yard on a `trim-aft` pivot (~47° from horizontal, low end forward), jib, stays, shrouds |
+| LOD0 (hero) | 1,886 tris, 3 draw calls: hull, deck + seams, rail, wale, planks, rivets, rudder/tiller, hatch, barrels, anchor, lantern |
+| LOD1 | 317 tris, 2 draw calls (no seams/rivets/props, coarser sail) |
+| LOD2 | 95 tris, 2 draw calls (silhouette) |
+| Materials | `tartane_atlas_mat` (256² flat swatches) + emissive `tartane_glass` |
+| Deck | `meta.json`: deck profile per station, obstacles (mast, hatch, barrels, anchor, tiller, lantern pole) |
+
+Also on that deck: the crew (`CREW.md`).

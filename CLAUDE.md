@@ -1,6 +1,6 @@
 # Ship RPG
 
-Browser-based 3D naval RPG in the spirit of Pirates of the Caribbean (2003) / Sea Dogs. Three.js + TypeScript (strict) + Vite. All ships are generated procedurally from data (no external models).
+Browser-based 3D naval RPG in the spirit of Pirates of the Caribbean (2003) / Sea Dogs. Three.js + TypeScript (strict) + Vite. Ships are generated procedurally from data. The exceptions are Blender GLBs made through the local Llama + `blender-mcp` pipeline (`tools/blender`): the **tartane** (3 LODs) and the **crew**, in `public/models/` (contract in `docs/SHIP_ASSETS.md`, how to make more in `docs/BLENDER_PIPELINE.md`). The procedural ship is always the fallback.
 
 ## Commands
 - `npm run dev` — dev server
@@ -15,7 +15,7 @@ Browser-based 3D naval RPG in the spirit of Pirates of the Caribbean (2003) / Se
 - Keep files under ~300 lines. See `docs/CONVENTIONS.md`.
 
 ## Context docs
-`docs/ARCHITECTURE.md`, `docs/SHIPS.md` (single source of truth for the 16 ship types), `docs/GAME_DESIGN.md`, `docs/CONVENTIONS.md`, `docs/ROADMAP.md`. Update them in the same change that alters what they describe.
+`docs/ARCHITECTURE.md`, `docs/SHIPS.md` (single source of truth for the 16 ship types), `docs/SHIP_ASSETS.md` (GLB contract + LOD policy), `docs/BLENDER_PIPELINE.md` (Llama runbook), `docs/CREW.md`, `docs/GAME_DESIGN.md`, `docs/CONVENTIONS.md`, `docs/ROADMAP.md`. Update them in the same change that alters what they describe.
 
 ## Definition of done
 1. `npm run check` passes.
