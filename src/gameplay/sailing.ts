@@ -8,7 +8,7 @@ export const SAILING = {
   /** m/s per unit of the `speed` stat. */
   speedScale: 0.7,
   /** rad/s of rudder-limited turning per unit of the `turn` stat. */
-  turnScale: 0.012,
+  turnScale: 0.006,
   /** Speed may overshoot the listed value by this factor in a strong wind. */
   overspeed: 1.15,
   /** Seconds-based easing rates. */

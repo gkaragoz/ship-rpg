@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { GameView } from '../core';
 import { clamp } from '../core';
-import { HORIZON_COLOR, SUN_DIR, createOcean } from './ocean';
+import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR, createOcean } from './ocean';
 import { createSky } from './sky';
 import { waveHeight } from './waves';
 
@@ -28,7 +28,7 @@ export function createSailingView(host: HTMLElement): SailingView {
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(HORIZON_COLOR, 250, 900);
+  scene.fog = new THREE.Fog(HORIZON_COLOR, FOG_NEAR, FOG_FAR);
   scene.add(new THREE.HemisphereLight(0xdcecf5, 0x2b4a5a, 1.4));
   const sun = new THREE.DirectionalLight(0xfff1d6, 2.4);
   sun.position.copy(SUN_DIR).multiplyScalar(100);
@@ -94,7 +94,8 @@ export function createSailingView(host: HTMLElement): SailingView {
         const y = (bow + stern + stbd + port) / 4;
         const pitch = Math.atan2(bow - stern, 2 * hl);
         const waveRoll = Math.atan2(stbd - port, 2 * hb);
-        euler.set(ship.roll + waveRoll * 0.6, ship.heading, pitch * 0.8);
+        // Positive roll sinks the starboard rail, so lean with the surface: minus the wave slope.
+        euler.set(ship.roll - waveRoll * 0.6, ship.heading, pitch * 0.8);
         model.position.set(ship.x, y, ship.z);
         model.setRotationFromEuler(euler);
       }
@@ -126,6 +127,7 @@ export function createSailingView(host: HTMLElement): SailingView {
       ocean.dispose();
       sky.dispose();
       renderer.dispose();
+      renderer.forceContextLoss(); // release the WebGL context; browsers cap how many stay alive
       renderer.domElement.remove();
     },
   };

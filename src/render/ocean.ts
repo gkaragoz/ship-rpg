@@ -3,8 +3,9 @@ import { waveGlsl } from './waves';
 
 export const SUN_DIR = new THREE.Vector3(-0.45, 0.5, -0.35).normalize();
 export const HORIZON_COLOR = new THREE.Color(0xb7d4e0);
-const FOG_NEAR = 250;
-const FOG_FAR = 900;
+/** Fully fogged before the 450 m half-size of the ocean mesh, so its edge never shows. */
+export const FOG_NEAR = 180;
+export const FOG_FAR = 420;
 
 const SIZE = 900;
 const SEGMENTS = 360;
