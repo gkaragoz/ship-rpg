@@ -83,3 +83,16 @@ GPU memory: textures are RGBA8 with mips on the GPU whatever the file format, ab
 See `CREW.md`. Loaded by `render/crew.ts`; appearance (variant, palette indices, hair/hat/beard) comes from `gameplay/crew.ts` through `CrewView`. Materials are cloned per sailor and tinted (`material.color`), the clips are crossfaded with `crossFadeTo` (never park an action at weight 0).
 
 **Known gap:** `gameplay/game.ts` reads `getDeck(spec.id)` once at `createGame`; with lazy loading the deck exists only after the ship's GLB has loaded (normally by the gallery, which shows the ship first). `main.ts` should `await requestShipAsset(spec.id)` before starting sailing (outside `src/ships`, not done here).
+
+## Props (`public/models/props/`)
+**`debris.glb`** + **`debris.meta.json`**: cannon-hit debris, built by `tools/blender/make_debris.py` (`blender -b --factory-startup --python tools/blender/make_debris.py`; numpy textures from `pbrtex.py`, WebP + meshopt like the PBR ships). Nine separate top-level meshes, **one shared material** (512 px atlas: weathered wood, tarred wood, sailcloth, hemp rope quadrants; albedo + normal + packed ORM; `COLOR_0` tints, warm "fresh" tint on torn plank ends). Real metres, origin at each piece's bounding-box centre, +Y up, 40-300 triangles each, GLB under 400 KB (about 105 KB). The cloth material is double-sided.
+
+| Piece | Kind | Size x, y, z (m) |
+|---|---|---|
+| `Plank_L` / `Plank_M` / `Plank_S` | wood | 1.21 / 0.63 / 0.30 long, about 0.2 / 0.16 / 0.12 wide, 0.05 thick |
+| `Splinter_A` / `Splinter_B` | wood | 0.56 / 0.36 long, thin jagged shards |
+| `Barrel_Stave` | wood | 0.78 x 0.09 x 0.10, curved |
+| `Cloth_A` / `Cloth_B` | cloth | 0.83 x 0.1 x 0.63, 0.53 x 0.1 x 0.41 (flat, crumpled) |
+| `Rope_Coil` | rope | 0.29 x 0.10 x 0.28 |
+
+`debris.meta.json`: `{ version, bytes, atlasPx, pieces: [{ name, kind: 'wood'|'cloth'|'rope', size: [x, y, z], tris }] }` (extents in glTF axes). Checked by `tests/debris.test.ts`; regenerate and re-run it after changing the script.
