@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createCrew, crewCountFor } from '../src/gameplay/crew';
 import { CREW, CREW_PALETTE_SIZES, CREW_VARIANTS } from '../src/gameplay/crewData';
 import { createNpcFleet, PATROLS } from '../src/gameplay/npcShips';
-import { createDeck, type ShipModelMeta } from '../src/ships';
+import { SHIP_SPECS, createDeck, type ShipModelMeta } from '../src/ships';
 
 const read = (rel: string): string =>
   new TextDecoder().decode(readFileSync(new URL(`../public/models/${rel}`, import.meta.url)));
@@ -96,20 +96,20 @@ describe('palette sizes match the crew asset', () => {
 
 describe('npc fleet', () => {
   it('is deterministic and keeps each patrol on its ellipse', () => {
-    const a = createNpcFleet('tartane');
-    const b = createNpcFleet('tartane');
+    const a = createNpcFleet();
+    const b = createNpcFleet();
     for (let i = 0; i < 600; i++) { a.update(DT); b.update(DT); }
     expect(a.view()).toEqual(b.view());
     a.view().forEach((v, i) => {
       const p = PATROLS[i];
       if (!p) throw new Error('missing patrol');
       expect(((v.x - p.cx) / p.a) ** 2 + ((v.z - p.cz) / p.b) ** 2).toBeCloseTo(1, 6);
-      expect(v.specId).toBe('tartane');
+      expect(v.specId).toBe(p.specId);
     });
   });
 
   it('points the bow along the direction of travel', () => {
-    const fleet = createNpcFleet('tartane');
+    const fleet = createNpcFleet();
     const before = fleet.view();
     fleet.update(0.5);
     const after = fleet.view();
@@ -121,5 +121,21 @@ describe('npc fleet', () => {
       // heading ψ points the bow along (cos ψ, -sin ψ)
       expect(Math.cos(w.heading) * dx - Math.sin(w.heading) * dz).toBeGreaterThan(0);
     });
+  });
+});
+
+describe('crew on every ship deck', () => {
+  it.each(SHIP_SPECS.map((sp) => sp.id))('%s: sailors stay on free deck for two minutes', (id) => {
+    const spec = SHIP_SPECS.find((sp) => sp.id === id);
+    const d = createDeck(JSON.parse(read(`ships/${id}.meta.json`)) as ShipModelMeta);
+    const crew = createCrew(d, crewCountFor(spec?.length ?? 12), 9);
+    for (let i = 0; i < 120 * 60; i++) {
+      crew.update(DT);
+      if (i % 60 === 0) {
+        for (const sailor of crew.view()) {
+          expect(d.walkable(sailor.x, sailor.z, CREW.bodyRadius - 1e-6), `${id} sailor ${sailor.id}`).toBe(true);
+        }
+      }
+    }
   });
 });

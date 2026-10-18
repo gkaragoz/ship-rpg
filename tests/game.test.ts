@@ -13,7 +13,7 @@ describe('createGame view', () => {
     const v = game.view();
     expect(v.others).toHaveLength(4);
     expect(new Set(v.others.map((o) => o.id)).size).toBe(4);
-    expect(v.others.every((o) => o.specId === 'tartane')).toBe(true);
+    expect(v.others.map((o) => o.specId)).toEqual(['tartane', 'sloop', 'brig', 'galleon']);
     expect(v.crew).toEqual([]);
   });
 

@@ -55,6 +55,9 @@ Ship local space: metres, +x bow, +y up, waterline y = 0. Hull is lofted from st
 | Frigate | 3 square (spanker) | stern |
 | Battleship | 3 square (spanker) | fore + stern |
 
+## All ships as Blender GLBs
+Every ship has `public/models/ships/<id>.glb` + `<id>.meta.json` with LOD0/1/2 (see `SHIP_ASSETS.md`); the procedural builder stays as the fallback and as the reference the Python port (`tools/blender/shipbuilder.py`) follows. Gun ports, oars, castles, stern windows/lanterns, sail rigs and pivots match `specs.ts`; tartane is hand-tuned, the other 15 are generated.
+
 ## Tartane (Blender GLB, 3 LODs)
 The tartane is the first ship made in Blender through the Llama + `blender-mcp` pipeline (`tools/blender/make_tartane.py`), shipped as
 `public/models/ships/tartane.glb` + `tartane.meta.json` and used by the gallery and the sailing mode (procedural fallback). Same local

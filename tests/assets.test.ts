@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { getShipSpec } from '../src/ships';
+import { SHIP_SPECS, getShipSpec } from '../src/ships';
 
 /**
  * Contract for the Blender-made GLB assets in public/models (docs/SHIP_ASSETS.md).
@@ -183,5 +183,91 @@ describe('crew GLBs', () => {
     const meta = readJson<{ palette: Record<string, string[]>; animations: Record<string, number[]> }>('crew/crew.json');
     for (const k of ['skin', 'shirt', 'pants', 'hair', 'hat']) expect(meta.palette[k]?.length).toBeGreaterThan(2);
     expect(Object.keys(meta.animations).sort()).toEqual(['Idle', 'Run', 'Walk']);
+  });
+});
+
+/** Per-ship ceilings written by tools/blender/make_ships.py (`budgets()`); keep both in step. */
+const contractBudgets = (length: number): Record<string, number> => ({
+  LOD0: Math.floor(1700 + 140 * length),
+  LOD1: Math.floor(160 + 20 * length),
+  LOD2: Math.floor(60 + 6 * length),
+});
+
+interface GeneratedMeta extends ShipMeta {
+  beam: number;
+  budgets: Record<string, number>;
+  bytes: number;
+  deckMargin: number;
+}
+
+describe.each(SHIP_SPECS.filter((s) => s.id !== 'tartane').map((s) => s.id))('%s (generic ship builder)', (id) => {
+  const spec = getShipSpec(id);
+  if (!spec) throw new Error(`no spec for ${id}`);
+  const { gltf: g, bytes } = readGlb(`ships/${id}.glb`);
+  const meta = readJson<GeneratedMeta>(`ships/${id}.meta.json`);
+  const lods = [0, 1, 2].map((l) => stats(g, find(g, `LOD${l}`)));
+  const pivots = (l: number): number[] => g.nodes.flatMap((n, i) => ((n.name ?? '').startsWith(`LOD${l}_`) && (n.name ?? '').includes('_trim-') ? [i] : []));
+
+  it('has the root, three LOD groups and clean names', () => {
+    expect(find(g, id)).toBeGreaterThanOrEqual(0);
+    for (const n of g.nodes) expect(n.name ?? '', n.name).toMatch(NAME_OK);
+    lods.forEach((s, l) => expect(s.meshes, `LOD${l}`).toBeGreaterThan(0));
+  });
+
+  it('stays inside the length-scaled triangle budgets and shrinks with each LOD', () => {
+    const b = contractBudgets(spec.length);
+    expect(meta.budgets).toEqual(b);
+    lods.forEach((s, l) => expect(s.tris, `LOD${l}`).toBeLessThanOrEqual(b[`LOD${l}`] ?? 0));
+    expect(lods[1]?.tris).toBeLessThan((lods[0]?.tris ?? 0) * 0.3);
+    expect(lods[2]?.tris).toBeLessThan((lods[1]?.tris ?? 0) * 0.6);
+  });
+
+  it('uses at most two materials and one image', () => {
+    expect(g.materials.length).toBeLessThanOrEqual(2);
+    expect(g.images?.length).toBe(1);
+  });
+
+  it('has one sail pivot per sail group on every LOD, each carrying a sail mesh', () => {
+    const counts = [0, 1, 2].map((l) => pivots(l).length);
+    expect(counts[0]).toBeGreaterThanOrEqual(spec.masts.length);
+    expect(counts[1]).toBe(counts[0]);
+    expect(counts[2]).toBe(counts[0]);
+    for (const l of [0, 1, 2]) for (const p of pivots(l)) expect(stats(g, p).meshes).toBeGreaterThanOrEqual(1);
+  });
+
+  it('matches the spec dimensions', () => {
+    const lo = [Infinity, Infinity, Infinity];
+    const hi = [-Infinity, -Infinity, -Infinity];
+    for (const n of g.nodes) {
+      if (n.mesh === undefined || (n.name ?? '') !== 'LOD0_Body') continue;
+      for (const p of g.meshes[n.mesh]?.primitives ?? []) {
+        const a = g.accessors[p.attributes.POSITION ?? -1];
+        a?.min?.forEach((v, k) => (lo[k] = Math.min(lo[k] ?? v, v)));
+        a?.max?.forEach((v, k) => (hi[k] = Math.max(hi[k] ?? v, v)));
+      }
+    }
+    const length = (hi[0] ?? 0) - (lo[0] ?? 0);
+    const beam = (hi[2] ?? 0) - (lo[2] ?? 0);
+    expect(length).toBeGreaterThanOrEqual(spec.length);
+    expect(length).toBeLessThanOrEqual(spec.length * 1.15 + spec.bowsprit + 1);
+    expect(beam).toBeGreaterThanOrEqual(spec.beam * 0.9);
+    expect(beam).toBeLessThanOrEqual(spec.beam * 1.15 + (spec.oars > 0 ? spec.length * 0.4 : 0));
+    expect(lo[1] ?? 0).toBeLessThan(0);
+  });
+
+  it('has consistent metadata: triangle counts, ordered deck, one obstacle per mast', () => {
+    for (const l of [0, 1, 2]) expect(meta.lods[`LOD${l}`]?.tris).toBe(lods[l]?.tris);
+    const xs = meta.deck.stations.map((s) => s[0] ?? 0);
+    expect(xs).toEqual([...xs].sort((a, b) => a - b));
+    for (const s of meta.deck.stations) {
+      expect(s[1]).toBeGreaterThan(0.3);
+      expect(s[2]).toBeGreaterThanOrEqual(0);
+    }
+    expect(meta.obstacles.filter((o) => o.type === 'circle')).toHaveLength(spec.masts.length);
+    expect(meta.obstacles.filter((o) => o.type === 'rect')).toHaveLength((spec.forecastle ? 1 : 0) + (spec.sterncastle ? 1 : 0));
+  });
+
+  it('stays small enough to load quickly', () => {
+    expect(bytes).toBeLessThan(450_000);
   });
 });

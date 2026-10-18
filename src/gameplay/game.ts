@@ -18,7 +18,7 @@ export function createGame(spec: ShipSpec): Game {
   let wind = windAt(time);
   const deck = getDeck(spec.id); // only ships with a walkable GLB deck carry a visible crew
   const crew = deck ? createCrew(deck, crewCountFor(spec.length)) : null;
-  const npcs = createNpcFleet('tartane');
+  const npcs = createNpcFleet();
 
   return {
     spec,

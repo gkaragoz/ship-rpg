@@ -7,7 +7,7 @@ How the tartane and the crew were produced, so the other 15 ships (and more crew
 |---|---|
 | Model | `llama-server` (Gemma 4 26B-A4B, 16k context, port 8080) with its web UI |
 | Bridge | `blender-mcp --transport http --port 9191` ↔ Blender add-on (socket 9876); `C:/blender_mcp`, tools such as `execute_blender_code` |
-| Scripts | `tools/blender/` in this repo: `shipkit.py` (helpers), `make_tartane.py`, `make_crew.py` |
+| Scripts | `tools/blender/` in this repo: `shipkit.py` (helpers), `shipbuilder.py` + `make_ships.py` (generic ships from `ships.json`), `make_tartane.py` (hand-tuned), `make_crew.py` |
 | Outputs | `public/models/ships/*`, `public/models/crew/*` (the scripts find the repo from `__file__`) |
 | Gate | `tests/assets.test.ts` (GLB contract, see `SHIP_ASSETS.md`) + `npm run check` |
 
@@ -42,14 +42,28 @@ Headless smoke test (about 5 s each) and success check: `blender -b --factory-st
 6. Test headless first: `blender -b --factory-startup --python tools/blender/make_tartane.py`, then let the LLM run it in the GUI.
 7. Re-run is idempotent (outputs overwritten, scratch objects removed). Dependencies: only `bpy`, `bmesh`, `numpy`, `mathutils`.
 
+## Generic ships (`make_ships.py`)
+`tools/blender/ships.json` is exported from `src/ships/specs.ts` (`npm run export:specs`; `tests/shipsJson.test.ts` fails when it is stale).
+`shipbuilder.py` ports `hullShape`, `hull`, `castles`, `rig` (square, gaff, lug, lateen, spanker, shrouds, tops, pennant, bowsprit, jibs) and `details`
+(gun ports, oars, stern windows, lanterns) and builds LOD0/1/2 per ship; it writes `<id>.glb`, `<id>.meta.json` (deck profile, one obstacle per mast and castle) and the atlas.
+Colours come from `hullColor`/`trimColor` (the lower hull is the linear-space half of the hull colour, as in `materials.ts`).
+Run any subset by passing `IDS` in the wrapper globals:
+
+```python
+p = "<repo>/tools/blender/make_ships.py"
+g = {"__name__": "__main__", "__file__": p, "IDS": ["yacht", "lugger", "sloop", "schooner", "barque"]}   # 5 ships per call is quick
+exec(compile(open(p, encoding="utf-8").read(), p, "exec"), g)
+result = g["RESULT"]
+```
+Changing a spec: edit `specs.ts`, `npm run export:specs`, re-run the ship through Llama, `npm run check`. Changing the look of every ship: edit `shipbuilder.py` and re-run all ids.
+
 ## Adding another ship
-(`make_tartane.py` is tartane-specific today: lateen rig, `trim-aft` only. Square rigs need new builders and `trim-square` pivots; the helpers in `shipkit.py` are generic.)
+A new ship with a standard rig only needs a spec in `specs.ts` (+ id in `GLB_SHIP_IDS`). The hand-tuned `make_tartane.py` is the model for ships that need bespoke detail
+(`trim-aft` only). Square rigs and the rest are covered by `shipbuilder.py`; the helpers in `shipkit.py` are generic.
 1. Copy `make_tartane.py`; replace `SHIP` (dimensions, station tables, mast/yard/jib positions), `SWATCHES`, and `LOD_CFG` if the rig differs
    (square rigs need `trim-square` pivots and a tier builder).
 2. Keep the LOD ladder idea: LOD0 = hero (all detail, merged by material), LOD1 ≈ 1/6 of the triangles, LOD2 ≈ silhouette; budgets scale with `length`.
 3. Add the id to `GLB_SHIP_IDS` in `src/ships/assets.ts`, extend `tests/assets.test.ts` (it hard-codes the tartane budgets 2000/450/130; add a per-ship table), run `npm run check` and look at it in the browser (`?perf&lod=N`).
-4. Next step for the whole fleet: port `src/ships/hullShape.ts` (`halfBeam`, `deckHeight`, `keelHeight`, `sectionPoint`) to Python and export `ShipSpec` as JSON so
-   `make_ship.py <id>` builds any ship with the same proportions as the procedural one.
 
 ## Crew
 `make_crew.py` builds six body types × 3 LODs, a 12-bone rig, Idle/Walk/Run actions and a palette atlas; details in `CREW.md`.

@@ -11,7 +11,10 @@ export interface ShipAsset {
 }
 
 /** Ships that have a GLB under public/models/ships/<id>.glb; every other ship stays procedural. */
-export const GLB_SHIP_IDS: readonly string[] = ['tartane'];
+export const GLB_SHIP_IDS: readonly string[] = [
+  'tartane', 'yacht', 'lugger', 'sloop', 'schooner', 'barque', 'xebec', 'galeoth',
+  'caravel', 'fleut', 'brig', 'pinnace', 'corvette', 'galleon', 'frigate', 'battleship',
+];
 
 const assets = new Map<string, ShipAsset>();
 
