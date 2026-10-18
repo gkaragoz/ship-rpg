@@ -29,7 +29,7 @@ Conventions worth knowing: the sea surface is one definition (`render/waves.ts`)
 ## Blender models, LOD and crew (phase 2c)
 - `main.ts` preloads GLBs (`loadShipAssets`, `loadCrewAssets`) before the first mode; failures only log and fall back to procedural ships / an empty deck.
 - `createShip(spec)` returns a GLB-backed `Ship` when one is loaded. `Ship.setLod?` exists only on those; **the player's ship is never switched**.
-- `GameView` now carries `others: OtherShipView[]` (NPC patrols from `gameplay/npcShips`) and `crew: CrewView[]` (from `gameplay/crew`, ship-local, deterministic on the fixed step). `render` reads them like the rest of the view.
+- `GameView` now carries `others: OtherShipView[]` (NPC patrols from `gameplay/npcShips`, placed by `placePatrols` on open water around the player's start) and `crew: CrewView[]` (from `gameplay/crew`, ship-local, deterministic on the fixed step). `render` reads them like the rest of the view.
 - `render/fleet.ts` places other ships (shared `render/ride.ts` wave riding) and switches their LOD by camera distance with hysteresis (`ships/lod.ts`). `render/crew.ts` clones the crew GLBs, tints materials, runs the `AnimationMixer` with a local `THREE.Clock` (so `Mode.render` is unchanged) and parents the sailors to the player ship.
 - Walkable deck and obstacles come from `<id>.meta.json` through `ships/deck.ts` (`Deck`), used by gameplay crew AI.
 - Debug: `?perf` (window.__perf) and `?lod=0|1|2`.
