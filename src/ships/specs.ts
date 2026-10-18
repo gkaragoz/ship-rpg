@@ -5,7 +5,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'tartane', name: 'Tartane', sizeClass: 'small',
     description: 'Akdeniz\'in küçük balıkçı ve kıyı ticaret teknesi. Tek latin yelkenli, hafif ve ucuz.',
-    length: 12, beam: 3.6, draft: 1.2, freeboard: 0.9, sheer: 0.5,
+    length: 12, beam: 3.96, draft: 1.2, freeboard: 1.35, sheer: 0.7,
     masts: [{ at: 0.42, height: 11, rig: 'lateen' }],
     jibs: 1, bowsprit: 2, gunDecks: 1, oars: 0,
     stats: { rank: 7, hp: 100, speed: 7, turn: 50, hold: 50, crew: 12, officers: 3, cannons: 0, shot: 0, price: 5 },
@@ -14,7 +14,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'yacht', name: 'Yacht', sizeClass: 'small',
     description: 'Hafif ve hızlı tek direkli tekne; haberciler ve zengin yolcular için.',
-    length: 14, beam: 4, draft: 1.2, freeboard: 1, sheer: 0.5,
+    length: 14, beam: 4.4, draft: 1.2, freeboard: 1.5, sheer: 0.7,
     masts: [{ at: 0.4, height: 12, rig: 'gaff' }],
     jibs: 1, bowsprit: 2.5, gunDecks: 1, oars: 0,
     stats: { rank: 6, hp: 700, speed: 9, turn: 30, hold: 800, crew: 60, officers: 12, cannons: 16, shot: 12, price: 19 },
@@ -23,7 +23,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'lugger', name: 'Lugger', sizeClass: 'small',
     description: 'Lugsail yelkenli iki direkli kaçakçı teknesi; sığ sularda çevik.',
-    length: 16, beam: 4.5, draft: 1.5, freeboard: 1.1, sheer: 0.6,
+    length: 16, beam: 4.95, draft: 1.5, freeboard: 1.65, sheer: 0.84,
     masts: [{ at: 0.35, height: 11, rig: 'lug' }, { at: 0.68, height: 9, rig: 'lug' }],
     jibs: 1, bowsprit: 2.5, gunDecks: 1, oars: 0,
     stats: { rank: 6, hp: 500, speed: 16, turn: 60, hold: 500, crew: 52, officers: 10, cannons: 12, shot: 12, price: 20 },
@@ -32,7 +32,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'sloop', name: 'Sloop', sizeClass: 'small',
     description: 'Korsanların gözdesi; tek direk, hızlı ve rüzgâra yakın seyreder.',
-    length: 20, beam: 5.5, draft: 1.8, freeboard: 1.3, sheer: 0.7,
+    length: 20, beam: 6.05, draft: 1.8, freeboard: 1.95, sheer: 0.98,
     masts: [{ at: 0.42, height: 20, rig: 'gaff' }],
     jibs: 2, bowsprit: 4, gunDecks: 1, oars: 0,
     stats: { rank: 5, hp: 1200, speed: 10, turn: 40, hold: 800, crew: 100, officers: 20, cannons: 16, shot: 12, price: 25 },
@@ -41,7 +41,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'schooner', name: 'Schooner', sizeClass: 'medium',
     description: 'Fore-and-aft yelkenli iki direkli; hız ve manevra ustası.',
-    length: 24, beam: 6, draft: 2, freeboard: 1.4, sheer: 0.8,
+    length: 24, beam: 6.6, draft: 2, freeboard: 2.1, sheer: 1.12,
     masts: [{ at: 0.4, height: 18, rig: 'gaff' }, { at: 0.7, height: 20, rig: 'gaff' }],
     jibs: 2, bowsprit: 4.5, gunDecks: 1, oars: 0,
     stats: { rank: 4, hp: 1800, speed: 12, turn: 35, hold: 1200, crew: 120, officers: 24, cannons: 20, shot: 16, price: 35 },
@@ -50,7 +50,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'barque', name: 'Barque', sizeClass: 'medium',
     description: 'Üç direkli yük gemisi; geniş ambar, orta güç.',
-    length: 32, beam: 8.5, draft: 3.2, freeboard: 2, sheer: 0.9,
+    length: 32, beam: 9.35, draft: 3.2, freeboard: 3, sheer: 1.26,
     masts: [
       { at: 0.26, height: 26, rig: 'square', tiers: 2 },
       { at: 0.5, height: 30, rig: 'square', tiers: 3 },
@@ -64,7 +64,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'xebec', name: 'Xebec', sizeClass: 'medium',
     description: 'Akdeniz korsanlarının latin yelkenli, kürekli, hızlı gemisi.',
-    length: 30, beam: 6.5, draft: 2, freeboard: 1.3, sheer: 1.2,
+    length: 30, beam: 7.15, draft: 2, freeboard: 1.95, sheer: 1.68,
     masts: [
       { at: 0.22, height: 18, rig: 'lateen', rake: -0.12 },
       { at: 0.5, height: 24, rig: 'lateen' },
@@ -77,7 +77,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'galeoth', name: 'Galeoth', sizeClass: 'medium',
     description: 'Kürek ve yelkeni birleştiren hafif, uzun savaş teknesi.',
-    length: 28, beam: 5.8, draft: 1.6, freeboard: 1.2, sheer: 1,
+    length: 28, beam: 6.38, draft: 1.6, freeboard: 1.8, sheer: 1.4,
     masts: [{ at: 0.38, height: 20, rig: 'lateen' }, { at: 0.7, height: 17, rig: 'lateen' }],
     jibs: 0, bowsprit: 3, gunDecks: 1, oars: 12,
     sterncastle: { length: 0.1, height: 1.1 },
@@ -87,7 +87,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'caravel', name: 'Caravel', sizeClass: 'medium',
     description: 'Keşif çağının gemisi; latin ve kare yelken karışımı.',
-    length: 26, beam: 7.5, draft: 3, freeboard: 1.8, sheer: 1,
+    length: 26, beam: 8.25, draft: 3, freeboard: 2.7, sheer: 1.4,
     masts: [
       { at: 0.28, height: 20, rig: 'square', tiers: 2 },
       { at: 0.52, height: 24, rig: 'square', tiers: 2 },
@@ -102,7 +102,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'fleut', name: 'Fleut', sizeClass: 'medium',
     description: 'Geniş karınlı Hollanda yük gemisi; devasa ambar, zayıf toplar.',
-    length: 36, beam: 10, draft: 3.6, freeboard: 2.2, sheer: 1,
+    length: 36, beam: 11, draft: 3.6, freeboard: 3.3, sheer: 1.4,
     masts: [
       { at: 0.28, height: 28, rig: 'square', tiers: 3 },
       { at: 0.52, height: 32, rig: 'square', tiers: 3 },
@@ -116,7 +116,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'brig', name: 'Brig', sizeClass: 'medium',
     description: 'İki direkli kare yelkenli çok amaçlı savaş gemisi.',
-    length: 30, beam: 7.5, draft: 2.6, freeboard: 1.7, sheer: 0.9,
+    length: 30, beam: 8.25, draft: 2.6, freeboard: 2.55, sheer: 1.26,
     masts: [
       { at: 0.32, height: 28, rig: 'square', tiers: 3 },
       { at: 0.64, height: 30, rig: 'square', tiers: 3, spanker: true },
@@ -129,7 +129,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'pinnace', name: 'Pinnace', sizeClass: 'medium',
     description: 'Konvoyları gözeten hafif refakat gemisi.',
-    length: 28, beam: 6.5, draft: 2.4, freeboard: 1.6, sheer: 0.9,
+    length: 28, beam: 7.15, draft: 2.4, freeboard: 2.4, sheer: 1.26,
     masts: [
       { at: 0.28, height: 22, rig: 'square', tiers: 2 },
       { at: 0.55, height: 26, rig: 'square', tiers: 2 },
@@ -143,7 +143,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'corvette', name: 'Corvette', sizeClass: 'large',
     description: 'Hızlı, orta ağırlıkta savaş gemisi.',
-    length: 40, beam: 10, draft: 3.4, freeboard: 2.2, sheer: 1,
+    length: 40, beam: 11, draft: 3.4, freeboard: 3.3, sheer: 1.4,
     masts: [
       { at: 0.28, height: 32, rig: 'square', tiers: 3 },
       { at: 0.52, height: 38, rig: 'square', tiers: 3 },
@@ -157,7 +157,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'galleon', name: 'Galleon', sizeClass: 'large',
     description: 'Yüksek kıç kasaralı, ağır silahlı hazine gemisi.',
-    length: 46, beam: 12.5, draft: 4.5, freeboard: 3, sheer: 1.6,
+    length: 46, beam: 13.75, draft: 4.5, freeboard: 4.5, sheer: 2.24,
     masts: [
       { at: 0.22, height: 30, rig: 'square', tiers: 2 },
       { at: 0.45, height: 38, rig: 'square', tiers: 3 },
@@ -174,7 +174,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'frigate', name: 'Frigate', sizeClass: 'large',
     description: 'Hız ve ateş gücünü dengeleyen savaş gemisi.',
-    length: 52, beam: 12, draft: 4, freeboard: 2.6, sheer: 0.9,
+    length: 52, beam: 13.2, draft: 4, freeboard: 3.9, sheer: 1.26,
     masts: [
       { at: 0.26, height: 38, rig: 'square', tiers: 3 },
       { at: 0.5, height: 46, rig: 'square', tiers: 3 },
@@ -188,7 +188,7 @@ export const SHIP_SPECS: readonly ShipSpec[] = [
   {
     id: 'battleship', name: 'Battleship', sizeClass: 'large',
     description: 'Üç top güvertesiyle donanmanın amiral gemisi.',
-    length: 64, beam: 17, draft: 5.5, freeboard: 3.6, sheer: 1.2,
+    length: 64, beam: 18.7, draft: 5.5, freeboard: 5.4, sheer: 1.68,
     masts: [
       { at: 0.24, height: 44, rig: 'square', tiers: 3 },
       { at: 0.5, height: 54, rig: 'square', tiers: 3 },

@@ -32,6 +32,8 @@ Source: GameFAQs "Pirates of the Caribbean – Data Tables" by DrdLord (v1.1, up
 - Copyright: the guide is © its author and the game data © the game's publisher. Fine for a prototype; derive our own numbers before any public release.
 
 ## Visual spec (see `types.ts`)
+`length` is the station length of the hull; stem and transom lean make the overall mesh about 7% longer (e.g. Battleship 64 → ~68.5 m). Use the mesh bounds, not `length`, for docking or collision.
+
 Ship local space: metres, +x bow, +y up, waterline y = 0. Hull is lofted from stations (stern → bow); `masts[].at` runs bow (0) → stern (1). Rigs: `square` (1–3 tiers, optional spanker), `lateen`, `gaff`, `lug`. Sketch reference style: dark hull with gold wale, cream sails, red pennant.
 
 | Ship | Masts × rig | Castles |

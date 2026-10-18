@@ -68,10 +68,6 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets = (
     camera.setViewOffset(w, h, -left / 2, (bottom - top) / 2, w, h);
     camera.updateProjectionMatrix();
   };
-  const freeAspect = (): number => {
-    const { left, top, bottom } = clampInsets(host.clientWidth, host.clientHeight);
-    return Math.max(host.clientWidth - left, 200) / Math.max(host.clientHeight - top - bottom, 200);
-  };
   const observer = new ResizeObserver(resize);
   observer.observe(host);
   resize();
@@ -89,10 +85,17 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets = (
       const box = new THREE.Box3().setFromObject(next);
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
+      // The canvas spans the whole host but the ship must fit the area left free by
+      // the panels, so scale the visible extent by that free fraction.
+      const w = Math.max(host.clientWidth, 1);
+      const h = Math.max(host.clientHeight, 1);
+      const { left, top, bottom } = clampInsets(w, h);
       const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-      const fitLength = (size.x * 0.62) / (tanV * freeAspect());
-      const fitHeight = (size.y * 0.75) / tanV;
-      const distance = Math.max(fitLength, fitHeight) + size.z * 0.5 + 8;
+      const freeW = (w - left) / w;
+      const freeH = (h - top - bottom) / h;
+      const fitHeight = ((size.y + size.x * 0.25) * 1.02) / (2 * tanV * freeH);
+      const fitLength = (size.x * 0.95 * 1.02) / (2 * tanV * (w / h) * freeW);
+      const distance = Math.max(fitLength, fitHeight) + size.z * 0.5;
       controls.target.copy(center);
       camera.position.copy(center).add(new THREE.Vector3(0.55, 0.28, 0.9).normalize().multiplyScalar(distance));
       controls.update();

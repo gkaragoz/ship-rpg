@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import type { MastSpec, ShipSpec } from './types';
 import type { ShipMaterials } from './materials';
-import { deckHeight, sectionPoint } from './hullShape';
-import { BULWARK } from './hull';
+import { bulwark, deckHeight, halfBeam, sectionPoint } from './hullShape';
 import { cylinderBetween, gridSail } from './parts';
 
 const V = (x: number, y: number, z = 0): THREE.Vector3 => new THREE.Vector3(x, y, z);
@@ -11,7 +10,7 @@ const BILLOW_SIDE = V(0, 0, 1);
 
 /** Mast base position in ship space. `at` runs bow (0) to stern (1). */
 function mastBase(spec: ShipSpec, m: MastSpec): THREE.Vector3 {
-  return V((0.5 - m.at) * spec.length, deckHeight(spec, 1 - m.at) - BULWARK, 0);
+  return V((0.5 - m.at) * spec.length, deckHeight(spec, 1 - m.at) - bulwark(spec), 0);
 }
 
 /** Masts, yards, sails, bowsprit, jibs and a pennant. */
@@ -20,6 +19,13 @@ export function buildRig(spec: ShipSpec, mats: ShipMaterials): THREE.Group {
   rig.name = 'rig';
   const tallest = spec.masts.reduce((a, m) => Math.max(a, m.height), 0);
   for (const m of spec.masts) rig.add(buildMast(spec, m, mats, m.height === tallest));
+  spec.masts.forEach((m, i) => {
+    const next = spec.masts[i + 1];
+    if (!next) return;
+    const a = mastBase(spec, m);
+    const b = mastBase(spec, next);
+    rig.add(cylinderBetween(V(a.x, a.y + m.height * 0.88), V(b.x, b.y + next.height * 0.5), 0.03, mats.wood));
+  });
   if (spec.bowsprit > 0) rig.add(buildBowsprit(spec, mats));
   return rig;
 }
@@ -38,19 +44,59 @@ function buildMast(spec: ShipSpec, m: MastSpec, mats: ShipMaterials, flag: boole
   // Space abaft the mast before the sail would overhang the stern.
   const aft = (1 - m.at) * spec.length + 0.05 * spec.length;
   const fore = m.at * spec.length + 0.05 * spec.length;
+  // Sails are trimmed for a wind from the port quarter: square yards braced round
+  // to starboard, fore-and-aft sails sheeted out to starboard.
   if (m.rig === 'square') {
-    addSquareSails(g, spec, m, mats);
-    if (m.spanker) addGaffSail(g, m, mats, Math.min(spec.length * 0.2, aft), 0.12, 0.5);
+    addSquareSails(trimmed(g, SQUARE_BRACE), spec, m, mats);
+    if (m.spanker) addGaffSail(trimmed(g, SHEET_ANGLE), m, mats, Math.min(spec.length * 0.2, aft), 0.12, 0.5);
+    if (m.height >= 16) g.add(top(m, mats));
   } else if (m.rig === 'gaff') {
-    addGaffSail(g, m, mats, Math.min(spec.length * 0.3, aft), 0.1, 0.62);
+    addGaffSail(trimmed(g, SHEET_ANGLE), m, mats, Math.min(spec.length * 0.3, aft), 0.1, 0.62);
   } else if (m.rig === 'lug') {
-    addLugSail(g, m, mats, Math.min(spec.length * 0.22, aft));
+    addLugSail(trimmed(g, SHEET_ANGLE), m, mats, Math.min(spec.length * 0.22, aft));
   } else {
-    addLateenSail(g, spec, m, mats, aft, fore);
+    addLateenSail(trimmed(g, SHEET_ANGLE), spec, m, mats, aft, fore);
   }
 
-  if (flag) g.add(pennant(m.height, mats));
+  if (m.height >= 10) addShrouds(g, spec, m, mats);
+  if (flag) {
+    const p = pennant(m.height, mats);
+    p.rotation.y = 0.3;
+    g.add(p);
+  }
   return g;
+}
+
+const SQUARE_BRACE = 0.2;
+const SHEET_ANGLE = 0.28;
+
+/** Child group rotated about the mast axis (positive swings the stern side to starboard). */
+function trimmed(parent: THREE.Group, angle: number): THREE.Group {
+  const t = new THREE.Group();
+  t.rotation.y = angle;
+  parent.add(t);
+  return t;
+}
+
+/** Fighting top: a small platform part way up the mast. */
+function top(m: MastSpec, mats: ShipMaterials): THREE.Mesh {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.2 + 0.03 * m.height, 0.14, 1.0 + 0.025 * m.height), mats.wood);
+  mesh.position.y = m.height * 0.46;
+  return mesh;
+}
+
+/** Shrouds: lines from the masthead down to the rail on both sides. */
+function addShrouds(g: THREE.Group, spec: ShipSpec, m: MastSpec, mats: ShipMaterials): void {
+  const hw = halfBeam(spec, 1 - m.at) * 0.92;
+  const count = m.height >= 20 ? 3 : 2;
+  const spread = Math.min(Math.max(spec.length * 0.03, 0.6), 2);
+  const head = V(0, m.height * (m.rig === 'square' ? 0.62 : 0.5));
+  for (const side of [-1, 1]) {
+    for (let k = 0; k < count; k++) {
+      const dx = (k - (count - 1) / 2) * spread;
+      g.add(cylinderBetween(head, V(dx, bulwark(spec), side * hw), 0.03, mats.wood));
+    }
+  }
 }
 
 function addSquareSails(g: THREE.Group, spec: ShipSpec, m: MastSpec, mats: ShipMaterials): void {

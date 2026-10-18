@@ -56,3 +56,8 @@ export function sidePoint(spec: ShipSpec, t: number, drop: number): Vector3 {
   const theta = Math.asin(clamp01(drop / range) ** (1 / DEPTH_EXPONENT));
   return sectionPoint(spec, t, 1 - theta / Math.PI);
 }
+
+/** Height of the bulwark (rail) above the deck; the deck sits this far below the hull top. */
+export function bulwark(spec: ShipSpec): number {
+  return Math.min(Math.max(0.2 + 0.017 * spec.length, 0.5), 1.2);
+}

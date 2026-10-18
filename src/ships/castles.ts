@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import type { CastleSpec, ShipSpec } from './types';
 import type { ShipMaterials } from './materials';
-import { deckHeight, halfBeam } from './hullShape';
-import { BULWARK } from './hull';
+import { deckHeight, halfBeam, bulwark } from './hullShape';
 import { buildGroupedGeometry, quadIndices } from './parts';
 
 const STATIONS = 6;
@@ -30,7 +29,7 @@ function castle(spec: ShipSpec, mats: ShipMaterials, c: CastleSpec, end: 'stern'
     for (let i = 0; i <= STATIONS; i++) {
       const t = t0 + ((t1 - t0) * i) / STATIONS;
       const x = (t - 0.5) * spec.length;
-      const bottom = deckHeight(spec, t) - BULWARK + lift;
+      const bottom = deckHeight(spec, t) - bulwark(spec) + lift;
       const w = halfBeam(spec, t) * 0.97;
       positions.push(x, bottom, -w, x, bottom + height, -w, x, bottom + height, w, x, bottom, w);
     }

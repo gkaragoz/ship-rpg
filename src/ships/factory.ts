@@ -3,7 +3,7 @@ import type { ShipSpec } from './types';
 import { createMaterials, disposeMaterials } from './materials';
 import { buildHull } from './hull';
 import { buildCastles } from './castles';
-import { buildGunPorts, buildOars, buildSternWindows } from './details';
+import { buildGunPorts, buildLanterns, buildOars, buildSternWindows } from './details';
 import { buildRig } from './rig';
 
 export interface Ship {
@@ -19,7 +19,7 @@ export function createShip(spec: ShipSpec): Ship {
   const root = new THREE.Group();
   root.name = spec.id;
   root.add(buildHull(spec, mats), ...buildCastles(spec, mats), buildRig(spec, mats));
-  for (const part of [buildGunPorts(spec, mats), buildOars(spec, mats), buildSternWindows(spec, mats)]) {
+  for (const part of [buildGunPorts(spec, mats), buildOars(spec, mats), buildSternWindows(spec, mats), buildLanterns(spec, mats)]) {
     if (part) root.add(part);
   }
   return {

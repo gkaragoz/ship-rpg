@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import type { ShipSpec } from './types';
 import type { ShipMaterials } from './materials';
-import { deckHeight, halfBeam, sectionPoint, sidePoint } from './hullShape';
-import { BULWARK } from './hull';
+import { deckHeight, halfBeam, sectionPoint, sidePoint, bulwark } from './hullShape';
 
 const dummy = new THREE.Object3D();
 
@@ -46,7 +45,7 @@ export function buildOars(spec: ShipSpec, mats: ShipMaterials): THREE.InstancedM
   for (let n = 0; n < spec.oars; n++) {
     const t = 0.28 + 0.5 * ((n + 0.5) / spec.oars);
     const rail = sectionPoint(spec, t, 1);
-    rail.y = deckHeight(spec, t) - BULWARK / 2;
+    rail.y = deckHeight(spec, t) - bulwark(spec) / 2;
     for (const side of [1, -1]) {
       const d = new THREE.Vector3(dir.x, dir.y, dir.z * side);
       const start = new THREE.Vector3(rail.x, rail.y, side * halfBeam(spec, t)).addScaledVector(d, -oarLength * 0.25);
@@ -70,7 +69,7 @@ export function buildSternWindows(spec: ShipSpec, mats: ShipMaterials): THREE.In
   const count = Math.min(5, Math.max(2, Math.round(spec.beam / 2.4)));
   const w = Math.min(0.9, castle.height * 0.25);
   const hw = halfBeam(spec, 0);
-  const y = deckHeight(spec, 0) - BULWARK + castle.height * 0.55;
+  const y = deckHeight(spec, 0) - bulwark(spec) + castle.height * 0.55;
   const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.12, w, w * 0.8), mats.window, count);
   mesh.name = 'stern-windows';
   for (let n = 0; n < count; n++) {
@@ -79,6 +78,25 @@ export function buildSternWindows(spec: ShipSpec, mats: ShipMaterials): THREE.In
     dummy.updateMatrix();
     mesh.setMatrixAt(n, dummy.matrix);
   }
+  mesh.instanceMatrix.needsUpdate = true;
+  return mesh;
+}
+
+/** Two lit lanterns on top of the sterncastle. */
+export function buildLanterns(spec: ShipSpec, mats: ShipMaterials): THREE.InstancedMesh | null {
+  const castle = spec.sterncastle;
+  if (!castle) return null;
+  const tiers = 1 + (castle.stepped ?? 0);
+  const height = castle.height * (1 + 0.6 * (tiers - 1));
+  const y = deckHeight(spec, 0) - bulwark(spec) + height + 0.5;
+  const size = Math.max(0.3, spec.length * 0.01);
+  const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(size, size * 1.4, size), mats.window, 2);
+  mesh.name = 'lanterns';
+  [-1, 1].forEach((side, n) => {
+    dummy.position.set(-spec.length / 2 + size, y, side * halfBeam(spec, 0) * 0.8);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(n, dummy.matrix);
+  });
   mesh.instanceMatrix.needsUpdate = true;
   return mesh;
 }
