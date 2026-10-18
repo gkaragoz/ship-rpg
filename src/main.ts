@@ -1,5 +1,6 @@
 import { startLoop } from './core';
-import type { ShipSpec } from './ships';
+import { loadCrewAssets } from './render';
+import { loadShipAssets, type ShipSpec } from './ships';
 import { startGalleryMode } from './app/galleryMode';
 import { startSailingMode } from './app/sailingMode';
 import type { Mode } from './app/mode';
@@ -20,9 +21,13 @@ function showSailing(spec: ShipSpec): void {
   mode = startSailingMode(root, spec, () => showGallery(spec.id));
 }
 
-showGallery();
-
-startLoop({
-  update: (dt) => mode?.update(dt),
-  render: () => mode?.render(),
+// Blender models load first; if one fails the game falls back to procedural ships / no crew.
+root.textContent = 'Yükleniyor…';
+void Promise.all([loadShipAssets(), loadCrewAssets()]).then(() => {
+  root.replaceChildren();
+  showGallery();
+  startLoop({
+    update: (dt) => mode?.update(dt),
+    render: () => mode?.render(),
+  });
 });

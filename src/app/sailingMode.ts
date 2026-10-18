@@ -1,7 +1,7 @@
-import { angleDiff, createInput, type Controls } from '../core';
+import { angleDiff, createInput, type Controls, type GameView } from '../core';
 import { createGame } from '../gameplay';
 import { createSailingView } from '../render';
-import { createShip, type ShipSpec } from '../ships';
+import { createShip, getShipSpec, type Ship, type ShipLod, type ShipSpec } from '../ships';
 import { createHud } from '../ui';
 import type { Mode } from './mode';
 
@@ -19,6 +19,26 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   const view = createSailingView(host);
   view.setPlayer(ship.root, { length: spec.length, beam: spec.beam });
   const hud = createHud(host, spec.name);
+
+  // Other ships come from the game view; build their models the first time they appear.
+  const npcs: Ship[] = [];
+  const syncOthers = (v: GameView): void => {
+    if (npcs.length === v.others.length) return;
+    for (const o of v.others.slice(npcs.length)) {
+      const s = getShipSpec(o.specId);
+      if (s) npcs.push(createShip(s));
+    }
+    view.setOthers(npcs);
+  };
+
+  // ?lod=0|1|2 forces the level of every other ship; ?perf publishes window.__perf (fps, draw calls).
+  const query = new URLSearchParams(window.location.search);
+  const forced = Number(query.get('lod'));
+  if (query.has('lod') && forced >= 0 && forced <= 2) view.setLodOverride(forced as ShipLod);
+  const perf = query.has('perf');
+  let frames = 0;
+  let last = performance.now();
+  let fps = 0;
 
   const onKey = (e: KeyboardEvent): void => {
     if (e.code === 'Escape') onExit();
@@ -49,9 +69,20 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     },
     render(): void {
       const v = game.view();
+      syncOthers(v);
       ship.setSailTrim(angleDiff(v.wind.from, v.ship.heading), v.ship.sailLevel);
       view.draw(v);
       hud.update(v);
+      if (perf) {
+        frames++;
+        const now = performance.now();
+        if (now - last > 500) {
+          fps = Math.round((frames * 1000) / (now - last));
+          frames = 0;
+          last = now;
+        }
+        Object.assign(window, { __perf: { fps, ...view.stats(), crew: v.crew.length, others: v.others.length } });
+      }
       if (updated) {
         input.endFrame(); // keep unconsumed presses if no update ran this frame
         updated = false;
@@ -62,7 +93,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
       window.removeEventListener('keydown', onKey);
       input.dispose();
       hud.dispose();
-      view.dispose();
+      view.dispose(); // also disposes the other ships it was given
       ship.dispose();
     },
   };
