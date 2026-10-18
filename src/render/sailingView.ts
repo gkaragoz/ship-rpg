@@ -168,6 +168,12 @@ export function createSailingView(host: HTMLElement): SailingView {
         const a = actors.get(e.id);
         if (a) place(a, e, e.sinking, time, wind.from, ampScale);
       }
+      // Burning ships smoke and flicker on their decks.
+      if (player && ship.fire > 0 && !view.sunk) effects.burn(ship.x, player.dims.length * 0.1, ship.z, ship.fire, dt);
+      for (const e of view.enemies) {
+        const a = actors.get(e.id);
+        if (a && e.fire > 0 && e.sinking < 0) effects.burn(e.x, a.dims.length * 0.1, e.z, e.fire, dt);
+      }
 
       // Cannonballs as one instanced mesh.
       const n = Math.min(view.balls.length, MAX_BALLS);

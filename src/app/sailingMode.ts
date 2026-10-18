@@ -90,6 +90,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
         view.addActor(e.id, es.root, { length: enemySpec.length, beam: enemySpec.beam });
       }
       es.setSailTrim(angleDiff(v.wind.from, e.heading), e.sailLevel);
+      es.setCondition(e, v.time);
     }
     for (const [id, es] of enemyShips) {
       if (live.has(id)) continue;
@@ -107,6 +108,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     render(): void {
       const v = game.view();
       ship.setSailTrim(angleDiff(v.wind.from, v.ship.heading), v.ship.sailLevel);
+      ship.setCondition(v.ship, v.time);
       syncEnemies(v);
       view.draw(v);
       hud.update(v);
@@ -114,6 +116,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
       portPanel.update(v);
       audio.play(v.events, v.ship);
       audio.ambience(v.wind.speed, v.ship.speed);
+      audio.condition(v.ship);
       if (updated) {
         input.endFrame(); // keep unconsumed presses if no update ran this frame
         updated = false;
