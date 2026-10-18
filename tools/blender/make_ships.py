@@ -19,15 +19,18 @@ sys.path.insert(0, str(HERE))
 import shipkit  # noqa: E402
 import shipbuilder  # noqa: E402
 import shipdetails  # noqa: E402
+import pbrship  # noqa: E402
 
 importlib.reload(shipkit)
 importlib.reload(shipbuilder)
 importlib.reload(shipdetails)
+importlib.reload(pbrship)
 from shipkit import Atlas, MB, Scratch, emissive_material, empty, export_glb, fnv1a, tri_count, validate_ship, write_json  # noqa: E402
 from shipbuilder import B, LOD_CFG, Mast  # noqa: E402
 
 REPO = HERE.parents[1]
 OUT = REPO / "public" / "models" / "ships"
+PBR_IDS = ("tartane", "brig", "galleon", "battleship")   # built by pbrship.py (baked PBR textures); the rest use the flat-colour atlas
 SPECS = {s['id']: s for s in json.loads((HERE / "ships.json").read_text(encoding="utf-8"))}
 
 
@@ -134,6 +137,10 @@ def build_meta(spec, masts, report, lantern, budget, extra):
 def build_ship(spec_id):
     spec = SPECS[spec_id]
     OUT.mkdir(parents=True, exist_ok=True)
+    if spec_id in PBR_IDS:
+        meta = pbrship.build_ship(spec, build_meta, OUT)
+        write_json(OUT / f"{spec_id}.meta.json", meta)
+        return meta
     budget = budgets(spec['length'])
     with Scratch() as sc:
         atlas = Atlas(f"{spec_id}_atlas", swatches(spec))

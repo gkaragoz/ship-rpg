@@ -5,9 +5,10 @@ import { buildHull } from './hull';
 import { buildCastles } from './castles';
 import { buildGunPorts, buildLanterns, buildOars, buildSternFlag, buildSternWindows } from './details';
 import { buildRig } from './rig';
-import { getShipAsset } from './assets';
+import { GLB_SHIP_IDS, getShipAsset, requestShipAsset } from './assets';
 import { createConditionRig } from './condition';
 import { createGlbShip } from './glbShip';
+import { createUpgradingShip } from './lazyShip';
 import type { ShipLod } from './lod';
 import { collectSailNodes, createSailTrim } from './trim';
 import type { Condition } from '../core';
@@ -39,10 +40,23 @@ export interface ShipOptions {
   flag?: number;
 }
 
+/**
+ * Build a ship. A loaded Blender model is used at once; a ship that has one but whose GLB is not loaded yet starts as
+ * the procedural ship and is swapped for the model when it arrives (see `createUpgradingShip`), so the game never
+ * waits for a model and only the ships that are actually shown are fetched.
+ */
 export function createShip(spec: ShipSpec, options: ShipOptions = {}): Ship {
-  // A preloaded Blender model wins; otherwise the procedural ship is built.
   const glb = getShipAsset(spec.id);
   if (glb) return createGlbShip(spec, glb, options.flag);
+  const procedural = createProceduralShip(spec, options);
+  if (!GLB_SHIP_IDS.includes(spec.id)) return procedural;
+  return createUpgradingShip(procedural, async () => {
+    const asset = await requestShipAsset(spec.id);
+    return asset ? createGlbShip(spec, asset, options.flag) : undefined;
+  });
+}
+
+export function createProceduralShip(spec: ShipSpec, options: ShipOptions = {}): Ship {
   const mats = createMaterials(spec, options.flag);
   const root = new THREE.Group();
   root.name = spec.id;

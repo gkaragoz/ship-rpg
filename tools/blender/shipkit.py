@@ -26,7 +26,7 @@ ATLAS_PX = 256
 class Scratch:
     """Snapshot datablocks / selection / frame range; on exit remove everything created."""
 
-    COLLS = ("objects", "meshes", "materials", "images", "actions", "armatures", "cameras", "lights")
+    COLLS = ("objects", "meshes", "materials", "images", "actions", "armatures", "cameras", "lights", "node_groups")
 
     def __enter__(self):
         sc = bpy.context.scene
@@ -228,15 +228,18 @@ def tri_count(obj):
 
 
 # --------------------------------------------------------------------------- export + checks
-def export_glb(path, objects, active):
+def export_glb(path, objects, active, pbr=False):
+    """Export `objects` (use_selection). `pbr` stores the textures as WebP (EXT_texture_webp) instead of PNG."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.object.select_all(action='DESELECT')
     for o in objects:
         o.select_set(True)
     bpy.context.view_layer.objects.active = active
+    extra = dict(export_image_format='WEBP', export_image_add_webp=False, export_image_webp_fallback=False,
+                 export_image_quality=82, export_meshopt_compression_enable=True) if pbr else {}
     bpy.ops.export_scene.gltf(filepath=str(path), export_format='GLB', use_selection=True,
-                              export_animations=False, export_yup=True, export_apply=False)
+                              export_animations=False, export_yup=True, export_apply=False, **extra)
     return path.stat().st_size
 
 

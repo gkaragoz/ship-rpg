@@ -94,14 +94,15 @@ describe('crew GLBs', () => {
   });
 });
 
-/** Per-ship ceilings written by tools/blender/make_ships.py (`budgets()`); keep both in step. */
-const contractBudgets = (length: number): Record<string, number> => ({
-  LOD0: Math.floor(1700 + 140 * length),
-  LOD1: Math.floor(160 + 20 * length),
-  LOD2: Math.floor(60 + 6 * length),
-});
+/** Per-ship ceilings written by tools/blender/make_ships.py (`budgets()`) and pbrship.py (`budgets()`); keep both in step. */
+const contractBudgets = (length: number, pbr: boolean): Record<string, number> =>
+  pbr
+    ? { LOD0: Math.floor(8000 + 700 * length), LOD1: Math.floor(600 + 95 * length), LOD2: Math.floor(300 + 35 * length) }
+    : { LOD0: Math.floor(1700 + 140 * length), LOD1: Math.floor(160 + 20 * length), LOD2: Math.floor(60 + 6 * length) };
 
 interface GeneratedMeta extends ShipMeta {
+  pbr?: boolean;
+  atlasPx?: number;
   specHash: string;
   beam: number;
   budgets: Record<string, number>;
@@ -128,6 +129,7 @@ describe.each(SHIP_SPECS.map((s) => s.id))('%s (generic ship builder)', (id) => 
   const { gltf: g, bytes } = readGlb(`ships/${id}.glb`);
   const meta = readJson<GeneratedMeta>(`ships/${id}.meta.json`);
   const lods = [0, 1, 2].map((l) => stats(g, find(g, `LOD${l}`)));
+  const pbr = meta.pbr === true; // the flagship ships carry baked PBR textures, the rest a flat-colour atlas
   const pivots = (l: number): number[] => g.nodes.flatMap((n, i) => ((n.name ?? '').startsWith(`LOD${l}_`) && (n.name ?? '').includes('_trim-') ? [i] : []));
 
   it('has the root, three LOD groups and clean names', () => {
@@ -137,16 +139,23 @@ describe.each(SHIP_SPECS.map((s) => s.id))('%s (generic ship builder)', (id) => 
   });
 
   it('stays inside the length-scaled triangle budgets and shrinks with each LOD', () => {
-    const b = contractBudgets(spec.length);
+    const b = contractBudgets(spec.length, pbr);
     expect(meta.budgets).toEqual(b);
     lods.forEach((s, l) => expect(s.tris, `LOD${l}`).toBeLessThanOrEqual(b[`LOD${l}`] ?? 0));
     expect(lods[1]?.tris).toBeLessThan((lods[0]?.tris ?? 0) * 0.3);
     expect(lods[2]?.tris).toBeLessThan((lods[1]?.tris ?? 0) * 0.6);
   });
 
-  it('uses at most two materials and one image', () => {
-    expect(g.materials.length).toBeLessThanOrEqual(3); // atlas + emissive glass + the flag cloth the game tints
-    expect(g.images?.length).toBe(1);
+  it('keeps the material and texture counts of its kind', () => {
+    if (pbr) {
+      // atlas, wood, sail (3 textures each: albedo, normal, packed occlusion-roughness-metalness) + emissive glass + flag
+      expect(g.materials.length).toBeLessThanOrEqual(5);
+      expect(g.images?.length).toBe(9);
+      expect(meta.atlasPx).toBeLessThanOrEqual(2048);
+    } else {
+      expect(g.materials.length).toBeLessThanOrEqual(3); // atlas + emissive glass + the flag cloth the game tints
+      expect(g.images?.length).toBe(1);
+    }
   });
 
   it('has one sail pivot per sail group on every LOD, each carrying a sail mesh', () => {
@@ -174,7 +183,7 @@ describe.each(SHIP_SPECS.map((s) => s.id))('%s (generic ship builder)', (id) => 
     expect(length).toBeLessThanOrEqual(spec.length * 1.15 + spec.bowsprit + 1);
     expect(beam).toBeGreaterThanOrEqual(spec.beam * 0.9);
     // cannon muzzles (0.45 m each side) and the hung anchors stand out of the hull; oars much more
-    expect(beam).toBeLessThanOrEqual(spec.beam * 1.15 + 1.2 + (spec.oars > 0 ? spec.length * 0.4 : 0));
+    expect(beam).toBeLessThanOrEqual(spec.beam * 1.15 + (pbr ? 3.5 : 1.2) + (spec.oars > 0 ? spec.length * 0.4 : 0));
     expect(lo[1] ?? 0).toBeLessThan(0);
   });
 
@@ -186,10 +195,10 @@ describe.each(SHIP_SPECS.map((s) => s.id))('%s (generic ship builder)', (id) => 
       expect(s[1]).toBeGreaterThan(0.3);
       expect(s[2]).toBeGreaterThanOrEqual(0);
     }
-    // one per mast plus up to three cargo barrels (full-quality extras)
+    // one per mast plus up to three cargo barrels (full-quality extras), and the capstan of the PBR ships
     const circles = meta.obstacles.filter((o) => o.type === 'circle').length;
     expect(circles).toBeGreaterThanOrEqual(spec.masts.length);
-    expect(circles).toBeLessThanOrEqual(spec.masts.length + 3);
+    expect(circles).toBeLessThanOrEqual(spec.masts.length + 3 + (pbr ? 1 : 0));
     // one rect per castle plus the hatch coaming added to the full-quality model (needs a mast to place it)
     const hatch = spec.masts.length > 0 ? 1 : 0;
     expect(meta.obstacles.filter((o) => o.type === 'rect')).toHaveLength((spec.forecastle ? 1 : 0) + (spec.sterncastle ? 1 : 0) + hatch);
@@ -215,6 +224,6 @@ describe.each(SHIP_SPECS.map((s) => s.id))('%s (generic ship builder)', (id) => 
   });
 
   it('stays small enough to load quickly', () => {
-    expect(bytes).toBeLessThan(500_000);
+    expect(bytes).toBeLessThan(pbr ? 2_200_000 : 500_000);
   });
 });
