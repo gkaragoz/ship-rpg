@@ -41,8 +41,8 @@
   - [ ] 5a.5 follow-ups from the balance work: equal-speed chases never end (the enemy does not give up and cannot catch you either: decide a pursuit timeout or a visibility rule); the guard has no upper bound on win rates (Brig, Corvette, Frigate, Pinnace win 90–100% as a bot); fights are 1v1 in the sim but up to 3 in the game; the picker repeats a type for Barque, Caravel, Galleon and Battleship; re-measure after 5a.3 (damage model) and 5b (crew changes reload); big slow-turning ships still depend on their broadside geometry; a human playtest to calibrate the bot-vs-human gap; the Tartane has no way to fight (decide: boarding in 5b?)
   - [ ] 5a.3 damage model, in five sub-slices (a commit after each, QA once at the end; the balance guard and `docs/BALANCE.md` are re-measured in 5a.3e):
     - [x] 5a.3a hit zones and rigging: where a ball strikes decides what it damages (waterline / hull / rigging by its height); rigging hits wreck sails, which cut speed and turning for both sides; repair is slow at sea and fast in harbour
-    - [ ] 5a.3b leaks: waterline hits open leaks that flood the ship (hull points drain, speed drops) until pumped out or repaired
-    - [ ] 5a.3c fire: hits can start fires that burn hull and sails until they burn out, are put out, or the ship docks
+    - [x] 5a.3b leaks: waterline hits open leaks that flood the ship (hull points drain, speed drops) until pumped out or repaired
+    - [x] 5a.3c fire: hits can start fires that burn hull and sails until they burn out, are put out, or the ship docks
     - [ ] 5a.3d visuals: torn sails, a ship sitting low and listing when flooded, flames and smoke on the model, HUD condition icons, enemy condition in the target panel
     - [ ] 5a.3e balance: the duel simulator uses the same damage model; re-measure, adjust the guard windows, regenerate `docs/BALANCE.md`
   - [x] 5a.4 balance (runtime QA: an even Brig-vs-Schooner fight was lost twice, a Frigate needed ~5 min for one Pinnace; squadron composition and the escape asymmetry also live here), in four sub-slices (QA once at the end, a commit after each):

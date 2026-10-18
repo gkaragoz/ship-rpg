@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Controls, WindView } from '../src/core';
 import { createGame } from '../src/gameplay';
 import { ballHitZone, type Ball } from '../src/gameplay/combat';
-import { DAMAGE, WATERLINE_BAND, hitEffect, repairRigging, riggingSpeedFactor, riggingTurnFactor } from '../src/gameplay/damage';
+import { DAMAGE, WATERLINE_BAND, floodSpeedFactor, hitEffect, repairRigging, riggingSpeedFactor, riggingTurnFactor, stepAffliction, strike } from '../src/gameplay/damage';
 import { createPlayerShip, maxSpeed, stepPlayerShip } from '../src/gameplay/sailing';
 import { SHIP_SPECS, getShipSpec } from '../src/ships';
 
@@ -45,7 +45,19 @@ describe('hit zones', () => {
 
 describe('hit effect', () => {
   it('a hull or waterline hit takes the full damage and leaves the rigging alone', () => {
-    for (const zone of ['hull', 'waterline'] as const) expect(hitEffect(zone, 40, 2500)).toEqual({ hull: 40, rigging: 0 });
+    for (const zone of ['hull', 'waterline'] as const) {
+      const fx = hitEffect(zone, 40, 2500);
+      expect(fx.hull).toBe(40);
+      expect(fx.rigging).toBe(0);
+    }
+  });
+
+  it('only a waterline hit floods the ship, in proportion to the ship strength', () => {
+    expect(hitEffect('hull', 40, 2500).flood).toBe(0);
+    expect(hitEffect('rigging', 40, 2500).flood).toBe(0);
+    const f = hitEffect('waterline', 40, 2500).flood;
+    expect(f).toBeCloseTo((40 / 2500) * DAMAGE.floodPerHull, 5);
+    expect(hitEffect('waterline', 40, 500).flood).toBeGreaterThan(f * 4);
   });
 
   it('a rigging hit costs part of the hull damage and wrecks some sail, in proportion to the ship strength', () => {
@@ -178,5 +190,141 @@ describe('in the game', () => {
     expect(zones.none).toBeUndefined();
     expect(Object.values(zones).reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
     expect(minRigging).toBeLessThan(1);
+  });
+});
+
+const fresh = (): { rigging: number; flooding: number; fire: number } => ({ rigging: 1, flooding: 0, fire: 0 });
+
+describe('leaks', () => {
+  it('a waterline hit opens a leak, which then costs hull points every second until pumped out', () => {
+    const ship = fresh();
+    expect(strike(ship, 'waterline', 40, 2500, 0.99)).toBe(40);
+    expect(ship.flooding).toBeGreaterThan(0.05);
+    expect(ship.fire).toBe(0); // water never burns
+    const lost = stepAffliction(ship, 2500, false, 1);
+    expect(lost).toBeGreaterThan(0.5);
+    expect(lost).toBeLessThan(5);
+    let t = 0;
+    let total = lost;
+    while (ship.flooding > 0 && t < 600) {
+      total += stepAffliction(ship, 2500, false, 1);
+      t++;
+    }
+    expect(ship.flooding).toBe(0);
+    expect(t).toBeGreaterThan(10); // pumping takes a while at sea…
+    expect(total).toBeLessThan(2500 * 0.05); // …but one hit is not fatal
+  });
+
+  it('piled-up hits swamp the ship (capped at 1), which slows it and a harbour pump dries it far faster', () => {
+    const ship = fresh();
+    for (let i = 0; i < 30; i++) strike(ship, 'waterline', 40, 2500, 0.99);
+    expect(ship.flooding).toBe(1);
+    expect(floodSpeedFactor(1)).toBe(DAMAGE.floodSpeedFloor);
+    expect(floodSpeedFactor(0)).toBe(1);
+    expect(floodSpeedFactor(0.5)).toBeLessThan(1);
+    expect(floodSpeedFactor(0.5)).toBeGreaterThan(DAMAGE.floodSpeedFloor);
+    let t = 0;
+    while (ship.flooding > 0 && t < 600) {
+      stepAffliction(ship, 2500, true, 1);
+      t++;
+    }
+    expect(t).toBeLessThanOrEqual(Math.ceil(1 / DAMAGE.dockPump));
+  });
+
+  it('a swamped ship sails slower than a dry one', () => {
+    const sail = (flooding: number): number => {
+      const s = createPlayerShip(OPEN.x, OPEN.z, 0);
+      s.sailTarget = 1;
+      s.sailLevel = 1;
+      for (let i = 0; i < 90 / DT; i++) {
+        s.flooding = flooding;
+        stepPlayerShip(s, brig, north, NONE, DT);
+      }
+      return s.speed;
+    };
+    expect(sail(1)).toBeLessThan(sail(0) * 0.7);
+    expect(sail(1)).toBeGreaterThan(sail(0) * 0.4);
+  });
+});
+
+describe('fire', () => {
+  it('starts only on a hull or rigging hit, when the roll is under the chance for that zone', () => {
+    const a = fresh();
+    strike(a, 'rigging', 40, 2500, DAMAGE.igniteRigging - 0.001);
+    expect(a.fire).toBeGreaterThanOrEqual(DAMAGE.igniteLevel);
+    const b = fresh();
+    strike(b, 'rigging', 40, 2500, DAMAGE.igniteRigging + 0.001);
+    expect(b.fire).toBe(0);
+    const c = fresh();
+    strike(c, 'hull', 40, 2500, DAMAGE.igniteHull - 0.001);
+    expect(c.fire).toBeGreaterThan(0);
+    const d = fresh();
+    strike(d, 'hull', 40, 2500, DAMAGE.igniteHull + 0.001);
+    expect(d.fire).toBe(0);
+    const e = fresh();
+    strike(e, 'waterline', 40, 2500, 0);
+    expect(e.fire).toBe(0);
+  });
+
+  it('burns the hull and the rigging while it lasts, then goes out by itself', () => {
+    const ship = fresh();
+    strike(ship, 'rigging', 40, 2500, 0);
+    let lost = 0;
+    let t = 0;
+    while (ship.fire > 0 && t < 600) {
+      lost += stepAffliction(ship, 2500, false, 1);
+      t++;
+    }
+    expect(ship.fire).toBe(0);
+    expect(lost).toBeGreaterThan(5);
+    expect(lost).toBeLessThan(2500 * 0.05);
+    expect(ship.rigging).toBeLessThan(1 - 40 / 2500 * DAMAGE.riggingPerHull); // the flames took more sail than the ball
+    expect(t).toBeGreaterThan(10);
+  });
+
+  it('is put out within seconds in harbour', () => {
+    const ship = { rigging: 1, flooding: 0, fire: 1 };
+    for (let i = 0; i < Math.ceil(1 / DAMAGE.dockFireOut); i++) stepAffliction(ship, 2500, true, 1);
+    expect(ship.fire).toBe(0);
+  });
+});
+
+describe('affliction in the game', () => {
+  it('shows flooding and fire in the view, clamped, and a burning, leaking ship loses hull points', () => {
+    const game = createGame(brig);
+    game.dev.setAffliction(0.5, 2);
+    let v = game.view();
+    expect(v.ship.flooding).toBe(0.5);
+    expect(v.ship.fire).toBe(1);
+    const hp = v.ship.hp;
+    for (let i = 0; i < 60 * 5; i++) game.update(DT, NONE);
+    v = game.view();
+    expect(v.ship.hp).toBeLessThan(hp - 3);
+  });
+
+  it('a ship can founder from water and fire alone, and mooring saves it', () => {
+    const game = createGame(brig);
+    game.dev.setAffliction(1, 1);
+    for (let i = 0; i < 60 * 3; i++) game.update(DT, NONE);
+    const before = game.view().ship.hp;
+    game.update(DT, { rudder: 0, sailStep: 0, interact: true });
+    expect(game.view().docked).toBe('douwesen');
+    for (let i = 0; i < 60 * 30; i++) game.update(DT, NONE);
+    const v = game.view();
+    expect(v.ship.fire).toBe(0);
+    expect(v.ship.flooding).toBe(0);
+    expect(v.ship.hp).toBeGreaterThan(before);
+    expect(v.sunk).toBe(false);
+  });
+
+  it('a swamped, burning ship sinks when the damage reaches its hull', () => {
+    const game = createGame(brig);
+    game.dev.setAffliction(1, 1);
+    for (let i = 0; i < 60 * 6000 && !game.view().sunk; i++) {
+      game.dev.setAffliction(1, 1);
+      game.update(DT, NONE);
+    }
+    expect(game.view().sunk).toBe(true);
+    expect(game.view().ship.hp).toBe(0);
   });
 });

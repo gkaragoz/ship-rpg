@@ -2,7 +2,7 @@ import { createRng } from '../core';
 import type { ShipSpec } from '../ships';
 import { windAt } from '../world';
 import { COMBAT, ballHitZone, fireBroadside, stepBall, type Ball } from './combat';
-import { hitEffect } from './damage';
+import { strike, stepAffliction } from './damage';
 import { ENEMY_TUNING, aiStep, createEnemy, lostTrack, type Enemy } from './enemy';
 import { stepPlayerShip } from './sailing';
 
@@ -136,9 +136,7 @@ export function runDuel(a: DuelSide, b: DuelSide, options: DuelOptions = {}): Du
         const shooter = ball.owner === 'player' ? fa : fb;
         const zone = ballHitZone(ball, target.e.ship, target.e.spec);
         if (zone) {
-          const fx = hitEffect(zone, ball.damage, target.e.maxHp);
-          target.e.hp = Math.max(0, target.e.hp - fx.hull);
-          target.e.ship.rigging = Math.max(0, target.e.ship.rigging - fx.rigging);
+          target.e.hp = Math.max(0, target.e.hp - strike(target.e.ship, zone, ball.damage, target.e.maxHp, rng()));
           shooter.hits++;
           continue;
         }
@@ -146,6 +144,7 @@ export function runDuel(a: DuelSide, b: DuelSide, options: DuelOptions = {}): Du
       }
       balls = alive;
     }
+    for (const f of [fa, fb]) f.e.hp = Math.max(0, f.e.hp - stepAffliction(f.e.ship, f.e.maxHp, false, dt));
     seconds += dt;
 
     if (fb.e.hp <= 0) outcome = 'a-won';

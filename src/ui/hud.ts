@@ -61,6 +61,8 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const portEl = rowValue('Liman');
   const hullEl = rowValue('Gövde');
   const rigEl = rowValue('Arma');
+  const floodEl = rowValue('Su');
+  const fireEl = rowValue('Yangın');
   const drive = bar();
   const hull = bar('hud-hull');
   const rig = bar('hud-rig');
@@ -135,6 +137,11 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
       rigEl.textContent = pct(ship.rigging);
       rig.fill.style.width = pct(ship.rigging);
       rig.root.classList.toggle('low', ship.rigging < 0.35);
+      // Leaks and fire show only while they are a problem.
+      for (const [node, level] of [[floodEl, ship.flooding], [fireEl, ship.fire]] as const) {
+        node.textContent = level > 0.005 ? pct(level) : '–';
+        node.classList.toggle('alert', level > 0.005);
+      }
       guns.hidden = ship.guns === 0;
       gunPort.fill.style.width = pct(1 - ship.reload.port);
       gunStbd.fill.style.width = pct(1 - ship.reload.starboard);

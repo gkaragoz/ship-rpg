@@ -100,3 +100,5 @@
 }
 .hud-chip { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border: 1px solid #f3ead2; border-radius: 2px; vertical-align: -1px; }
 .hud-target > div:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.hud-panel dd.alert { color: #e8643c; }

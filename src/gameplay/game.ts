@@ -1,10 +1,11 @@
 import { CONFIG, createRng } from '../core';
-import type { BallView, Controls, EnemyView, GameEvent, GameView, PortView } from '../core';
+import type { BallView, Controls, GameEvent, GameView, PortView } from '../core';
 import type { ShipSpec } from '../ships';
 import { PORTS, getPort, terrainHeight, windAt, type Port } from '../world';
 import { createExploration } from './exploration';
 import { COMBAT, aimZone, ballHitZone, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball, type Side } from './combat';
-import { hitEffect } from './damage';
+import { stepAffliction, strike } from './damage';
+import { enemyView } from './enemyView';
 import { MAX_ENEMIES, aiStep, createEnemy, desiredEnemies, findSpawn, lostTrack, pickEnemySpec, type Enemy } from './enemy';
 import { SAILING, createPlayerShip, maxSpeed, stepPlayerShip } from './sailing';
 
@@ -23,6 +24,8 @@ export interface Game {
     setKills(n: number): void;
     /** Set the player's rigging health, 0…1. */
     setRigging(fraction: number): void;
+    /** Set the player's flooding and fire, 0…1. */
+    setAffliction(flooding: number, fire: number): void;
   };
 }
 
@@ -124,6 +127,21 @@ export function createGame(spec: ShipSpec): Game {
     events.push(...shot.events);
   };
 
+  const checkPlayerSunk = (): void => {
+    if (hp > 0 || sunk) return;
+    sunk = true;
+    sinkTime = 0;
+    events.push({ type: 'sunk', owner: 'player', x: ship.x, y: 0, z: ship.z });
+  };
+
+  const checkEnemySunk = (e: Enemy): void => {
+    if (e.hp > 0 || e.sinking >= 0) return;
+    e.sinking = 0;
+    kills++;
+    respawnIn = RESPAWN;
+    events.push({ type: 'sunk', owner: 'enemy', x: e.ship.x, y: 0, z: e.ship.z });
+  };
+
   const stepBalls = (dt: number): void => {
     const alive: Ball[] = [];
     for (const b of balls) {
@@ -133,32 +151,21 @@ export function createGame(spec: ShipSpec): Game {
         // A moored ship is safe in the harbour.
         const zone = !sunk && !dockedAt ? ballHitZone(b, ship, spec) : null;
         if (zone) {
-          const fx = hitEffect(zone, b.damage, maxHp);
-          hp = Math.max(0, hp - fx.hull);
-          ship.rigging = Math.max(0, ship.rigging - fx.rigging);
-          events.push({ type: 'hit', owner: 'enemy', x: b.x, y: b.y, z: b.z, amount: fx.hull, zone });
+          const lost = strike(ship, zone, b.damage, maxHp, rng());
+          hp = Math.max(0, hp - lost);
+          events.push({ type: 'hit', owner: 'enemy', x: b.x, y: b.y, z: b.z, amount: lost, zone });
           consumed = true;
-          if (hp <= 0) {
-            sunk = true;
-            sinkTime = 0;
-            events.push({ type: 'sunk', owner: 'player', x: ship.x, y: 0, z: ship.z });
-          }
+          checkPlayerSunk();
         }
       } else {
         for (const e of enemies) {
           const zone = e.sinking < 0 ? ballHitZone(b, e.ship, e.spec) : null;
           if (!zone) continue;
-          const fx = hitEffect(zone, b.damage, e.maxHp);
-          e.hp = Math.max(0, e.hp - fx.hull);
-          e.ship.rigging = Math.max(0, e.ship.rigging - fx.rigging);
-          events.push({ type: 'hit', owner: 'player', x: b.x, y: b.y, z: b.z, amount: fx.hull, zone });
+          const lost = strike(e.ship, zone, b.damage, e.maxHp, rng());
+          e.hp = Math.max(0, e.hp - lost);
+          events.push({ type: 'hit', owner: 'player', x: b.x, y: b.y, z: b.z, amount: lost, zone });
           consumed = true;
-          if (e.hp <= 0) {
-            e.sinking = 0;
-            kills++;
-            respawnIn = RESPAWN;
-            events.push({ type: 'sunk', owner: 'enemy', x: e.ship.x, y: 0, z: e.ship.z });
-          }
+          checkEnemySunk(e);
           break;
         }
       }
@@ -181,6 +188,9 @@ export function createGame(spec: ShipSpec): Game {
       }
       const ai = aiStep(e, ship, wind, enemies.filter((o) => o !== e && o.sinking < 0).map((o) => o.ship));
       stepPlayerShip(e.ship, e.spec, wind, ai.controls, dt);
+      e.hp = Math.max(0, e.hp - stepAffliction(e.ship, e.maxHp, false, dt));
+      checkEnemySunk(e);
+      if (e.sinking >= 0) continue;
       if (lostTrack(e, Math.hypot(e.ship.x - ship.x, e.ship.z - ship.z), dt)) {
         // Out of sight for too long: the enemy gives up (or, damaged, got away).
         e.gone = true;
@@ -223,6 +233,10 @@ export function createGame(spec: ShipSpec): Game {
       setRigging(fraction): void {
         ship.rigging = Math.min(Math.max(fraction, 0), 1);
       },
+      setAffliction(flooding, fire): void {
+        ship.flooding = Math.min(Math.max(flooding, 0), 1);
+        ship.fire = Math.min(Math.max(fire, 0), 1);
+      },
     },
     update(dt, controls): void {
       time += dt;
@@ -247,6 +261,8 @@ export function createGame(spec: ShipSpec): Game {
         reload[side] = COMBAT.playerReload;
       }
       if (dockedAt) hp = Math.min(maxHp, hp + maxHp * REPAIR_RATE * dt);
+      hp = Math.max(0, hp - stepAffliction(ship, maxHp, !!dockedAt, dt));
+      checkPlayerSunk();
 
       stepEnemies(dt);
       stepBalls(dt);
@@ -262,27 +278,7 @@ export function createGame(spec: ShipSpec): Game {
         direction: Math.atan2(-(n.port.anchor.z - ship.z), n.port.anchor.x - ship.x),
         dockable: !dockedAt && canDock(n.distance),
       };
-      const enemyViews: EnemyView[] = enemies.map((e) => ({
-        id: e.id,
-        specId: e.spec.id,
-        name: e.spec.name,
-        nation: e.nation,
-        x: e.ship.x,
-        z: e.ship.z,
-        heading: e.ship.heading,
-        speed: e.ship.speed,
-        roll: e.ship.roll,
-        sailLevel: e.ship.sailLevel,
-        hp: e.hp,
-        maxHp: e.maxHp,
-        sinking: e.sinking,
-        fleeing: e.fleeing,
-        rigging: e.ship.rigging,
-        flooding: 0, // placeholders until leaks and fire (5a.3b, c)
-        fire: 0,
-        distance: Math.hypot(e.ship.x - ship.x, e.ship.z - ship.z),
-        direction: Math.atan2(-(e.ship.z - ship.z), e.ship.x - ship.x),
-      }));
+      const enemyViews = enemies.map((e) => enemyView(e, ship));
       const ballViews: BallView[] = balls.map((b) => ({ id: b.id, owner: b.owner, x: b.x, y: b.y, z: b.z }));
       const zone = aimZone(spec, ship.speed);
       const afloat = enemies.filter((e) => e.sinking < 0);
@@ -306,8 +302,8 @@ export function createGame(spec: ShipSpec): Game {
           hp,
           maxHp,
           rigging: ship.rigging,
-          flooding: 0,
-          fire: 0,
+          flooding: ship.flooding,
+          fire: ship.fire,
           guns: cannonsPerSide(spec),
           aim: zone,
           inRange: {

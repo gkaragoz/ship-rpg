@@ -2,7 +2,7 @@ import { angleDiff, clamp, wrapAngle } from '../core';
 import type { Controls, WindView } from '../core';
 import type { ShipSpec } from '../ships';
 import { NOMINAL_WIND, sailEfficiency, terrainHeight } from '../world';
-import { repairRigging, riggingSpeedFactor, riggingTurnFactor } from './damage';
+import { floodSpeedFactor, repairRigging, riggingSpeedFactor, riggingTurnFactor } from './damage';
 
 /** Tuning: converts the original game's stats into metres and seconds. */
 export const SAILING = {
@@ -44,10 +44,13 @@ export interface PlayerShip {
   docked: boolean;
   /** Health of sails and rigging, 1 intact … 0 wrecked: slows the ship and blunts its turning (see `damage.ts`). */
   rigging: number;
+  /** Water in the hull, 0 dry … 1 swamped, and fire aboard, 0 … 1: they cost hull points and, flooded, speed (see `damage.ts`). */
+  flooding: number;
+  fire: number;
 }
 
 export function createPlayerShip(x = 0, z = 0, heading = 0): PlayerShip {
-  return { x, z, heading, speed: 0, rudder: 0, sailTarget: 0.5, sailLevel: 0.5, efficiency: 0, roll: 0, grounded: 0, docked: false, rigging: 1 };
+  return { x, z, heading, speed: 0, rudder: 0, sailTarget: 0.5, sailLevel: 0.5, efficiency: 0, roll: 0, grounded: 0, docked: false, rigging: 1, flooding: 0, fire: 0 };
 }
 
 export const maxSpeed = (spec: ShipSpec): number => spec.stats.speed * SAILING.speedScale;
@@ -95,7 +98,7 @@ export function stepPlayerShip(s: PlayerShip, spec: ShipSpec, wind: WindView, co
   // Head to wind the sails only push the ship astern, slowly: that is what lets it fall off again.
   const sternway = s.grounded <= 0 && s.efficiency < 0.05 ? -top * SAILING.ironsDrift * s.sailLevel : 0;
   // Wrecked sails drive the ship less; the drift astern in irons is the wind's doing, not the sails'.
-  const target = Math.min(top * drive * windFactor, top * SAILING.overspeed) * riggingSpeedFactor(s.rigging) + sternway;
+  const target = Math.min(top * drive * windFactor, top * SAILING.overspeed) * riggingSpeedFactor(s.rigging) * floodSpeedFactor(s.flooding) + sternway;
   const rate = target > s.speed ? SAILING.accel : SAILING.drag;
   s.speed += (target - s.speed) * (1 - Math.exp(-rate * dt));
 
