@@ -1,0 +1,175 @@
+{
+  "fps": 24,
+  "forward": "+Z (glTF), character faces +Z, up +Y",
+  "animations": {
+    "Idle": [
+      1,
+      49
+    ],
+    "Walk": [
+      1,
+      25
+    ],
+    "Run": [
+      1,
+      17
+    ]
+  },
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "hair_parts": [
+    "Hair_Short",
+    "Hair_Long",
+    "Beard"
+  ],
+  "hat_parts": [
+    "Hat_Wide",
+    "Hat_Bandana",
+    "Hat_Cap"
+  ],
+  "materials": [
+    "Skin",
+    "Shirt",
+    "Pants",
+    "Boots",
+    "Belt",
+    "Hair",
+    "Hat"
+  ],
+  "palette": {
+    "skin": [
+      "#F2C9A0",
+      "#E0A878",
+      "#C68642",
+      "#8D5524",
+      "#5C3A21"
+    ],
+    "shirt": [
+      "#B03A2E",
+      "#2E5EAA",
+      "#E8E0C8",
+      "#3E7D4A",
+      "#D4A017",
+      "#7B3F8C",
+      "#2B2B2B",
+      "#C96A1B"
+    ],
+    "pants": [
+      "#3B3B5C",
+      "#5A4632",
+      "#8B7D5A",
+      "#2F4F4F",
+      "#6B2D2D"
+    ],
+    "hair": [
+      "#1B1B1B",
+      "#5A3A1E",
+      "#A0522D",
+      "#D8B45A",
+      "#B0B0B0",
+      "#C0392B"
+    ],
+    "hat": [
+      "#1F1F2E",
+      "#6B4423",
+      "#8B1E1E",
+      "#2E5EAA"
+    ],
+    "boots": [
+      "#3A2616"
+    ],
+    "belt": [
+      "#5A3A1E"
+    ]
+  },
+  "variants": {
+    "Male_Standard": {
+      "file": "Male_Standard.glb",
+      "tris": {
+        "LOD0": 288,
+        "LOD1": 156,
+        "LOD2": 84
+      },
+      "bytes": 161476,
+      "parts": [
+        "Hair_Short",
+        "Beard",
+        "Hat_Wide"
+      ],
+      "height": 1.71
+    },
+    "Male_Broad": {
+      "file": "Male_Broad.glb",
+      "tris": {
+        "LOD0": 276,
+        "LOD1": 156,
+        "LOD2": 84
+      },
+      "bytes": 161344,
+      "parts": [
+        "Hair_Short",
+        "Hat_Bandana"
+      ],
+      "height": 1.76
+    },
+    "Male_Stout": {
+      "file": "Male_Stout.glb",
+      "tris": {
+        "LOD0": 276,
+        "LOD1": 156,
+        "LOD2": 84
+      },
+      "bytes": 161704,
+      "parts": [
+        "Beard",
+        "Hat_Cap"
+      ],
+      "height": 1.69
+    },
+    "Female_Standard": {
+      "file": "Female_Standard.glb",
+      "tris": {
+        "LOD0": 312,
+        "LOD1": 156,
+        "LOD2": 84
+      },
+      "bytes": 161324,
+      "parts": [
+        "Hair_Long",
+        "Hat_Bandana"
+      ],
+      "height": 1.61
+    },
+    "Female_Sturdy": {
+      "file": "Female_Sturdy.glb",
+      "tris": {
+        "LOD0": 312,
+        "LOD1": 156,
+        "LOD2": 84
+      },
+      "bytes": 161360,
+      "parts": [
+        "Hair_Long",
+        "Hat_Wide"
+      ],
+      "height": 1.69
+    },
+    "Female_Stout": {
+      "file": "Female_Stout.glb",
+      "tris": {
+        "LOD0": 276,
+        "LOD1": 156,
+        "LOD2": 84
+      },
+      "bytes": 161324,
+      "parts": [
+        "Hair_Short",
+        "Hat_Cap"
+      ],
+      "height": 1.6
+    }
+  }
+}
