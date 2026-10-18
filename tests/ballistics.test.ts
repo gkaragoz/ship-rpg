@@ -99,7 +99,7 @@ describe('debris', () => {
   const flatSea = (): number => 0;
 
   it('flies, lands on the sea, floats and then sinks away', () => {
-    const d = createDebris();
+    const d = createDebris({ props: false });
     d.launch({ kind: 'plank', x: 0, y: 3, z: 0, vx: 4, vy: 6, vz: 0 });
     expect(d.count()).toBe(0); // counted on the first update
     d.update(0.016, flatSea, 0, 0);
@@ -112,11 +112,11 @@ describe('debris', () => {
   });
 
   it('recycles the oldest piece when the pool is full and thins out with the particle setting', () => {
-    const d = createDebris();
+    const d = createDebris({ props: false });
     for (let i = 0; i < 400; i++) d.launch({ kind: 'splinter', x: 0, y: 5, z: 0, vx: 0, vy: 0, vz: 0 });
     d.update(0.016, flatSea, 0, 0);
     expect(d.count()).toBeLessThanOrEqual(150);
-    const thin = createDebris();
+    const thin = createDebris({ props: false });
     thin.setDensity(0.25);
     for (let i = 0; i < 400; i++) thin.launch({ kind: 'splinter', x: 0, y: 5, z: 0, vx: 0, vy: 0, vz: 0 });
     thin.update(0.016, flatSea, 0, 0);

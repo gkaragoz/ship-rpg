@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 
 /**
  * Wreckage thrown from damaged ships: planks, splinters and torn sailcloth as real, tumbling 3D pieces (instanced).
@@ -105,37 +107,36 @@ function clothGeometry(): THREE.BufferGeometry {
 const WOOD = [0x6b4a2b, 0x7a5a36, 0x5a3d22, 0x8a6a42, 0x4a321c];
 const CLOTH = [0xf1ead4, 0xe6dcc0, 0xd8cdb0];
 
-export function createDebris(): Debris {
+/** Where the Blender prop set lives, and which of its pieces stand in for each kind. */
+const PROP_FILE = 'models/props/debris.glb';
+const PROP_KINDS: Readonly<Record<DebrisKind, readonly string[]>> = {
+  plank: ['Plank_L', 'Plank_M', 'Plank_S', 'Barrel_Stave'],
+  splinter: ['Splinter_A', 'Splinter_B'],
+  cloth: ['Cloth_A', 'Cloth_B', 'Rope_Coil'],
+};
+
+type Shapes = Record<DebrisKind, { geometry: THREE.BufferGeometry; material: THREE.Material }[]>;
+
+/** One instanced mesh (one shape) and its pieces. */
+interface Slot {
+  kind: DebrisKind;
+  mesh: THREE.InstancedMesh;
+  pieces: Piece[];
+  cursor: number;
+}
+
+export interface DebrisOptions {
+  /** Load the Blender prop set (`models/props/debris.glb`) and use it in place of the shapes built in code. Default true. */
+  props?: boolean;
+  /** Base URL the props folder hangs off, default the app's base. */
+  base?: string;
+}
+
+export function createDebris(options: DebrisOptions = {}): Debris {
   const group = new THREE.Group();
   group.name = 'debris';
-  const geometries: Record<DebrisKind, THREE.BufferGeometry> = { plank: plankGeometry(), splinter: splinterGeometry(), cloth: clothGeometry() };
-  const materials: Record<DebrisKind, THREE.MeshStandardMaterial> = {
-    plank: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0, flatShading: true }),
-    splinter: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0, flatShading: true }),
-    cloth: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, side: THREE.DoubleSide }),
-  };
-  const meshes = {} as Record<DebrisKind, THREE.InstancedMesh>;
-  const pieces = {} as Record<DebrisKind, Piece[]>;
-  const cursor: Record<DebrisKind, number> = { plank: 0, splinter: 0, cloth: 0 };
-  for (const kind of Object.keys(CAPACITY) as DebrisKind[]) {
-    const mesh = new THREE.InstancedMesh(geometries[kind], materials[kind], CAPACITY[kind]);
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(CAPACITY[kind] * 3), 3);
-    mesh.frustumCulled = false;
-    mesh.count = 0;
-    mesh.name = `debris-${kind}`;
-    group.add(mesh);
-    meshes[kind] = mesh;
-    pieces[kind] = Array.from({ length: CAPACITY[kind] }, () => ({
-      alive: false,
-      pos: new THREE.Vector3(),
-      vel: new THREE.Vector3(),
-      quat: new THREE.Quaternion(),
-      spin: new THREE.Vector3(),
-      size: 1,
-      floatFor: -1,
-    }));
-  }
+  let slots: Slot[] = [];
+  let owned: { dispose(): void }[] = [];
   let density = 1;
   const color = new THREE.Color();
   const matrix = new THREE.Matrix4();
@@ -143,7 +144,97 @@ export function createDebris(): Debris {
   const partial = new THREE.Quaternion();
   const dq = new THREE.Quaternion();
   const axis = new THREE.Vector3();
-  const alive = { plank: 0, splinter: 0, cloth: 0 };
+  const euler = new THREE.Euler();
+  let total = 0;
+  let disposed = false;
+
+  const clear = (): void => {
+    for (const s of slots) {
+      group.remove(s.mesh);
+      s.mesh.dispose();
+    }
+    for (const o of owned) o.dispose();
+    slots = [];
+    owned = [];
+  };
+
+  /** Build the pools from a list of shapes per kind (each shape gets its own instanced mesh). */
+  const build = (shapes: Shapes, tinted: boolean): void => {
+    clear();
+    for (const kind of Object.keys(CAPACITY) as DebrisKind[]) {
+      const list = shapes[kind];
+      const each = Math.max(8, Math.ceil(CAPACITY[kind] / list.length));
+      list.forEach((shape, v) => {
+        const mesh = new THREE.InstancedMesh(shape.geometry, shape.material, each);
+        mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(each * 3), 3);
+        mesh.frustumCulled = false;
+        mesh.count = 0;
+        mesh.name = `debris-${kind}-${v}`;
+        mesh.userData.tinted = tinted;
+        group.add(mesh);
+        slots.push({
+          kind,
+          mesh,
+          cursor: 0,
+          pieces: Array.from({ length: each }, () => ({ alive: false, pos: new THREE.Vector3(), vel: new THREE.Vector3(), quat: new THREE.Quaternion(), spin: new THREE.Vector3(), size: 1, floatFor: -1 })),
+        });
+      });
+    }
+  };
+
+  /** The shapes made in code: one per kind. */
+  const builtIn = (): Shapes => {
+    const geometries = { plank: plankGeometry(), splinter: splinterGeometry(), cloth: clothGeometry() };
+    const materials = {
+      plank: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0, flatShading: true }),
+      splinter: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0, flatShading: true }),
+      cloth: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, side: THREE.DoubleSide }),
+    };
+    owned = [...Object.values(geometries), ...Object.values(materials)];
+    return {
+      plank: [{ geometry: geometries.plank, material: materials.plank }],
+      splinter: [{ geometry: geometries.splinter, material: materials.splinter }],
+      cloth: [{ geometry: geometries.cloth, material: materials.cloth }],
+    };
+  };
+
+  build(builtIn(), false);
+
+  // The Blender pieces replace the built-in shapes once they arrive (if they never do, the built-in ones stay).
+  if (options.props !== false && typeof fetch === 'function') {
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    loader.loadAsync(`${options.base ?? import.meta.env.BASE_URL}${PROP_FILE}`).then(
+      (gltf) => {
+        if (disposed) return;
+        const found = new Map<string, THREE.Mesh>();
+        gltf.scene.traverse((o) => {
+          if ((o as THREE.Mesh).isMesh) found.set(o.name, o as THREE.Mesh);
+        });
+        const shapes: Shapes = { plank: [], splinter: [], cloth: [] };
+        const made: { dispose(): void }[] = [];
+        for (const kind of Object.keys(PROP_KINDS) as DebrisKind[]) {
+          for (const name of PROP_KINDS[kind]) {
+            const mesh = found.get(name);
+            if (!mesh) continue;
+            let material = mesh.material as THREE.Material;
+            if (kind === 'cloth') {
+              material = material.clone(); // scraps of cloth are seen from both sides
+              material.side = THREE.DoubleSide;
+              made.push(material);
+            }
+            shapes[kind].push({ geometry: mesh.geometry, material });
+            made.push(mesh.geometry);
+          }
+        }
+        if (Object.values(shapes).some((list) => list.length === 0)) return; // an incomplete set: keep the built-in shapes
+        build(shapes, true);
+        owned = made;
+      },
+      () => undefined, // no props: the built-in shapes stay
+    );
+  }
 
   return {
     group,
@@ -155,33 +246,37 @@ export function createDebris(): Debris {
     },
     launch(t): void {
       if (density < 1 && Math.random() > density) return;
-      const list = pieces[t.kind];
-      const i = cursor[t.kind];
-      cursor[t.kind] = (i + 1) % list.length;
-      const p = list[i]!;
+      const choices = slots.filter((s) => s.kind === t.kind);
+      const slot = choices[Math.floor(Math.random() * choices.length)];
+      if (!slot) return;
+      const i = slot.cursor;
+      slot.cursor = (i + 1) % slot.pieces.length;
+      const p = slot.pieces[i]!;
       p.alive = true;
       p.pos.set(t.x, t.y, t.z);
       p.vel.set(t.vx, t.vy, t.vz);
-      p.quat.setFromEuler(new THREE.Euler(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28));
+      p.quat.setFromEuler(euler.set(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28));
       const spin = t.spin ?? 7;
       p.spin.set((Math.random() - 0.5) * spin, (Math.random() - 0.5) * spin, (Math.random() - 0.5) * spin);
       p.size = (t.size ?? 1) * (0.7 + Math.random() * 0.6);
       p.floatFor = -1;
-      const palette = t.kind === 'cloth' ? CLOTH : WOOD;
-      color.setHex(t.color ?? palette[Math.floor(Math.random() * palette.length)]!);
-      meshes[t.kind].setColorAt(i, color);
-      if (meshes[t.kind].instanceColor) meshes[t.kind].instanceColor!.needsUpdate = true;
+      if (slot.mesh.userData.tinted && t.color === undefined) {
+        const g = 0.7 + Math.random() * 0.5; // the atlas carries the colour: only a brightness variation on top
+        color.setRGB(g, g, g);
+      } else {
+        const palette = t.kind === 'cloth' ? CLOTH : WOOD;
+        color.setHex(t.color ?? palette[Math.floor(Math.random() * palette.length)]!);
+      }
+      slot.mesh.setColorAt(i, color);
+      if (slot.mesh.instanceColor) slot.mesh.instanceColor.needsUpdate = true;
     },
     update(dt, surface, windX, windZ): void {
-      for (const kind of Object.keys(CAPACITY) as DebrisKind[]) {
-        const list = pieces[kind];
-        const mesh = meshes[kind];
+      total = 0;
+      for (const { mesh, pieces: list, kind } of slots) {
         let top = 0;
-        let living = 0;
         for (let i = 0; i < list.length; i++) {
           const p = list[i]!;
           if (!p.alive) {
-            // a dead slot still has to be a valid (degenerate) instance while it lies below the highest live one
             matrix.makeScale(0, 0, 0);
             mesh.setMatrixAt(i, matrix);
             continue;
@@ -218,28 +313,26 @@ export function createDebris(): Debris {
             p.quat.premultiply(partial.copy(IDENTITY).slerp(dq, Math.min(1, dt * 2.5))).normalize();
             if (sink >= 1) {
               p.alive = false;
+              matrix.makeScale(0, 0, 0);
+              mesh.setMatrixAt(i, matrix);
               continue;
             }
           }
-          const sinkScale = p.floatFor > FLOAT_SECONDS ? Math.max(0, 1 - (p.floatFor - FLOAT_SECONDS) / SINK_SECONDS * 0.4) : 1;
+          const sinkScale = p.floatFor > FLOAT_SECONDS ? Math.max(0, 1 - ((p.floatFor - FLOAT_SECONDS) / SINK_SECONDS) * 0.4) : 1;
           scale.setScalar(p.size * sinkScale);
           matrix.compose(p.pos, p.quat, scale);
           mesh.setMatrixAt(i, matrix);
-          living++;
+          total++;
           top = i + 1;
         }
-        alive[kind] = living;
         mesh.count = top;
         mesh.instanceMatrix.needsUpdate = true;
       }
     },
-    count: () => alive.plank + alive.splinter + alive.cloth,
+    count: () => total,
     dispose(): void {
-      for (const kind of Object.keys(CAPACITY) as DebrisKind[]) {
-        meshes[kind].dispose();
-        geometries[kind].dispose();
-        materials[kind].dispose();
-      }
+      disposed = true;
+      clear();
     },
   };
 }
