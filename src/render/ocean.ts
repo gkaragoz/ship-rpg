@@ -38,6 +38,8 @@ export interface Ocean {
   update(camera: THREE.Camera, time: number, windFrom: number, ampScale: number, seaState: number, look: SeaLook, tuning: SeaTuning): void;
   /** Use this foam and ripple map for the wakes of ships. */
   setWake(wake: Wake, texels: number): void;
+  /** How hard it rains (0…1): drops pock the surface. */
+  setRain(rain: number): void;
   /** Rebuild the sea's detail and depth textures for a texture quality, and set filtering. */
   setTextures(level: TextureQuality, maxAnisotropy: number): void;
   /** Rebuild the sea mesh for another quality preset. */
@@ -77,6 +79,9 @@ export function createOcean(quality: Quality): Ocean {
       }
       noise.anisotropy = Math.min(q.anisotropy, maxAnisotropy);
       noise.needsUpdate = true;
+    },
+    setRain(rain): void {
+      material.uniforms.uRain!.value = rain;
     },
     setWake(wake, texels): void {
       setSeaWake(material, wake, texels);

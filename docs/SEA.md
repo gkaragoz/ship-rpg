@@ -51,3 +51,5 @@ Measured with `?perf` in the embedded browser pane (same scene, player under way
 | high | ~183k | ~103–115 | ~104k |
 
 The wake pass adds two small render-target passes plus one instanced draw per frame (1024² half float on medium/high, 512² on low); the sea pixel shader is heavier than before (detail layers, wake lookups), which is why the quality preset scales the pixel ratio and the automatic step-down exists. Not yet measured on a mid-range GPU.
+
+**Storm foam and rain (organic look).** Foam is decided by a domain-warped, two-scale bubble noise, so whitecaps and wind rafts break into lace instead of tracing the crest. In rain, sparse jittered rings pock the water near the camera (`uRain`) and the sun glitter dulls. Rain streaks each have their own speed, length and brightness, and gusts sweep sheets of heavier rain through (`render/rain.ts`).

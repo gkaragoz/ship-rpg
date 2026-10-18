@@ -19,14 +19,18 @@ const float BOX = ${BOX.toFixed(1)};
 const float HEIGHT = ${HEIGHT.toFixed(1)};
 void main() {
   vec3 base = seed * vec3(2.0 * BOX, HEIGHT, 2.0 * BOX) - vec3(BOX, 0.0, BOX);
-  float y = mod(base.y - uTime * 24.0, HEIGHT);
+  float var = fract(seed.x * 91.7 + seed.y * 13.3); // each drop its own speed, length and brightness
+  float y = mod(base.y - uTime * (17.0 + 14.0 * var), HEIGHT);
   // the box follows the camera: every drop keeps its place in the world and wraps round the camera
   vec2 xz = uCenter.xz + mod(base.xz - uCenter.xz + BOX, 2.0 * BOX) - BOX + uSlant * (HEIGHT - y) * 0.08;
   vec3 world = vec3(xz.x, y, xz.y);
-  world.y += tip * 1.3;
-  world.xz += tip * uSlant * 0.35;
+  float len = 0.7 + 1.3 * var;
+  world.y += tip * len;
+  world.xz += tip * uSlant * 0.28 * len;
   float away = length(world.xz - uCenter.xz);
-  vFade = step(seed.z * 0.999, uDensity) * (1.0 - tip * 0.75) * smoothstep(BOX, BOX * 0.35, away);
+  // gusts: sheets of heavier rain sweep through
+  float gust = 0.6 + 0.4 * sin(dot(world.xz, vec2(0.043, 0.027)) + uTime * 0.7) * sin(dot(world.xz, vec2(-0.021, 0.05)) - uTime * 0.45);
+  vFade = step(seed.z * 0.999, uDensity * gust) * (1.0 - tip * 0.75) * (0.45 + 0.55 * var) * smoothstep(BOX, BOX * 0.35, away);
   gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
 }`;
 

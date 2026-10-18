@@ -18,6 +18,7 @@ uniform float uFogFar;
 uniform float uTime;
 uniform float uAmp;
 uniform float uSea;
+uniform float uRain;
 uniform vec2 uDirs[${WAVE_COUNT}];
 uniform sampler2D uTerrain;
 uniform sampler2D uNoise;
@@ -82,24 +83,41 @@ void main() {
   refl.y = abs(refl.y);
   col = mix(col, skyAt(refl), fres * 0.9);
 
-  // Foam: pinched crests (more of it in a big sea), wind streaks, and the shore.
-  float breakup = 0.5 * (texture2D(uNoise, vWorld.xz / 6.0 + vec2(uTime * 0.02, 0.0)).r + texture2D(uNoise, vWorld.xz / 2.1 - vec2(0.0, uTime * 0.03)).r);
+  // Foam: pinched crests (more of it in a big sea), wind streaks, and the shore. The edges are lacy: a warped,
+  // two-scale bubble noise decides where the foam holds, so patches break up and drift instead of tracing the crest.
+  vec2 warp = (texture2D(uNoise, vWorld.xz / 23.0 + vec2(uTime * 0.012, -uTime * 0.008)).rg - 0.5) * 7.0;
+  vec2 fp = vWorld.xz + warp;
+  float breakup = 0.5 * (texture2D(uNoise, fp / 6.0 + vec2(uTime * 0.02, 0.0)).r + texture2D(uNoise, fp / 2.1 - vec2(0.0, uTime * 0.03)).r);
+  float bubbles = texture2D(uNoise, fp / 0.9 + vec2(uTime * 0.05, uTime * 0.02)).g;
+  float lace = 0.55 * breakup + 0.45 * bubbles;
   float seaF = smoothstep(0.1, 0.7, uSea);
   float pinch = smoothstep(0.6, 0.22, vJac);
-  float caps = clamp(pinch * (0.5 + 1.5 * smoothstep(0.4, 0.9, h01)) * seaF * 1.2 - (1.0 - breakup) * 0.7, 0.0, 1.0);
-  vec2 sp = vec2(dot(vWorld.xz, wd) / 42.0, dot(vWorld.xz, vec2(-wd.y, wd.x)) / 4.0);
-  float streak = smoothstep(0.62, 0.92, texture2D(uNoise, sp - vec2(uTime * 0.01, 0.0)).r) * smoothstep(0.55, 0.9, uSea) * smoothstep(0.3, 0.7, h01) * 0.4;
+  float cover = pinch * (0.5 + 1.5 * smoothstep(0.4, 0.9, h01)) * seaF * 1.3;
+  float caps = smoothstep(0.3, 0.7, cover * (0.5 + 0.9 * lace) - (1.0 - lace) * 0.3);
+  // long streaks along the wind, torn into rafts by the same noise, thickening to a white-out in a storm
+  vec2 sp = vec2(dot(fp, wd) / 38.0, dot(fp, vec2(-wd.y, wd.x)) / 3.2);
+  float raft = smoothstep(0.58, 0.9, texture2D(uNoise, sp - vec2(uTime * 0.01, 0.0)).r) * smoothstep(0.3, 0.75, lace + 0.15);
+  float streak = raft * smoothstep(0.5, 0.95, uSea) * smoothstep(0.25, 0.7, h01) * 0.55;
   float pulse = 0.5 + 0.5 * sin(depth * 3.0 - uTime * 1.3 + breakup * 4.0);
   float shore = (1.0 - smoothstep(0.2 + 0.5 * breakup, 1.8, depth)) * (0.55 + 0.45 * pulse);
   float shade = clamp(wk.b, 0.0, 1.0); // a ship's shadow on the water
   col *= 1.0 - 0.5 * shade;
-  float trail = clamp(wk.r * 1.15 - (1.0 - breakup) * 0.4, 0.0, 1.0);
-  float white = clamp(max(max(max(caps, streak), shore), trail), 0.0, 1.0);
+  float trail = clamp(wk.r * 1.15 - (1.0 - lace) * 0.4, 0.0, 1.0);
+  // rain pocks the surface: tiny bright rings and a dulling of the glitter
+  vec2 dp = vWorld.xz * 1.6 + vec2(0.0, uTime * 0.0);
+  vec2 cell = floor(dp);
+  vec2 rnd = texture2D(uNoise, cell / 61.0 + 0.37).rg;
+  float pick = fract(rnd.x * 7.31 + rnd.y * 3.17);
+  float phase = fract(uTime * (0.7 + 0.8 * rnd.y) + rnd.x * 5.0);
+  vec2 centre = 0.5 + (vec2(rnd.y, pick) - 0.5) * 0.5;
+  float ringR = length(fract(dp) - centre) * 2.0;
+  float drop = smoothstep(0.1, 0.0, abs(ringR - phase * 0.7)) * (1.0 - phase) * step(pick, uRain * 0.22) * (1.0 - smoothstep(40.0, 120.0, dist));
+  float white = clamp(max(max(max(caps, streak), shore), trail) + drop * 0.35, 0.0, 1.0);
   col = mix(col, mix(vec3(0.78, 0.88, 0.91), vec3(1.0), diff), white * 0.9);
 
   // Sun glitter on the facets that face it, broader and weaker as the sea gets rough.
   float spec = pow(clamp(dot(n, normalize(uSun + v)), 0.0, 1.0), mix(220.0, 70.0, uSea));
-  col += uSunColor * spec * (0.6 + 0.8 * n2.r) * mix(1.2, 0.5, uSea) * (1.0 - white) * (1.0 - shade);
+  col += uSunColor * spec * (0.6 + 0.8 * n2.r) * mix(1.2, 0.5, uSea) * (1.0 - white) * (1.0 - shade) * (1.0 - 0.6 * uRain);
 
   col = mix(col, uHorizon, smoothstep(uFogNear, uFogFar, dist));
   gl_FragColor = vec4(col, 1.0);

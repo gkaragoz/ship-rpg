@@ -138,6 +138,7 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
       if (skyGi) skyLight.update(look, f.time, f.windFrom, f.seaState, 0.9 * Math.max(look.hemi / 1.4, 0.5), f.hour);
       wake.update(renderer, f.dt, f.camera, f.stamps);
       ocean.setWake(wake, texels);
+      ocean.setRain(f.rain);
       ocean.update(f.camera, f.time, f.windFrom, seaAmp(f.seaState), f.seaState, look, f.tuning);
       sky.update(f.camera, look, f.time, f.windFrom);
       rain.update(f.camera, f.time, f.windFrom, f.rain, particles, look.horizon);

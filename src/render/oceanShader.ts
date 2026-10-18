@@ -64,6 +64,7 @@ export function createSeaMaterial(terrain: THREE.Texture, noise: THREE.Texture):
       uCell0: { value: 1 },
       uDirs: { value: waveDirections(0).map(([x, z]) => new THREE.Vector2(x, z)) },
       uSea: { value: 0 },
+      uRain: { value: 0 },
       uSun: { value: SUN_DIR.clone() },
       uSunColor: { value: new THREE.Color(1.0, 0.95, 0.8) },
       uDeep: { value: new THREE.Color(0x0e3a55) },
