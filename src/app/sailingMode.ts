@@ -5,7 +5,7 @@ import { createAutoQuality, createSailingView, lowerQuality, nextQuality } from 
 import { getSettings } from '../settings';
 import { createShip, getShipSpec, type Ship, type ShipLod, type ShipSpec } from '../ships';
 import { createHud, createMapUi, createPortPanel, createSettingsUI, weatherTab } from '../ui';
-import { getNation, weatherAt, type Weather } from '../world';
+import { getNation, sunState, weatherAt, type Weather } from '../world';
 import { gameLines, renderLines } from './debugLines';
 import { applyGameSettings } from './gameSettings';
 import type { Mode } from './mode';
@@ -224,6 +224,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
       audio.play(v.events, v.ship);
       audio.ambience(v.wind.speed + 6 * v.seaState, v.ship.speed); // a rough sea is louder than the wind alone
       audio.condition(v.ship);
+      audio.mood({ sea: v.seaState, day: sunState(v.hour).daylight, docked: v.docked !== null });
       if (perf) {
         frames++;
         const now = performance.now();

@@ -73,6 +73,7 @@ function fakeContext(): { ctx: AudioContext; sources: () => number; closed: () =
       gain: param(),
       Q: param(),
       playbackRate: param(),
+      detune: param(),
       pan: param(),
       ...extra,
     };
@@ -120,8 +121,8 @@ describe('createAudio', () => {
     const f = fakeContext();
     const a = createAudio(() => f.ctx);
     a.resume();
-    const ambient = f.sources(); // sea, wind and hull-water loops
-    expect(ambient).toBe(3);
+    expect(f.started.filter((s) => s.loop)).toHaveLength(3); // the sea, wind and hull-water loops (the music adds oscillators)
+    const ambient = f.sources();
     a.play([fire(50, 0)], ear);
     expect(f.sources()).toBeGreaterThan(ambient);
   });

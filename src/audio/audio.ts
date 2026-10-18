@@ -1,5 +1,7 @@
 import type { Condition, GameEvent } from '../core';
 import { conditionLayers, pristine, type ConditionLayers } from './condition';
+import { startMusic, type Music } from './music';
+import type { MusicMood } from './musicPlan';
 import { AUDIBLE, spatialMix, type Listener } from './mix';
 import { cannon, hit, makeNoise, riggingHit, splash, sinking, thunder, waterlineHit, startAmbience, type Ambience, type Bus } from './synth';
 
@@ -19,6 +21,8 @@ export interface Audio {
   resume(): void;
   /** Play the sounds for this frame's events, positioned relative to `listener`. */
   play(events: readonly GameEvent[], listener: Listener): void;
+  /** The mood of the sea for the music (how rough, how light, in harbour or not); cheap to call every frame. */
+  mood(mood: MusicMood): void;
   /** A lightning strike `distance` metres away: the crack arrives after the time sound needs, fainter the farther it is. */
   thunder(distance: number): void;
   /** Set the wind and hull-water loudness. */
@@ -51,6 +55,9 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
   let master: GainNode | null = null;
   let sfxBus: GainNode | null = null;
   let ambBus: GainNode | null = null;
+  let musicBus: GainNode | null = null;
+  let music: Music | null = null;
+  let mood: MusicMood = { sea: 0.3, day: 1, docked: false };
   let volumes: Volumes = { ...FULL_VOLUMES };
   let panner: (() => StereoPannerNode) | null = null;
   let ambient: Ambience | null = null;
@@ -75,6 +82,9 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
     sfxBus.connect(master);
     ambBus = ctx.createGain();
     ambBus.connect(master);
+    musicBus = ctx.createGain();
+    musicBus.connect(master);
+    musicBus.gain.value = volumes.music;
     master.gain.value = muted ? 0 : MASTER * volumes.master; // start at the set level, not at full, then ease as settings change
     sfxBus.gain.value = volumes.sfx;
     ambBus.gain.value = volumes.ambience;
@@ -83,6 +93,8 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
     const c = ctx;
     panner = () => c.createStereoPanner();
     ambient = startAmbience(bus, ambBus);
+    music = startMusic(ctx, musicBus);
+    music.setMood(mood);
     ambient.set(wind, speed);
     applyCondition();
   };
@@ -94,6 +106,7 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
     master.gain.setTargetAtTime(muted ? 0 : MASTER * volumes.master, t, 0.05);
     sfxBus.gain.setTargetAtTime(volumes.sfx, t, 0.05);
     ambBus.gain.setTargetAtTime(volumes.ambience, t, 0.05);
+    musicBus?.gain.setTargetAtTime(volumes.music, t, 0.1);
   }
 
   /** Starts the damage layers when something is damaged, retunes them on real change, stops them when pristine. */
@@ -134,6 +147,10 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
         started++;
       }
     },
+    mood(next): void {
+      mood = next;
+      music?.setMood(next);
+    },
     thunder(distance): void {
       if (!ctx || !bus || !sfxBus || muted) return;
       thunder(bus, sfxBus, ctx.currentTime + Math.min(distance / 340, 9), 0.9 / (1 + distance / 900));
@@ -163,6 +180,8 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
       return muted;
     },
     dispose(): void {
+      music?.stop();
+      music = null;
       ambient?.stop();
       ambient = null;
       layers?.stop();
@@ -174,6 +193,7 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
       master = null;
       sfxBus = null;
       ambBus = null;
+      musicBus = null;
       panner = null;
       if (closing) void closing.close();
     },

@@ -153,6 +153,7 @@ export const CONTROLS: readonly Control[] = [
   },
   { tab: 'audio', kind: 'range', label: 'Ana ses', min: 0, max: 1, step: 0.05, format: percent, get: (s) => s.audio.master, set: (v) => ({ audio: { master: v } }) },
   { tab: 'audio', kind: 'range', label: 'Efektler', hint: 'Toplar, isabetler, sıçramalar.', min: 0, max: 1, step: 0.05, format: percent, get: (s) => s.audio.sfx, set: (v) => ({ audio: { sfx: v } }) },
+  { tab: 'audio', kind: 'range', label: 'Müzik', hint: 'Denizin ve günün haline göre kendiliğinden çalınan müzik.', min: 0, max: 1, step: 0.05, format: percent, get: (s) => s.audio.music, set: (v) => ({ audio: { music: v } }) },
   { tab: 'audio', kind: 'range', label: 'Ortam', hint: 'Rüzgâr, deniz, gövde, yangın.', min: 0, max: 1, step: 0.05, format: percent, get: (s) => s.audio.ambience, set: (v) => ({ audio: { ambience: v } }) },
   { tab: 'game', kind: 'range', label: 'Yelken arayüzü boyutu', min: 0.7, max: 1.5, step: 0.05, format: percent, get: (s) => s.game.hudScale, set: (v) => ({ game: { hudScale: v } }) },
   { tab: 'game', kind: 'toggle', label: 'İpucu çubuğu', get: (s) => s.game.showHints, set: (v) => ({ game: { showHints: v } }) },
