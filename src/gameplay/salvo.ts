@@ -5,7 +5,7 @@ import { fireGun, type GunShot } from './gunnery';
 import type { PlayerShip } from './sailing';
 
 /** Total roll (rad/s) a full broadside kicks into a 30 m hull; smaller hulls feel more, bigger ones less. */
-const RECOIL = 0.2;
+const RECOIL = 0.13;
 
 interface Pending {
   owner: Owner;
