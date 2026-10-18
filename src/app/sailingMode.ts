@@ -53,7 +53,7 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
   const spec = game.spec;
   // In dev, expose the game on window so it can be poked from the browser console (e.g. __game.dev.setKills(4)).
   if (import.meta.env.DEV) (window as unknown as { __game?: typeof game }).__game = game;
-  let ship = createShip(spec, { flag: getNation('free').flag }); // the player is a free captain
+  let ship = createShip(spec, { flag: getNation('free').flag, ensign: 'free' }); // the player is a free captain
   let shipId = spec.id;
   const store = getSettings();
   // A quality asked for in the URL is kept as it is; otherwise the game may lower the water quality when frames run slow.
@@ -137,7 +137,7 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
     if (npcs.length === v.others.length) return;
     for (const o of v.others.slice(npcs.length)) {
       // Always push one ship per entry so ship i keeps matching others[i].
-      npcs.push(createShip(getShipSpec(o.specId) ?? spec));
+      npcs.push(createShip(getShipSpec(o.specId) ?? spec, { flag: getNation(o.nation ?? 'free').flag, ensign: o.nation ?? 'free' }));
     }
     view.setOthers(npcs);
   };
@@ -212,7 +212,7 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
     const next = getShipSpec(id);
     if (!next) return;
     const old = ship;
-    ship = createShip(next, { flag: getNation('free').flag });
+    ship = createShip(next, { flag: getNation('free').flag, ensign: 'free' });
     shipId = id;
     view.setPlayer(ship.root, { length: next.length, beam: next.beam });
     old.dispose();
@@ -227,7 +227,7 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
       if (!es) {
         const enemySpec = getShipSpec(e.specId);
         if (!enemySpec) continue;
-        es = createShip(enemySpec, { flag: getNation(e.nation).flag });
+        es = createShip(enemySpec, { flag: getNation(e.nation).flag, ensign: e.nation });
         enemyShips.set(e.id, es);
         view.addActor(e.id, es.root, { length: enemySpec.length, beam: enemySpec.beam });
       }

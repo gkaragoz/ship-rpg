@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { clothBakeUniforms } from './clothBake';
 import { clothTime, type ClothUniforms } from './clothShader';
 import { weldedComponents } from './clothGeometry';
+import { FLAG_V0, PENNANT_V } from './flagArt';
 
 /**
  * Flags on the GPU. The Blender flag mesh holds every pennant and the ensign as separate strips streaming towards −x
@@ -14,6 +15,8 @@ import { weldedComponents } from './clothGeometry';
  * flutter at the tip, all stronger with wind speed and gusts. Normals by finite differences.
  */
 const CACHE = 'flagAnalysis';
+/** Flags are drawn this much larger than the model's strips, so a nation's colours read from the chase camera. */
+const FLAG_SCALE = 1.6;
 
 /** Add the flag attributes to a geometry made of strips streaming towards −x. Returns the strip count. */
 export function prepareFlag(geometry: THREE.BufferGeometry, seed = 0): number {
@@ -55,6 +58,19 @@ export function prepareFlag(geometry: THREE.BufferGeometry, seed = 0): number {
     A.set([px - pos.getX(v), py - pos.getY(v), px - (tipX[c] as number), (seed + c * 0.37) % 1], v * 4);
     P.set([px, py, pz], v * 3);
   }
+  // UVs for the nation's ensign texture (`flagArt.ts`): the hoist is on the left, the top at the pole's top. Thin strips are
+  // pennants and sample the plain colour strip instead of a squashed copy of the flag.
+  const height = new Float64Array(count);
+  for (let v = 0; v < n; v++) height[label[v] as number] = Math.max(height[label[v] as number] as number, A[v * 4 + 1] as number);
+  const UV = new Float32Array(n * 2);
+  for (let v = 0; v < n; v++) {
+    const c = label[v] as number;
+    const h = Math.max(height[c] as number, 1e-3);
+    const len = Math.max(A[v * 4 + 2] as number, 1e-3);
+    if (h / len < 0.3) UV.set([0.5, PENNANT_V], v * 2);
+    else UV.set([Math.min(Math.max((A[v * 4] as number) / len, 0), 1), FLAG_V0 + (1 - FLAG_V0) * (1 - Math.min(Math.max((A[v * 4 + 1] as number) / h, 0), 1))], v * 2);
+  }
+  geometry.setAttribute('uv', new THREE.BufferAttribute(UV, 2));
   geometry.setAttribute('flagA', new THREE.BufferAttribute(A, 4));
   geometry.setAttribute('flagP', new THREE.BufferAttribute(P, 3));
   geometry.userData[CACHE] = count;
@@ -106,7 +122,7 @@ vec3 flagPos(float s, float depth, float L, float seed) {
 }
 
 void flagDeform(inout vec3 p, inout vec3 n) {
-  float s = flagA.x, depth = flagA.y, L = max(flagA.z, 0.05), seed = flagA.w;
+  float s = flagA.x * ${FLAG_SCALE.toFixed(2)}, depth = flagA.y * ${FLAG_SCALE.toFixed(2)}, L = max(flagA.z * ${FLAG_SCALE.toFixed(2)}, 0.05), seed = flagA.w;
   vec3 base = flagPos(s, depth, L, seed);
   vec3 ds = flagPos(s + 0.05 * L, depth, L, seed) - base;
   vec3 dd = flagPos(s, depth + 0.05 * L, L, seed) - base;

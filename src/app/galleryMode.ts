@@ -33,6 +33,8 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
   const store = getSettings();
   const view = createGalleryView(host, () => panel.ui?.insets() ?? { left: 0, top: 0, bottom: 0 }, store.get().graphics);
 
+  // ?ensign=english|french|spanish|dutch|pirate|free shows that nation's flag on the gallery ship
+  const ensign = new URLSearchParams(window.location.search).get('ensign') ?? 'free';
   let current: Ship | null = null;
   const ui = createGalleryUI(host, ORDERED.map(toItem), {
     onSelect(id) {
@@ -40,7 +42,7 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
       if (!spec) return;
       view.setSubject(null);
       current?.dispose();
-      current = createShip(spec);
+      current = createShip(spec, { ensign });
       view.setSubject(current.root);
     },
     onAutoRotate: (on) => view.setAutoRotate(on),

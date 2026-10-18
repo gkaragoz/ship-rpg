@@ -203,6 +203,8 @@ export interface OtherShipView {
   id: number;
   /** Which ship spec (and model) to draw. */
   specId: string;
+  /** Nation id of its flag (see `world/nations.ts`); free when absent. */
+  nation?: string;
   x: number;
   z: number;
   heading: number;

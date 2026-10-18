@@ -48,6 +48,8 @@ export interface Ship {
 export interface ShipOptions {
   /** Flag cloth colour (pennant and stern ensign); defaults to red. */
   flag?: number;
+  /** Nation whose ensign is drawn on the flag cloth (`english`, `french`, `spanish`, `dutch`, `pirate`, `free`); without it the cloth is `flag` coloured. */
+  ensign?: string;
 }
 
 /**
@@ -57,17 +59,17 @@ export interface ShipOptions {
  */
 export function createShip(spec: ShipSpec, options: ShipOptions = {}): Ship {
   const glb = getShipAsset(spec.id);
-  if (glb) return createGlbShip(spec, glb, options.flag);
+  if (glb) return createGlbShip(spec, glb, options.flag, options.ensign);
   const procedural = createProceduralShip(spec, options);
   if (!GLB_SHIP_IDS.includes(spec.id)) return procedural;
   return createUpgradingShip(procedural, async () => {
     const asset = await requestShipAsset(spec.id);
-    return asset ? createGlbShip(spec, asset, options.flag) : undefined;
+    return asset ? createGlbShip(spec, asset, options.flag, options.ensign) : undefined;
   });
 }
 
 export function createProceduralShip(spec: ShipSpec, options: ShipOptions = {}): Ship {
-  const mats = createMaterials(spec, options.flag);
+  const mats = createMaterials(spec, options.flag, options.ensign);
   const root = new THREE.Group();
   root.name = spec.id;
   const pivot = new THREE.Group(); // condition (sinking, listing) moves this, not root

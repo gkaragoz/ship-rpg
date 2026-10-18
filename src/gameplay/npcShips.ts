@@ -6,6 +6,8 @@ import { apparentView } from './enemyView';
 interface Patrol {
   /** Ship spec (and GLB model) this patrol sails. */
   specId: string;
+  /** Nation whose ensign it flies (decoration until factions arrive, slice 5e). */
+  nation: string;
   cx: number;
   cz: number;
   a: number;
@@ -20,18 +22,18 @@ interface Patrol {
  * near patrols pass within a few lengths of the player, the big ships circle far out.
  */
 export const PATROLS: readonly Patrol[] = [
-  { specId: 'tartane', cx: 0, cz: 0, a: 70, b: 110, phase: 0.4, dir: 1 },
-  { specId: 'lugger', cx: -30, cz: 50, a: 120, b: 90, phase: 1.3, dir: -1 },
-  { specId: 'sloop', cx: 40, cz: -60, a: 170, b: 130, phase: 2.2, dir: -1 },
-  { specId: 'schooner', cx: -120, cz: -40, a: 230, b: 170, phase: 3.0, dir: 1 },
-  { specId: 'brig', cx: -80, cz: 60, a: 330, b: 260, phase: 4.1, dir: 1 },
-  { specId: 'xebec', cx: 150, cz: -100, a: 300, b: 380, phase: 0.9, dir: -1 },
-  { specId: 'caravel', cx: -200, cz: 150, a: 420, b: 300, phase: 2.7, dir: 1 },
-  { specId: 'pinnace', cx: 60, cz: 200, a: 380, b: 450, phase: 5.0, dir: -1 },
-  { specId: 'corvette', cx: -150, cz: -200, a: 520, b: 400, phase: 3.6, dir: 1 },
-  { specId: 'galleon', cx: 120, cz: 90, a: 560, b: 470, phase: 5.4, dir: -1 },
-  { specId: 'frigate', cx: 0, cz: -300, a: 700, b: 520, phase: 1.8, dir: 1 },
-  { specId: 'battleship', cx: -50, cz: 100, a: 820, b: 640, phase: 4.6, dir: -1 },
+  { specId: 'tartane', nation: 'english', cx: 0, cz: 0, a: 70, b: 110, phase: 0.4, dir: 1 },
+  { specId: 'lugger', nation: 'french', cx: -30, cz: 50, a: 120, b: 90, phase: 1.3, dir: -1 },
+  { specId: 'sloop', nation: 'dutch', cx: 40, cz: -60, a: 170, b: 130, phase: 2.2, dir: -1 },
+  { specId: 'schooner', nation: 'spanish', cx: -120, cz: -40, a: 230, b: 170, phase: 3.0, dir: 1 },
+  { specId: 'brig', nation: 'english', cx: -80, cz: 60, a: 330, b: 260, phase: 4.1, dir: 1 },
+  { specId: 'xebec', nation: 'pirate', cx: 150, cz: -100, a: 300, b: 380, phase: 0.9, dir: -1 },
+  { specId: 'caravel', nation: 'spanish', cx: -200, cz: 150, a: 420, b: 300, phase: 2.7, dir: 1 },
+  { specId: 'pinnace', nation: 'dutch', cx: 60, cz: 200, a: 380, b: 450, phase: 5.0, dir: -1 },
+  { specId: 'corvette', nation: 'french', cx: -150, cz: -200, a: 520, b: 400, phase: 3.6, dir: 1 },
+  { specId: 'galleon', nation: 'spanish', cx: 120, cz: 90, a: 560, b: 470, phase: 5.4, dir: -1 },
+  { specId: 'frigate', nation: 'english', cx: 0, cz: -300, a: 700, b: 520, phase: 1.8, dir: 1 },
+  { specId: 'battleship', nation: 'french', cx: -50, cz: 100, a: 820, b: 640, phase: 4.6, dir: -1 },
 ];
 
 /** The sea floor must be deeper than this under every point of a patrol. */
@@ -122,6 +124,7 @@ export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }
         return {
           id,
           specId: p.specId,
+          nation: p.nation,
           x: p.cx + p.a * Math.cos(phi) + s.x,
           z: p.cz + p.b * Math.sin(phi) + s.z,
           heading: Math.atan2(-vz, vx) + s.yaw,

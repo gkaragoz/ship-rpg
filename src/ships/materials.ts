@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ensignTexture, isEnsign } from './flagArt';
 import type { ShipSpec } from './types';
 
 export interface ShipMaterials {
@@ -20,7 +21,12 @@ const flat = (color: number): THREE.MeshStandardMaterial =>
 /** Flag cloth colour when a ship is built without one. */
 export const DEFAULT_FLAG = 0xc0392b;
 
-export function createMaterials(spec: ShipSpec, flag: number = DEFAULT_FLAG): ShipMaterials {
+export function createMaterials(spec: ShipSpec, flag: number = DEFAULT_FLAG, ensign?: string): ShipMaterials {
+  const flagMaterial = new THREE.MeshBasicMaterial({ color: flag, side: THREE.DoubleSide });
+  if (isEnsign(ensign)) {
+    flagMaterial.map = ensignTexture(ensign);
+    flagMaterial.color.setHex(0xffffff);
+  }
   return {
     hullLower: flat(new THREE.Color(spec.hullColor).multiplyScalar(0.5).getHex()),
     hullMain: flat(spec.hullColor),
@@ -34,7 +40,7 @@ export function createMaterials(spec: ShipSpec, flag: number = DEFAULT_FLAG): Sh
       metalness: 0,
     }),
     dark: flat(0x140e08),
-    flag: new THREE.MeshBasicMaterial({ color: flag, side: THREE.DoubleSide }),
+    flag: flagMaterial,
     window: Object.assign(new THREE.MeshBasicMaterial({ color: 0xffd27a }), { name: 'window' }), // named: the night lamps find it
   };
 }

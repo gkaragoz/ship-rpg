@@ -9,6 +9,7 @@ import { collectSailNodes, createSailTrim } from './trim';
 import { clothifyGlb } from './clothRig';
 import { requestClothBake } from './clothBake';
 import { createClothUniforms } from './clothShader';
+import { ensignTexture, isEnsign } from './flagArt';
 import { createFlagDepthMaterial, patchFlagMaterial, prepareFlag } from './flagCloth';
 
 /** Sail colour multiplier at rigging 0 (the atlas colour times this): the scorched sail of `condition.ts`. */
@@ -49,7 +50,7 @@ function namedNodes(root: THREE.Object3D, suffix: string): THREE.Object3D[] {
  * separate tiers: damage darkens them and tears their lower part up (more gathering, more flutter).
  * LOD0 sails and flags are moved by the cloth vertex shaders (`clothShader.ts`, `flagCloth.ts`).
  */
-export function createGlbShip(spec: ShipSpec, asset: ShipAsset, flag: number = DEFAULT_FLAG): Ship {
+export function createGlbShip(spec: ShipSpec, asset: ShipAsset, flag: number = DEFAULT_FLAG, ensign?: string): Ship {
   const root = asset.scene.clone(true) as THREE.Group;
   root.name = spec.id;
   const pivot = new THREE.Group(); // condition (sinking, listing) moves this, not root
@@ -66,7 +67,13 @@ export function createGlbShip(spec: ShipSpec, asset: ShipAsset, flag: number = D
   // Pennants and the ensign are their own `LODn_Flag` meshes so each nation's colour can be set per ship, and the flag shader waves them.
   const flagMats = ownMaterials(namedNodes(root, '_Flag'));
   const flagDepth = createFlagDepthMaterial(uniforms);
-  for (const m of flagMats) m.color.setHex(flag);
+  for (const m of flagMats) {
+    m.color.setHex(flag);
+    if (isEnsign(ensign)) {
+      m.map = ensignTexture(ensign); // the nation's flag art; the pennants sample its plain strip
+      m.color.setHex(0xffffff);
+    }
+  }
   for (const node of namedNodes(root, '_Flag')) {
     node.traverse((o) => {
       if (!(o instanceof THREE.Mesh) || !prepareFlag(o.geometry as THREE.BufferGeometry)) return;
