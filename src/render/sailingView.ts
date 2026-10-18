@@ -7,7 +7,7 @@ import { createCrewRenderer } from './crew';
 import { createFleet } from './fleet';
 import { createOcean } from './ocean';
 import { QUALITIES, type QualityName } from './quality';
-import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR } from './seaLook';
+import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR, lookFor } from './seaLook';
 import { createAimArcs } from './aimArcs';
 import { createDamageNumbers } from './damageNumbers';
 import { createEffects } from './effects';
@@ -68,7 +68,8 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(HORIZON_COLOR, FOG_NEAR, FOG_FAR);
-  scene.add(new THREE.HemisphereLight(0xdcecf5, 0x2b4a5a, 1.4));
+  const hemi = new THREE.HemisphereLight(0xdcecf5, 0x2b4a5a, 1.4);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff1d6, 2.4);
   sun.position.copy(SUN_DIR).multiplyScalar(100);
   scene.add(sun);
@@ -77,6 +78,7 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
   const crew = createCrewRenderer();
   const ocean = createOcean(preset);
   const sky = createSky();
+  const look = lookFor(0);
   const scenery = createScenery();
   const effects = createEffects();
   const aim = createAimArcs();
@@ -233,8 +235,15 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
       controls.update();
       camera.position.y = Math.max(camera.position.y, 1.5);
 
-      ocean.update(camera, time, wind.from, ampScale);
-      sky.update(camera);
+      // The day's look follows the sea state: bright and clear when calm, grey, dark and close in a storm.
+      lookFor(view.seaState, look);
+      (scene.fog as THREE.Fog).color.copy(look.horizon);
+      (scene.fog as THREE.Fog).near = look.fogNear;
+      (scene.fog as THREE.Fog).far = look.fogFar;
+      sun.intensity = look.sun;
+      hemi.intensity = look.hemi;
+      ocean.update(camera, time, wind.from, ampScale, view.seaState, look);
+      sky.update(camera, look, time, wind.from);
       fleet.update(view, camera, ampScale);
       crew?.update(view.crew, camera);
       shake = Math.max(0, shake - dt * 2.5);

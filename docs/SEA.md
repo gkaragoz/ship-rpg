@@ -21,3 +21,7 @@ A **clip-map**: concentric square levels around the camera, each twice as coarse
 Choose with `?quality=low|medium|high` (fixed), the `K` key (cycles, remembered in `localStorage`), or let the game lower it: if a 2 s window averages slower than 40 fps it steps down one preset (never up by itself, never when the quality was chosen explicitly). `?perf` shows `quality` and `frameMs`.
 
 Measured with `?perf` (same pane as the baseline): total triangles **539k → 124k** at medium (181k high, 104k low; the rest is ships and islands); draw calls 62 → 67.
+
+## Look (`render/oceanFragment.ts`, `seaLook.ts`, `sky.ts`)
+Stylised but rich: smooth analytic wave normals plus two scrolling detail layers (a tiling noise texture, `seaNoise.ts`), wrapped diffuse, fresnel reflection of the sky, sun glitter (broader and weaker in a rough sea), light glowing through thin crests, a depth tint and shore foam from the baked sea-floor texture. **Whitecaps** form where the surface pinches (the Jacobian of the Gerstner map falls below ~0.6), broken up by noise and thicker as the sea state rises; in a big sea the wind also lays foam streaks along its direction.
+`lookFor(seaState)` blends the day between **fair** (bright, 2.4 km visibility) and **storm** (grey sky and horizon, dark water, dim sun, heavy clouds, visibility down to 1.5 km, fog starting at 90 m); `sailingView` applies it to the fog, the sun, the sky and the sea every frame. The sky has a drifting fbm cloud layer (cover and darkness follow the look). Try it: `?sea=0` … `?sea=1` in the URL, or `__game.dev.setSea(x)`.

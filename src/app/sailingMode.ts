@@ -74,6 +74,8 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   const forced = Number(query.get('lod'));
   if (query.has('lod') && forced >= 0 && forced <= 2) view.setLodOverride(forced as ShipLod);
   const perf = query.has('perf');
+  const sea = Number(query.get('sea')); // ?sea=0…1 forces the sea state (calm … storm) for looking at the weather
+  if (query.has('sea') && Number.isFinite(sea)) game.dev.setSea(sea);
   let frames = 0;
   let last = performance.now();
   let fps = 0;

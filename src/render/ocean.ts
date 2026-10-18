@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { WORLD_BOUNDS, terrainHeight } from '../world';
 import { createSeaMesh, type SeaMesh } from './oceanMesh';
+import { bakeSeaNoise } from './seaNoise';
+import type { SeaLook } from './seaLook';
 import { TERRAIN_TEX, createSeaMaterial, setSeaQuality, updateSeaMaterial } from './oceanShader';
 import type { Quality } from './quality';
 
@@ -31,7 +33,7 @@ function bakeTerrainTexture(): THREE.DataTexture {
 export interface Ocean {
   object: THREE.Object3D;
   /** Re-centre under the camera and advance the waves. */
-  update(camera: THREE.Camera, time: number, windFrom: number, ampScale: number): void;
+  update(camera: THREE.Camera, time: number, windFrom: number, ampScale: number, seaState: number, look: SeaLook): void;
   /** Rebuild the sea mesh for another quality preset. */
   setQuality(quality: Quality): void;
   dispose(): void;
@@ -40,7 +42,8 @@ export interface Ocean {
 /** Wave-displaced sea to the horizon (clip-map levels around the camera), with shallows and shore foam around islands. */
 export function createOcean(quality: Quality): Ocean {
   const terrain = bakeTerrainTexture();
-  const material = createSeaMaterial(terrain);
+  const noise = bakeSeaNoise();
+  const material = createSeaMaterial(terrain, noise);
   setSeaQuality(material, quality);
   const object = new THREE.Group();
   let mesh: SeaMesh = createSeaMesh(quality, material);
@@ -48,9 +51,9 @@ export function createOcean(quality: Quality): Ocean {
 
   return {
     object,
-    update(camera, time, windFrom, ampScale): void {
+    update(camera, time, windFrom, ampScale, seaState, look): void {
       mesh.follow(camera);
-      updateSeaMaterial(material, time, windFrom, ampScale);
+      updateSeaMaterial(material, time, windFrom, ampScale, seaState, look);
     },
     setQuality(next): void {
       setSeaQuality(material, next);
@@ -63,6 +66,7 @@ export function createOcean(quality: Quality): Ocean {
       mesh.dispose();
       material.dispose();
       terrain.dispose();
+      noise.dispose();
     },
   };
 }
