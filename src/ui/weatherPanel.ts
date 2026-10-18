@@ -87,11 +87,11 @@ function buttons(label: string, items: readonly (readonly [string, () => void])[
 
 /** The "Hava & Zaman" tab: the time of day, and the weather simulator (wind, sea, waves, sky, rain, lightning). */
 export function weatherTab(controls: WorldControls): Tab {
+  const touched = new Set<Field>(); // the fields the player has set; kept when the tab is rebuilt
   return {
     id: 'weather',
     label: 'Hava & Zaman',
     build(body): { refresh(): void; dispose(): void } {
-      const touched = new Set<Field>();
       const syncs: (() => void)[] = [];
 
       const time = el('div', 'settings-row');
@@ -158,7 +158,16 @@ export function weatherTab(controls: WorldControls): Tab {
 
       // A weather preset sets some fields: mark them as the player's.
       const markAll = (o: WeatherOverrides): void => {
-        for (const f of FIELDS) if (Object.keys(f.set(f.min)).some((k) => k in o)) touched.add(f);
+        for (const f of FIELDS) {
+          const set = f.set(f.min) as Record<string, unknown>;
+          const isSet = Object.entries(set).some(([k, v]) => {
+            if (!(k in o)) return false;
+            if (typeof v !== 'object' || v === null) return true;
+            const inner = (o as Record<string, Record<string, unknown> | undefined>)[k];
+            return Object.keys(v).some((kk) => inner !== undefined && inner[kk] !== undefined);
+          });
+          if (isSet) touched.add(f);
+        }
       };
       const refresh = (): void => {
         hourSlider.value = String(controls.hour());

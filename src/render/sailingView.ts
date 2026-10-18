@@ -15,6 +15,7 @@ import { createAimArcs } from './aimArcs';
 import { createDamageNumbers } from './damageNumbers';
 import { createEffects } from './effects';
 import { rideWaves } from './ride';
+import { emitShipEffects } from './shipEffects';
 import { createScenery } from './scenery';
 import { collectStamps, type Stamp } from './wakeStamps';
 import { seaAmp } from '../world';
@@ -78,7 +79,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
   const lamps = createLamps();
   lamps.setCount(LAMP_LIGHTS[graphics.lights]);
   let fleetShips: readonly Ship[] = [];
-  let lastStrike = 0;
+  let lastStrike = -1; // set from the first view, so an old strike does not flash again
   let flash = 0;
   const scenery = createScenery();
   const effects = createEffects();
@@ -213,24 +214,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
         const a = actors.get(e.id);
         if (a) place(a, e, e.sinking, time, wind.from, ampScale);
       }
-      // Ships throw spray from their bows, more in a rough sea.
-      const spray = (st: { x: number; z: number; heading: number; speed: number; heave: number }, length: number): void => {
-        const dx = Math.cos(st.heading);
-        const dz = -Math.sin(st.heading);
-        const power = Math.min(Math.abs(st.speed) / 8, 1) ** 1.5 * (0.25 + 0.9 * view.seaState);
-        effects.spray(st.x + dx * length * 0.45, st.heave + 0.6, st.z + dz * length * 0.45, dx, dz, power, dt);
-      };
-      if (player && !view.sunk && !view.docked) spray(ship, player.dims.length);
-      for (const e of view.enemies) {
-        const a = actors.get(e.id);
-        if (a && e.sinking < 0) spray(e, a.dims.length);
-      }
-      // Burning ships smoke and flicker on their decks.
-      if (player && ship.fire > 0 && !view.sunk) effects.burn(ship.x, player.dims.length * 0.1, ship.z, ship.fire, dt);
-      for (const e of view.enemies) {
-        const a = actors.get(e.id);
-        if (a && e.fire > 0 && e.sinking < 0) effects.burn(e.x, a.dims.length * 0.1, e.z, e.fire, dt);
-      }
+      emitShipEffects(effects, view, player, actors, dt);
 
       // Cannonballs as one instanced mesh.
       const n = Math.min(view.balls.length, MAX_BALLS);
@@ -278,9 +262,10 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       ];
       // A new lightning strike flashes the sky for an instant (the thunder is the sound's business).
       const w = view.weather;
+      if (lastStrike < 0) lastStrike = w.strike?.id ?? 0;
       if (w.strike && w.strike.id !== lastStrike) {
         lastStrike = w.strike.id;
-        flash = 1;
+        flash = 0.5 + 0.5 * w.strike.power;
       }
       flash = Math.max(0, flash - dt * 3.2);
       env.update({

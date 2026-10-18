@@ -24,7 +24,8 @@ export interface Audio {
   /** The mood of the sea for the music (how rough, how light, in harbour or not); cheap to call every frame. */
   mood(mood: MusicMood): void;
   /** A lightning strike `distance` metres away: the crack arrives after the time sound needs, fainter the farther it is. */
-  thunder(distance: number): void;
+  /** Thunder from a strike `distance` m away; `power` 0…1 scales its loudness. */
+  thunder(distance: number, power?: number): void;
   /** Set the wind and hull-water loudness. */
   ambience(wind: number, speed: number): void;
   /** Set the damage ambience of the player's ship (creaks, sloshing water, fire crackle). Cheap to call every frame. */
@@ -151,9 +152,9 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
       mood = next;
       music?.setMood(next);
     },
-    thunder(distance): void {
+    thunder(distance, power = 1): void {
       if (!ctx || !bus || !sfxBus || muted) return;
-      thunder(bus, sfxBus, ctx.currentTime + Math.min(distance / 340, 9), 0.9 / (1 + distance / 900));
+      thunder(bus, sfxBus, ctx.currentTime + Math.min(distance / 340, 9), (0.9 * (0.6 + 0.4 * power)) / (1 + distance / 900));
     },
     ambience(w, s): void {
       // Only touch the audio params when the conditions have really changed: this runs every frame.

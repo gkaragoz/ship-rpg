@@ -23,7 +23,7 @@ export function nearestAnchors<T extends { root: THREE.Object3D }>(anchors: read
 /** Materials that glow at night: stern windows and lanterns (the GLB glass, the procedural windows). */
 const GLOWING = /glass|window|lantern/i;
 
-type Glow = { kind: 'standard'; material: THREE.MeshStandardMaterial; base: number } | { kind: 'basic'; material: THREE.MeshBasicMaterial; base: THREE.Color };
+type Glow = { kind: 'standard'; base: number } | { kind: 'basic'; base: THREE.Color };
 
 /** Local position of a ship's stern lantern, as a fraction of its length. */
 const LAMP_AT = { x: -0.44, y: 0.17 };
@@ -50,13 +50,14 @@ export function createLamps(): Lamps {
   const apply = (level: number): void => {
     for (let i = registry.length - 1; i >= 0; i--) {
       const entry = registry[i]!;
-      if (!entry.ref.deref()) {
+      const material = entry.ref.deref();
+      if (!material) {
         registry.splice(i, 1); // a disposed ship's material
         continue;
       }
       const g = entry.glow;
-      if (g.kind === 'standard') g.material.emissiveIntensity = g.base * (0.04 + 0.96 * level);
-      else g.material.color.copy(g.base).multiplyScalar(0.35 + 0.65 * level);
+      if (g.kind === 'standard') (material as THREE.MeshStandardMaterial).emissiveIntensity = g.base * (0.04 + 0.96 * level);
+      else (material as THREE.MeshBasicMaterial).color.copy(g.base).multiplyScalar(0.35 + 0.65 * level);
     }
   };
 
@@ -70,10 +71,10 @@ export function createLamps(): Lamps {
           known.add(m);
           if ((m as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
             const s = m as THREE.MeshStandardMaterial;
-            registry.push({ ref: new WeakRef(s), glow: { kind: 'standard', material: s, base: s.emissiveIntensity } });
+            registry.push({ ref: new WeakRef(s), glow: { kind: 'standard', base: s.emissiveIntensity } });
           } else if ((m as THREE.MeshBasicMaterial).isMeshBasicMaterial) {
             const b = m as THREE.MeshBasicMaterial;
-            registry.push({ ref: new WeakRef(b), glow: { kind: 'basic', material: b, base: b.color.clone() } });
+            registry.push({ ref: new WeakRef(b), glow: { kind: 'basic', base: b.color.clone() } });
           }
         }
       });

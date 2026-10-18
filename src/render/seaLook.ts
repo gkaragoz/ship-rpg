@@ -128,10 +128,12 @@ export function lookFor(seaState: number, sun?: SunState, out?: SeaLook): SeaLoo
   look.moonDir.copy(moonDir);
   const sunUp = sunDir.y;
   const sunWeight = smoothstep(-0.08, 0.1, sunUp);
-  look.lightDir.copy(moonDir).lerp(sunDir, sunWeight).normalize();
+  // one light at a time: the direction switches at the crossover, where both fade out so nothing jumps
+  const handover = smoothstep(0, 0.35, Math.abs(sunWeight - 0.5) * 2);
+  look.lightDir.copy(sunWeight >= 0.5 ? sunDir : moonDir);
   look.lightColor.copy(MOON_COLOR).lerp(SUN_COLOR, sunWeight).lerp(SUN_LOW_COLOR, twilight * 0.8 * sunWeight);
-  const sunStrength = mix(mix(DAY.sun, TWILIGHT.sun, twilight), STORM.sun, storm) * sunWeight;
-  const moonStrength = NIGHT.sun * smoothstep(-0.05, 0.2, moonDir.y) * (1 - sunWeight) * (1 - 0.6 * storm);
+  const sunStrength = mix(mix(DAY.sun, TWILIGHT.sun, twilight), STORM.sun, storm) * sunWeight * handover;
+  const moonStrength = NIGHT.sun * smoothstep(-0.05, 0.2, moonDir.y) * (1 - sunWeight) * handover * (1 - 0.6 * storm);
   look.sun = sunStrength + moonStrength;
   return look;
 }

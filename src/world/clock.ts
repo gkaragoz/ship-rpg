@@ -64,7 +64,7 @@ export function sunState(hour: number): SunState {
   const twilight = clamp(1 - Math.abs(elevation) / 0.22, 0, 1);
   const phase: DayPhase = daylight < 0.04 ? 'night' : twilight > 0.35 ? (hour < 12 ? 'dawn' : 'dusk') : 'day';
   // The moon rides opposite the sun, a little off the ecliptic so it is not always straight under it.
-  const moon = norm([-east + 0.12, -up + 0.1, north * -1 + 0.05]);
+  const moon = norm([-east + 0.12, -up + 0.1, north + 0.05]);
   return { hour, sun, moon, elevation, daylight, twilight, phase };
 }
 

@@ -58,7 +58,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   const audio = createAudio();
   let paused = false;
   let lastView: GameView | null = null;
-  let lastStrike = 0;
+  let lastStrike = game.view().weather.strike?.id ?? 0; // a strike from before this mode started is not heard again
   const settingsUI = createSettingsUI(host, store, {
     onExit: { label: 'Galeriye dön', run: onExit },
     onOpenChange: (open) => (paused = open),
@@ -211,7 +211,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
       lastView = v;
       if (v.weather.strike && v.weather.strike.id !== lastStrike) {
         lastStrike = v.weather.strike.id;
-        audio.thunder(Math.hypot(v.weather.strike.x - v.ship.x, v.weather.strike.z - v.ship.z));
+        audio.thunder(Math.hypot(v.weather.strike.x - v.ship.x, v.weather.strike.z - v.ship.z), v.weather.strike.power);
       }
       syncOthers(v);
       ship.setSailTrim(angleDiff(v.wind.from, v.ship.heading), v.ship.sailLevel);

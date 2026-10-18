@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { excludeFromOcclusion } from './pipeline';
 
 /** Streaks in the pool, the half side (m) of the box of rain around the camera, and its height. */
+const RAIN_TINT = new THREE.Color(0.9, 0.93, 1);
 const STREAKS = 5000;
 const BOX = 45;
 const HEIGHT = 50;
@@ -100,7 +101,7 @@ export function createRain(): Rain {
       // drops slant the way the wind blows
       const a = windFrom + Math.PI;
       (u.uSlant!.value as THREE.Vector2).set(Math.cos(a), -Math.sin(a)).multiplyScalar(1 + 3 * intensity);
-      (u.uColor!.value as THREE.Color).copy(color).lerp(new THREE.Color(0.9, 0.93, 1), 0.35);
+      (u.uColor!.value as THREE.Color).copy(color).lerp(RAIN_TINT, 0.35);
     },
     dispose(): void {
       geometry.dispose();

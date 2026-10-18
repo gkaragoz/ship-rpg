@@ -73,6 +73,8 @@ export function startMusic(ctx: AudioContext, out: AudioNode, seed = 0x5ea5): Mu
   let bar = 0;
   let next = ctx.currentTime + START_DELAY;
   const fill = (): void => {
+    // A throttled timer (a hidden tab) can fall behind the clock: skip what was missed rather than play it all at once.
+    if (next < ctx.currentTime) next = ctx.currentTime + START_DELAY;
     // Write bars until the next ones are further ahead than the lookahead; a paused context writes nothing.
     while (next < ctx.currentTime + LOOKAHEAD) {
       const planned = planBar(mood, bar++, rng);

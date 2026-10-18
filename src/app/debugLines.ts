@@ -9,7 +9,8 @@ export function renderLines(s: RenderStats, g: GraphicsSettings): string[] {
   lines.push(
     `Bellek     ${s.geometries} geometri  ${s.textures} doku`,
     `Çözünürlük ${s.width}×${s.height} (%${Math.round(s.scale * 100)})  ${s.samples ? `MSAA ${s.samples}x` : 'MSAA yok'}${s.hdr ? '  HDR' : ''}${s.composer ? '' : '  (doğrudan)'}`,
-    `Kalite     ${g.preset}  su ${g.water}  gölge ${g.shadows}  AO ${g.ambientOcclusion}  GI ${g.globalIllumination}`,
+    `Kalite     ${g.preset}  su ${g.water}  gölge ${g.shadows}`,
+    `Işık       AO ${g.ambientOcclusion}  GI ${g.globalIllumination}`,
   );
   return lines;
 }

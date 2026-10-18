@@ -17,9 +17,9 @@ import { createPlayerShip, stepPlayerShip, type PlayerShip } from './sailing';
 export interface Game {
   readonly spec: ShipSpec;
   update(dt: number, controls: Controls): void;
-  /** The day's clock: how long a day lasts, whether time stands still, and (`hour`) what time it is now. */
   /** Take over parts of the weather (the weather simulator): see `WeatherOverrides`; `null` gives it all back to the game. */
   setWeather(change: WeatherOverrides | null): void;
+  /** The day's clock: how long a day lasts, whether time stands still, and (`hour`) what time it is now. */
   setClock(clock: Partial<Pick<ClockSettings, 'dayMinutes' | 'frozen'>> & { hour?: number }): void;
   /** Snapshot for render and UI. Drains `events`, so call it once per frame. */
   view(): GameView;

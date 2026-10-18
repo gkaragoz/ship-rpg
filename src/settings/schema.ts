@@ -22,7 +22,7 @@ export interface GraphicsSettings {
   shadows: ShadowQuality;
   /** How far the sun's shadows reach, as a fraction of the default (0.5 … 1.5). */
   shadowDistance: number;
-  /** Dynamic lamps (ship lanterns, fires) that light the night, and sun glints. */
+  /** How many ship lanterns light the night with real point lights (0 / 2 / 6). */
   lights: LightQuality;
   /** Texture filtering and the size of the sea's detail and depth textures. */
   textures: TextureQuality;

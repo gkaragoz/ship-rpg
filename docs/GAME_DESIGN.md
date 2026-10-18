@@ -11,7 +11,7 @@ Pirates of the Caribbean (2003) feel: free sailing on an open sea map, islands w
 Planned in phases, see `ROADMAP.md`.
 
 ## Implemented: open-sea sailing (phase 3)
-- **Controls:** `A`/`D` (or ←/→) rudder, `W`/`S` (or ↑/↓) one sail step (furled / half / full), `Q`/`E` port/starboard broadside, `G` aim zones, `N` mute, `F` dock/undock, `M` chart, `R` restart after sinking, mouse drag orbits the chase camera, `Esc` back to the gallery.
+- **Controls:** `A`/`D` (or ←/→) rudder, `W`/`S` (or ↑/↓) one sail step (furled / half / full), `Q`/`E` port/starboard broadside, `G` aim zones, `N` mute, `F` dock/undock, `M` chart, `R` restart after sinking, mouse drag orbits the chase camera, `F3` debug overlay, `Esc` or the gear button opens the settings menu (the game pauses; "Galeriye dön" is a button there).
 - **Wind:** slowly shifting direction and strength (default from the north, ~8 m/s). The HUD compass shows the wind relative to the bow.
 - **Point of sail:** drive depends on the angle to the wind (polar in `world/wind.ts`): 0 in irons, ~35% close-hauled, ~85% beam reach, best on a broad reach (~120°), ~80% dead downwind.
 - **Speed:** top speed = original `speed` stat × 0.7 m/s, scaled by sail level, sail efficiency and wind strength (capped at 1.15×).
@@ -36,7 +36,7 @@ Planned in phases, see `ROADMAP.md`.
 - **Docking:** within 80 m of a port's anchorage and under 2.5 m/s, `F` moors the ship (it cannot move, sails come down) and opens the harbour panel; `F` again casts off. Market, shipyard and tavern are placeholders for phase 5.
 - **Navigation:** HUD shows the nearest port's name, distance and bearing plus a marker on the compass ring; the minimap (always on) and the chart (`M`) show only discovered islands and ports (fog of war): an island is discovered within its radius × 1.3 + 350 m, a port town within 500 m. Start: just off Douwesen, facing open water.
 - **Looks:** low-poly terrain with sand/grass/rock colouring, cone trees, houses, a pier, flag and a floating name label per port; the sea tints to lagoon green and foams in the shallows (depth texture baked from the same height function) and extends to a hazy horizon (a clip-map mesh, fine near the camera and coarser in each ring outward; each wave fades out where the mesh is too coarse to hold it).
-- **Not yet:** NPC ships, day/night, landing on shore, discovery persistence (saves).
+- **Not yet:** landing on shore, discovery persistence (saves).
 
 ## Implemented: broadsides and one enemy (phase 5a)
 - **Guns:** half of the `cannons` stat per side (max 24 balls a volley; a bigger broadside makes each ball hit harder so total firepower is kept); `Q` fires the port side, `E` starboard. A broadside reloads in 6 s (player) / 8 s (enemy) and cannot be fired while moored. An unarmed ship (Tartane) simply cannot shoot.
