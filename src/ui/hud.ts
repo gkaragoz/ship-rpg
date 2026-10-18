@@ -7,6 +7,8 @@ export interface Hud {
   update(view: GameView): void;
   /** Show a short message (a setting changed, e.g. mute). */
   notice(text: string): void;
+  /** The game speed badge: `speed` is what runs now (hidden at 1×), `note` why it was held back (or null). */
+  setTimeScale(speed: number, note: string | null): void;
   /** The ship's name in the panel (it changes when a ship is bought). */
   setShipName(name: string): void;
   dispose(): void;
@@ -99,9 +101,11 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const targetRig = bar('hud-rig');
   target.append(targetName, targetBar.root, targetRig.root);
 
-  const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · Q/E top · B abordaj · Z/X menzil · G nişan · N ses · K grafik · F liman · M harita · Fare: kamera · Esc: ayarlar');
+  const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · Q/E top · B abordaj · Z/X menzil · G nişan · N ses · K grafik · +/− hız · F liman · M harita · Fare: kamera · Esc: ayarlar');
   const prompt = el('div', 'hud-prompt');
   prompt.hidden = true;
+  const speedBadge = el('div', 'hud-speed');
+  speedBadge.hidden = true;
   const toast = el('div', 'hud-toast');
   toast.hidden = true;
   const hurt = el('div', 'hud-hurt');
@@ -109,7 +113,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const sunk = el('div', 'hud-sunk');
   sunk.hidden = true;
   sunk.append(el('h2', undefined, 'Gemin battı'), el('p', undefined, 'R: yeniden başla'));
-  root.append(panel, help, target, prompt, toast, hurt, marker, sunk);
+  root.append(panel, help, speedBadge, target, prompt, toast, hurt, marker, sunk);
   host.appendChild(root);
 
   let toastLeft = 0;
@@ -117,6 +121,11 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
 
   return {
     setShipName: (name) => void (nameEl.textContent = name),
+    setTimeScale(speed, note): void {
+      speedBadge.hidden = speed <= 1 && !note;
+      speedBadge.textContent = note ? `Oyun hızı 1× · ${note}` : `Oyun hızı ${speed}× (+/−)`;
+      speedBadge.classList.toggle('held', !!note);
+    },
     notice(text): void {
       toast.textContent = text;
       toastLeft = 1.8;

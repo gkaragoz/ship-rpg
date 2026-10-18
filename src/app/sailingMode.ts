@@ -8,6 +8,7 @@ import { createHud, createMapUi, createPortPanel, createSettingsUI, reasonText, 
 import { getNation, sunState, weatherAt, type Weather } from '../world';
 import { gameLines, renderLines } from './debugLines';
 import { describeSave } from './saves';
+import { SLOW_REASONS, effectiveSpeed, stepSpeed } from './timeScale';
 import { applyGameSettings } from './gameSettings';
 import type { Mode } from './mode';
 
@@ -26,6 +27,9 @@ const GUNS_UP = 'KeyX'; // longer range
 const GUNS_DOWN = 'KeyZ'; // shorter range
 const MUTE = 'KeyN';
 const QUALITY = 'KeyK';
+/** Game speed keys are matched by the character they type (+ = and - _, on the numpad too), so every keyboard layout works. */
+const FASTER = ['+', '='];
+const SLOWER = ['-', '_'];
 const GAME_KEYS = [...PORT, ...STARBOARD, ...MORE_SAIL, ...LESS_SAIL];
 
 /** The weather in a view, as the weather simulator's panel reads it. */
@@ -131,6 +135,8 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
   const unsubscribe = store.subscribe(applySettings);
 
   let aimOn = true;
+  /** The speed the player asked for with + and -; `effectiveSpeed` may hold the game at 1× while it is dangerous. */
+  let speedRequest = 1;
   // Ambient ships come from the game view; build their models the first time they appear.
   const npcs: Ship[] = [];
   const syncOthers = (v: GameView): void => {
@@ -160,7 +166,10 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
     }
     else if (paused) return; // the menu is open: the game keys wait
     else if (e.code === MAP && !e.repeat) map.toggle();
-    else if (e.code === QUALITY && !e.repeat) {
+    else if ((FASTER.includes(e.key) || SLOWER.includes(e.key)) && !e.repeat) {
+      speedRequest = stepSpeed(speedRequest, FASTER.includes(e.key) ? 1 : -1);
+      hud.notice(`Oyun hızı: ${speedRequest}×`);
+    } else if (e.code === QUALITY && !e.repeat) {
       store.patch({ graphics: { water: nextQuality(store.get().graphics.water) } });
       hud.notice(`Grafik: ${store.get().graphics.water}`);
     } else if (e.code === MUTE && !e.repeat) {
@@ -247,7 +256,11 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
     debugInfo: () => [...renderLines(view.stats(), store.get().graphics), ...(lastView ? gameLines(lastView) : [])],
     update(dt): void {
       if (paused) return; // the settings menu stops the game
-      game.update(dt, controls());
+      const c = controls();
+      const { speed } = effectiveSpeed(speedRequest, lastView);
+      game.update(dt, c);
+      // Faster than 1x: more steps of the same size, the one-shot presses acted in the first
+      for (let k = 1; k < speed; k++) game.update(dt, { rudder: c.rudder, sailStep: 0, elevate: c.elevate });
       updated = true;
     },
     render(): void {
@@ -284,6 +297,8 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
       syncEnemies(v);
       view.draw(v);
       hud.update(v);
+      const slowed = effectiveSpeed(speedRequest, v);
+      hud.setTimeScale(slowed.speed, slowed.reason ? SLOW_REASONS[slowed.reason] : null);
       map.update(v);
       portPanel.update(v);
       audio.play(v.events, v.ship);
