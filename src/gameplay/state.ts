@@ -1,5 +1,6 @@
-import { PORTS, getPort } from '../world';
+import { PORTS, START_REPUTATION, getPort } from '../world';
 import type { ShipSpec } from '../ships';
+import type { Quest } from './quests';
 
 /**
  * Everything about a run that must survive a ship swap or a save: plain data, no functions or Maps,
@@ -29,6 +30,11 @@ export interface GameState {
   discovered: { islands: string[]; ports: string[] };
   /** Price pressure per port and good (`p`, stamped with the game time `t` it was last set). */
   market: Record<string, Record<string, { p: number; t: number }>>;
+  /** The captain's standing with each nation, -100 (hated) ... 100 (a hero): see `reputation.ts`. */
+  reputation: Record<string, number>;
+  /** The errands the captain carries, and the ids of those finished or given up (so they are not offered again today). */
+  quests: Quest[];
+  questLog: string[];
   /** The consorts: bought at a yard or taken as prizes, they sail with the flagship and fight for it. */
   fleet: FleetEntry[];
   /** Game second the fleet's upkeep was last paid (at the last port). */
@@ -65,6 +71,9 @@ export function newGameState(spec: ShipSpec): GameState {
     pose: startPose(),
     discovered: { islands: [], ports: [] },
     market: {},
+    reputation: { ...START_REPUTATION },
+    quests: [],
+    questLog: [],
     fleet: [],
     upkeepAt: 0,
     time: 0,

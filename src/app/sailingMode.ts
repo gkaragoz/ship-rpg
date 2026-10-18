@@ -303,6 +303,7 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
       hud.setTimeScale(slowed.speed, slowed.reason ? SLOW_REASONS[slowed.reason] : null);
       map.update(v);
       portPanel.update(v);
+      for (const e of v.events) if (e.type === 'quest' && e.text) hud.notice(e.text); // errands settled on mooring
       audio.play(v.events, v.ship);
       audio.ambience(v.wind.speed + 6 * v.seaState, v.ship.speed); // a rough sea is louder than the wind alone
       audio.condition(v.ship);

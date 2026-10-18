@@ -82,7 +82,8 @@ describe('several enemies', () => {
     const squad = afloat(game);
     expect(new Set(squad.map((e) => e.id)).size).toBe(3);
     expect(new Set(squad.map((e) => e.specId)).size).toBe(3); // a mixed squadron
-    expect(squad.map((e) => e.nation)).toEqual(['pirate', 'spanish', 'french']); // in turn, in arrival order
+    // the pirates and the navies hunting the captain (Spain, at the start), in turn and in arrival order
+    expect(squad.map((e) => e.nation)).toEqual(['pirate', 'spanish', 'pirate']);
   });
 
   it('keeps enemies apart when they arrive', () => {

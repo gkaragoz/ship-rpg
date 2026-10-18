@@ -1,6 +1,7 @@
 import { getShipSpec } from '../ships';
-import { GOODS, ISLANDS, PORTS, TRADE, WORLD_BOUNDS, getPort } from '../world';
+import { GOODS, ISLANDS, PORTS, REPUTATION, REPUTATION_NATIONS, START_REPUTATION, TRADE, WORLD_BOUNDS, getPort } from '../world';
 import { MAX_CONSORTS, holdUsed, type FleetEntry, type GameState } from './state';
+import { sanitizeQuests } from './questSave';
 
 /** The bit of `Storage` the save needs (injectable for tests). */
 export interface StorageLike {
@@ -14,7 +15,7 @@ export interface StorageLike {
  * run's state. When `GameState` gains fields, bump `SAVE_VERSION` and add the step from the old version to `MIGRATIONS`;
  * `sanitizeState` fills in anything missing, so additive fields need a migration only when old values must be converted.
  */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 4;
 export interface SaveData {
   version: number;
   savedAt: string;
@@ -24,6 +25,16 @@ export interface SaveData {
 /** Steps from version `n` to `n + 1`, applied in order to the raw JSON. */
 export type Migration = (raw: Record<string, unknown>) => Record<string, unknown>;
 export const MIGRATIONS: Readonly<Record<number, Migration>> = {
+  // 3 -> 4: errands. An old run carries none.
+  3: (raw) => {
+    const state = isRecord(raw.state) ? raw.state : {};
+    return { ...raw, version: 4, state: { ...state, quests: [], questLog: [] } };
+  },
+  // 2 -> 3: reputation. An old captain starts as a new one does.
+  2: (raw) => {
+    const state = isRecord(raw.state) ? raw.state : {};
+    return { ...raw, version: 3, state: { ...state, reputation: { ...START_REPUTATION } } };
+  },
   // 1 -> 2: the fleet. An old run has no consorts and has never paid upkeep.
   1: (raw) => {
     const state = isRecord(raw.state) ? raw.state : {};
@@ -90,6 +101,10 @@ export function sanitizeState(raw: unknown): GameState | null {
     }
   }
 
+  const reputation: Record<string, number> = {};
+  const rawRep = isRecord(raw.reputation) ? raw.reputation : {};
+  for (const n of REPUTATION_NATIONS) reputation[n] = Math.round(num(rawRep[n], START_REPUTATION[n] ?? 0, REPUTATION.min, REPUTATION.max));
+
   const docked = typeof pose.dockedAt === 'string' && getPort(pose.dockedAt) ? pose.dockedAt : null;
   return {
     ship: {
@@ -115,6 +130,9 @@ export function sanitizeState(raw: unknown): GameState | null {
     },
     discovered: { islands: ids(seen.islands, ISLANDS.map((i) => i.id)), ports: ids(seen.ports, PORTS.map((p) => p.id)) },
     market,
+    reputation,
+    quests: sanitizeQuests(raw.quests),
+    questLog: Array.isArray(raw.questLog) ? raw.questLog.filter((x): x is string => typeof x === 'string' && x.length < 60).slice(-60) : [],
     fleet,
     upkeepAt: num(raw.upkeepAt, 0, 0, 1e9),
     time: num(raw.time, 0, 0, 1e9),

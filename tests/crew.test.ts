@@ -117,7 +117,7 @@ describe('npc fleet', () => {
     for (let i = 0; i < 600; i++) { a.update(DT); b.update(DT); }
     expect(a.view()).toEqual(b.view());
     const placed = placePatrols({ x: 0, z: 0 });
-    a.view().forEach((v, i) => {
+    a.view().slice(0, placed.length).forEach((v, i) => {
       const p = placed[i];
       if (!p) throw new Error('missing patrol');
       expect(((v.x - p.cx) / p.a) ** 2 + ((v.z - p.cz) / p.b) ** 2).toBeCloseTo(1, 6);
@@ -130,7 +130,7 @@ describe('npc fleet', () => {
     const before = fleet.view();
     fleet.update(0.5);
     const after = fleet.view();
-    before.forEach((v, i) => {
+    before.slice(0, 12).forEach((v, i) => { // the patrols (the merchants after them lie at the quay now and then)
       const w = after[i];
       if (!w) return;
       const dx = w.x - v.x;

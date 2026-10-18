@@ -253,6 +253,10 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
         prompt.hidden = false;
         prompt.textContent = `Gemiye çık [B] · şans %${Math.round(view.boarding.odds * 100)}`;
         prompt.className = 'hud-prompt';
+      } else if (nearestPort?.inZone && nearestPort.closed) {
+        prompt.hidden = false;
+        prompt.textContent = `${nearestPort.name} limanı sana kapalı: itibarın çok düşük`;
+        prompt.className = 'hud-prompt hud-warn';
       } else if (nearestPort?.dockable) {
         prompt.hidden = false;
         prompt.textContent = `${nearestPort.name} limanına gir [F]`;

@@ -1,6 +1,6 @@
 /**
  * The flags of the Caribbean. Colours are for the flag cloth on ships and the HUD; an
- * enemy's nation says who it sails for (reputation and factions come with slice 5e).
+ * enemy's nation says who it sails for; wars and the captain's standing are in `factions.ts` and `gameplay/reputation.ts`.
  */
 export interface Nation {
   id: string;

@@ -27,3 +27,5 @@ Public API: `createGame(spec | state)` → `{ spec, update(dt, controls), view()
 Fixed-step only (see `core/loop.ts`); no wall-clock time. Quests and factions will live here (5e). Randomness comes from the seeded `core/rng`.
 
 - `fleet.ts` (consort hulls as enemy-shaped ships, `stationOf`, `consortOrders`, launch and write-back), `fleetDirector.ts` (the fleet at sea: stepping the consorts, hits, sinking, capture of a prize), `fleetYard.ts` (yard commands for consorts: buy, sell, repair, move the flag; upkeep; `FLEET` constants).
+
+- `reputation.ts` the captain's standing with each nation (kills, fading, closed ports, which navies hunt him), `quests.ts` + `questSave.ts` the tavern's errands (offers by port and day, taking, settling, saving), `traffic.ts` merchants on sea lanes (A* over open water; part of `npcShips`' list of other ships).

@@ -170,7 +170,9 @@ export interface BallView {
 
 /** One-off things that happened since the previous `view()`: drives smoke, splashes and sound. */
 export interface GameEvent {
-  type: 'fire' | 'splash' | 'hit' | 'sunk' | 'escaped' | 'collision' | 'boarded' | 'loot' | 'levelup';
+  type: 'fire' | 'splash' | 'hit' | 'sunk' | 'escaped' | 'collision' | 'boarded' | 'loot' | 'levelup' | 'quest';
+  /** `quest` events: the message for the captain (Turkish), and whether the errand was done (`won`) or failed. */
+  text?: string;
   /** `boarded`: the party won. `loot`: gold taken (`amount` is the goods). `levelup`: the level reached. */
   won?: boolean;
   gold?: number;
@@ -202,6 +204,8 @@ export interface PortView {
   dockable: boolean;
   /** Inside the port's marked entry zone (the ship may still be too fast to enter). */
   inZone: boolean;
+  /** The port's nation will not let the captain in (his standing with it is too low). */
+  closed: boolean;
 }
 
 /** Another ship at sea; kinematic and shown at a distance-dependent level of detail. */
@@ -367,6 +371,32 @@ export interface FleetShipView {
   sellPrice: number;
 }
 
+/** An errand on the tavern's board. */
+export interface QuestOfferView {
+  id: string;
+  kind: 'delivery' | 'courier' | 'hunt';
+  title: string;
+  reward: number;
+  /** The nation whose standing it raises. */
+  repNation: string;
+  /** Courier errands: seconds allowed from now. */
+  deadline?: number;
+}
+
+/** An errand the captain carries. */
+export interface QuestView {
+  id: string;
+  kind: 'delivery' | 'courier' | 'hunt';
+  title: string;
+  reward: number;
+  /** Where it stands ("ambarda 12/30", "1/3", "84 sn kaldı"). */
+  progress: string;
+  /** Everything but getting there is done. */
+  ready: boolean;
+  from: string;
+  to: string;
+}
+
 export interface ShipyardView {
   /** What the yard pays for your ship now, and a full repair of it. */
   tradeIn: number;
@@ -385,6 +415,8 @@ export interface PortServicesView {
   hirePrice: number;
   room: number;
   shipyard: ShipyardView;
+  /** The tavern's board and the errands carried. */
+  quests: { offers: readonly QuestOfferView[]; active: readonly QuestView[]; room: number };
 }
 
 /** What the port panel asks the game to do. */
@@ -393,10 +425,11 @@ export type PortCommand =
   | { type: 'hire' | 'discharge'; qty: number }
   | { type: 'buyShip'; specId: string }
   | { type: 'repair' }
+  | { type: 'acceptQuest' | 'abandonQuest'; id: string }
   | { type: 'buyConsort'; specId: string }
   | { type: 'sellConsort' | 'repairConsort' | 'flagship'; index: number };
 
-/** `reason` is a code the UI words: not-docked, bad-qty, bad-good, no-gold, no-space, no-stock, crew-full, no-crew, not-sold, same-ship, hold-too-small, nothing-to-repair, fleet-full, no-such-ship. */
+/** `reason` is a code the UI words: not-docked, bad-qty, bad-good, no-gold, no-space, no-stock, crew-full, no-crew, not-sold, same-ship, hold-too-small, nothing-to-repair, fleet-full, no-such-ship, quests-full, no-such-quest. */
 export interface CommandResult {
   ok: boolean;
   reason?: string;
@@ -420,6 +453,8 @@ export interface GameView {
   boarding: BoardingView;
   /** The docked port's market and tavern; null at sea. */
   port: PortServicesView | null;
+  /** The captain's standing with each nation, -100 ... 100. */
+  reputation: Readonly<Record<string, number>>;
   /** Closest port (discovered or not), or null if none is within 1.5 km. */
   nearestPort: PortView | null;
   /** Id of the port the ship is docked at, if any. */

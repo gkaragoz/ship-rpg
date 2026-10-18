@@ -81,6 +81,8 @@ export function reasonText(r: CommandResult): string {
     case 'hold-too-small': return 'Ambar küçük: önce yükü sat';
     case 'not-sold': return 'Bu tersane yapmıyor';
     case 'same-ship': return 'Bu zaten senin geminin kendisi';
+    case 'quests-full': return 'Zaten üç görev taşıyorsun';
+    case 'no-such-quest': return 'Bu görev artık panoda yok';
     case 'fleet-full': return 'Filoda yer yok (en çok 3 eşlik gemisi)';
     case 'no-such-ship': return 'Böyle bir gemi filoda yok';
     case 'bad-good': return 'Böyle bir mal yok';

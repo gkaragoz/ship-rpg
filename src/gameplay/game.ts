@@ -26,6 +26,8 @@ import { runCommand, servicesView } from './harbour';
 import { runYard } from './shipyard';
 import { runFleetYard } from './fleetYard';
 import { createFleetDirector } from './fleetDirector';
+import { enemyNationFor, fadeStanding, portClosed, recordKill } from './reputation';
+import { questKill, settleQuests } from './quests';
 import { changeClock } from './clockState';
 import { COMPANY } from './company';
 import { createDesk } from './desk';
@@ -112,7 +114,8 @@ export function createGame(init: ShipSpec | GameState): Game {
   const explore = createExploration(() => ship, st.discovered);
   const nearest = explore.nearest;
   /** In the marked entry zone of the port, and slow enough. */
-  const canDock = (port: Port): boolean => insidePortZone(port, ship.x, ship.z) && Math.abs(ship.speed) <= DOCK.maxSpeed;
+  const canDock = (port: Port): boolean => insidePortZone(port, ship.x, ship.z) && Math.abs(ship.speed) <= DOCK.maxSpeed && !portClosed(st, port);
+  const repClock = { t: 0 }; // standing fades with time
 
   const toggleDock = (): void => {
     const wasDocked = !!dockedAt;
@@ -122,7 +125,11 @@ export function createGame(init: ShipSpec | GameState): Game {
     if (dockedAt) {
       ship.speed = 0;
       st.crew = Math.max(st.crew, Math.ceil(spec.stats.crew * COMPANY.volunteers));
-      if (!wasDocked) fleet.moor(time); // the fleet comes in with the flagship (and its upkeep is paid)
+      if (!wasDocked) {
+        fleet.moor(time); // the fleet comes in with the flagship (and its upkeep is paid)
+        // errands done here are paid, and the ones that ran out of time are dropped
+        for (const r of settleQuests(st, dockedAt.id, time)) events.push({ type: 'quest', owner: 'player', x: ship.x, y: 0, z: ship.z, won: r.done, text: r.text });
+      }
     } else if (wasDocked) {
       fleet.launch(); // casting off: the consorts take their stations
     }
@@ -130,7 +137,7 @@ export function createGame(init: ShipSpec | GameState): Game {
 
   // --- enemies -----------------------------------------------------------------------------
   const spawnEnemy = (): void => {
-    const next = spawnFor(spec, ship, enemies, enemyCounter, rng);
+    const next = spawnFor(spec, ship, enemies, enemyCounter, rng, enemyNationFor(st, enemyCounter));
     if (!next) return; // no room right now: the caller tries again after STAGGER
     enemies.push(next);
     enemyCounter++;
@@ -205,6 +212,8 @@ export function createGame(init: ShipSpec | GameState): Game {
     if (e.hp > 0 || e.sinking >= 0) return;
     e.sinking = 0;
     awardXp(st, killXp(e, boarded), e.ship, events);
+    recordKill(st, e.nation);
+    questKill(st, e.nation);
     threat++;
     st.captain.kills++;
     respawnIn = RESPAWN;
@@ -341,6 +350,7 @@ export function createGame(init: ShipSpec | GameState): Game {
       weather = weatherState.update(time, dt, ship);
       wind = { from: weather.windFrom, speed: weather.windSpeed };
       sea = weather.seaState;
+      fadeStanding(st, repClock, dt);
       if (sunk) {
         sinkTime += dt;
         ship.speed *= 1 - 0.4 * dt;
@@ -364,6 +374,8 @@ export function createGame(init: ShipSpec | GameState): Game {
             // the prize joins the fleet under the captain's flag: the kill's experience and no sinking
             prize.gone = true;
             awardXp(st, killXp(prize, true), ship, events);
+            recordKill(st, prize.nation);
+            questKill(st, prize.nation);
             threat++;
             st.captain.kills++;
             respawnIn = RESPAWN;
@@ -412,7 +424,7 @@ export function createGame(init: ShipSpec | GameState): Game {
     view(): GameView {
       if (dockedAt) syncShip(); // the yard's prices depend on the hull
       const n = nearest();
-      const nearestPort = n && portView(n, ship, !dockedAt && canDock(n.port), insidePortZone(n.port, ship.x, ship.z));
+      const nearestPort = n && portView(n, ship, !dockedAt && canDock(n.port), insidePortZone(n.port, ship.x, ship.z), portClosed(st, n.port));
       const enemyViews = enemies.map((e) => {
         const v = enemyView(e, ship, feel(e.ship));
         const crewView = shipCrews.view(`e:${e.id}`, { specId: e.spec.id, rudder: e.ship.rudder, sailTarget: e.ship.sailTarget, reload: e.reload, reloadSeconds: COMBAT.enemyReload }, v.distance);
@@ -444,6 +456,7 @@ export function createGame(init: ShipSpec | GameState): Game {
         port: dockedAt ? servicesView(st, spec, dockedAt.id, time) : null,
         boarding: boardingView(st, dockedAt || sunk ? null : desk.prize(ship, enemies), desk.cooldown()),
         ship: playerView(ship, spec, { hp, maxHp, reloadSeconds: desk.reloadSeconds(), reload, elevation, air: windVelocity(wind), wind: feel(ship), gust: gustAt(ship.x, ship.z, time, wind), armed: !dockedAt && !sunk }, afloat),
+        reputation: st.reputation,
         nearestPort,
         docked: dockedAt?.id ?? null,
         grounded: ship.grounded > 0,

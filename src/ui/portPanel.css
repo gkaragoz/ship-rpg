@@ -58,3 +58,16 @@
 .port-fleet-row button:disabled { opacity: 0.4; cursor: default; }
 .port-empty { color: #9fb7c4; font-size: 13px; }
 @media (max-width: 700px) { .port-fleet-row { grid-template-columns: 4.5em 4em 4em 4.5em auto; font-size: 11px; gap: 4px; } }
+
+.port-quests h4 { margin: 10px 0 4px; font-size: 13px; color: #e0b840; }
+.port-standing { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 4px; font-size: 12px; }
+.port-standing-title { color: #9fb7c4; }
+.port-chip { padding: 1px 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.08); }
+.port-chip.bad { background: rgba(232, 100, 60, 0.35); }
+.port-chip.good { background: rgba(123, 201, 111, 0.3); }
+.port-quest-row { display: grid; grid-template-columns: 4.5em 1fr 6em 7em auto; gap: 8px; align-items: center; padding: 4px 4px; font-size: 13px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.port-quest-row button { font: inherit; font-size: 12px; padding: 2px 8px; color: #f3ead2; background: rgba(40, 60, 76, 0.9); border: 1px solid #5d7384; border-radius: 3px; cursor: pointer; }
+.port-quest-row button:disabled { opacity: 0.4; cursor: default; }
+.port-quest-kind { color: #9fb7c4; }
+.port-quest-ready { color: #7bc96f; }
+@media (max-width: 700px) { .port-quest-row { grid-template-columns: 3.6em 1fr 4.5em 5em auto; font-size: 11px; gap: 4px; } }

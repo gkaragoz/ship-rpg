@@ -56,7 +56,7 @@ describe('screen lines', () => {
     const spec = getShipSpec('tartane');
     if (!spec) throw new Error('no tartane');
     const lines = gameLines(createGame(spec).view());
-    expect(lines[0]).toMatch(/\d+ düşman\s+12 gemi/);
+    expect(lines[0]).toMatch(/\d+ düşman\s+18 gemi/);
     expect(lines[1]).toContain('rüzgâr');
   });
 });

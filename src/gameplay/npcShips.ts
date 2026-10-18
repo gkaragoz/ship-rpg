@@ -2,6 +2,7 @@ import type { OtherShipView, WindView } from '../core';
 import { terrainHeight, windAt } from '../world';
 import { getShipSpec } from '../ships';
 import { apparentView } from './enemyView';
+import { createTraffic } from './traffic';
 
 /** An elliptical patrol around (cx, cz): semi-axes a (x) and b (z), starting phase, direction. */
 interface Patrol {
@@ -138,6 +139,7 @@ export interface NpcFleet {
  */
 export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }): NpcFleet {
   const patrols = placePatrols(origin);
+  const traffic = createTraffic(); // merchants sailing from port to port; their ids follow the patrols'
   const shoved = patrols.map(() => ({ x: 0, z: 0, yaw: 0 }));
   let time = 0;
   return {
@@ -158,7 +160,7 @@ export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }
       s.yaw += dyaw;
     },
     view(wind: WindView = windAt(time), giveWay?: readonly WayShip[]): OtherShipView[] {
-      const raw = patrols.map((p, id) => {
+      const rails = patrols.map((p, id) => {
         const s = shoved[id]!;
         const omega = (p.dir * PATROL_SPEED) / ((p.a + p.b) / 2);
         const phi = p.phase + omega * time;
@@ -177,6 +179,7 @@ export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }
           apparent: apparentView(wind, Math.atan2(-vz, vx) + s.yaw, PATROL_SPEED),
         };
       });
+      const raw = [...rails, ...traffic.views(time, wind, patrols.length)];
       if (!giveWay) return raw; // on their rails exactly
       // steer clear of each other and of the ships that give them no way (the player, the enemies)
       const away = avoidanceOffsets(raw.map((o) => ({ x: o.x, z: o.z, length: getShipSpec(o.specId)?.length ?? 20 })), giveWay);

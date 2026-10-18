@@ -5,6 +5,7 @@ export { PORTS, PORT_ZONE, getPort, insidePortZone, portZoneCentre, portZoneCorn
 export type { Port } from './ports';
 export { fbm, hash2, valueNoise } from './noise';
 export { NATIONS, getNation } from './nations';
+export { NAVIES, REPUTATION, REPUTATION_NATIONS, START_REPUTATION, atWar, enemiesOf } from './factions';
 export type { Nation } from './nations';
 export { NEUTRAL_TUNING, SEA_NAMES, SHORT_WAVE, WAVES, WAVE_TERMS, chop, seaAmp, seaName, seaStateAt, waveDirection, waveHeight, waveSlope } from './sea';
 export type { SeaTuning, WaveSpec } from './sea';
