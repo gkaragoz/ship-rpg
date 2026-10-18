@@ -20,10 +20,17 @@ export interface CrashResult {
  * Let the ships that share the sea run into each other: the player (unless moored or sunk), the enemies afloat and
  * the patrols. Moves and turns the ships, applies the leaks, and reports the damage and the `collision` events.
  */
-export function stepCrashes(player: { ship: PlayerShip; spec: ShipSpec; maxHp: number; active: boolean }, enemies: readonly Enemy[], patrols: readonly OtherShipView[]): CrashResult {
+export function stepCrashes(
+  player: { ship: PlayerShip; spec: ShipSpec; maxHp: number; active: boolean },
+  enemies: readonly Enemy[],
+  patrols: readonly OtherShipView[],
+  /** Told how far a crash pushed and turned each patrol (by its id), so it can sail back onto its rail. */
+  nudge?: (id: number, dx: number, dz: number, dyaw: number) => void,
+): CrashResult {
   const hulls: Hull[] = [];
   const who: ('player' | 'enemy' | 'patrol')[] = [];
   const enemyAt: number[] = [];
+  const patrolAt: { index: number; id: number; x: number; z: number; heading: number }[] = [];
   if (player.active) {
     hulls.push({ ship: player.ship, spec: player.spec, maxHp: player.maxHp });
     who.push('player');
@@ -38,14 +45,11 @@ export function stepCrashes(player: { ship: PlayerShip; spec: ShipSpec; maxHp: n
   for (const p of patrols) {
     const spec = getShipSpec(p.specId);
     if (!spec) continue;
-    hulls.push({
-      ship: { x: p.x, z: p.z, heading: p.heading, speed: PATROL_SPEED },
-      spec,
-      maxHp: 1,
-      fixed: { vx: Math.cos(p.heading) * PATROL_SPEED, vz: -Math.sin(p.heading) * PATROL_SPEED },
-    });
+    // A patrol is a hull like any other (it takes no damage): a crash shoves it, in proportion to how light it is.
+    hulls.push({ ship: { x: p.x, z: p.z, heading: p.heading, speed: PATROL_SPEED }, spec, maxHp: 0, group: 'patrol' });
     who.push('patrol');
     enemyAt.push(-1);
+    patrolAt.push({ index: hulls.length - 1, id: p.id, x: p.x, z: p.z, heading: p.heading });
   }
   const result: CrashResult = {
     events: [],
@@ -57,7 +61,12 @@ export function stepCrashes(player: { ship: PlayerShip; spec: ShipSpec; maxHp: n
     },
   };
   if (hulls.length < 2) return result;
-  for (const hit of collideAll(hulls)) {
+  const impacts = collideAll(hulls);
+  for (const p of patrolAt) {
+    const ship = hulls[p.index]!.ship;
+    if (ship.x !== p.x || ship.z !== p.z || ship.heading !== p.heading) nudge?.(p.id, ship.x - p.x, ship.z - p.z, ship.heading - p.heading);
+  }
+  for (const hit of impacts) {
     const owner = who[hit.a] === 'player' || who[hit.b] === 'player' ? 'player' : 'enemy';
     if (hit.speed < COLLISION.scrape && hit.lostA + hit.lostB <= 0) continue; // a touch or a scrape: the hulls are pushed apart, but nobody hears or sees a crash
     result.events.push({ type: 'collision', owner, x: hit.x, y: 0, z: hit.z, nx: hit.nx, nz: hit.nz, speed: hit.speed, amount: hit.lostA + hit.lostB });

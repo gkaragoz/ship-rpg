@@ -74,25 +74,46 @@ export function placePatrols(origin: { x: number; z: number }): Patrol[] {
 /** Cruising speed of a patrol in m/s. */
 export const PATROL_SPEED = 5;
 
+/** Seconds in which a patrol that was shoved sails back onto its rail (time constant of the decay). */
+export const PATROL_RECOVERY = 5;
+
 export interface NpcFleet {
   update(dt: number): void;
+  /** Shove patrol `id` aside by (dx, dz) metres and turn it by `dyaw` radians (a crash); it drifts back onto its rail. */
+  nudge(id: number, dx: number, dz: number, dyaw: number): void;
   /** The patrols now; `wind` is the true wind they are sailing in (for the apparent wind they feel). */
   view(wind?: WindView): OtherShipView[];
 }
 
 /**
- * Kinematic patrol ships on closed ellipses. Positions are an analytic function of time, so the
- * fleet is deterministic and needs no collision or steering yet.
+
+ * Patrol ships on closed ellipses. Where a patrol would be is an analytic function of time, so the fleet is deterministic;
+ * a crash shoves one off its rail (`nudge`) and the shove then fades away, so a patrol that was hit sails back onto its ellipse.
  */
 export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }): NpcFleet {
   const patrols = placePatrols(origin);
+  const shoved = patrols.map(() => ({ x: 0, z: 0, yaw: 0 }));
   let time = 0;
   return {
     update(dt): void {
       time += dt;
+      const keep = Math.exp(-dt / PATROL_RECOVERY);
+      for (const s of shoved) {
+        s.x *= keep;
+        s.z *= keep;
+        s.yaw *= keep;
+      }
+    },
+    nudge(id, dx, dz, dyaw): void {
+      const s = shoved[id];
+      if (!s) return;
+      s.x += dx;
+      s.z += dz;
+      s.yaw += dyaw;
     },
     view(wind: WindView = windAt(time)): OtherShipView[] {
       return patrols.map((p, id) => {
+        const s = shoved[id]!;
         const omega = (p.dir * PATROL_SPEED) / ((p.a + p.b) / 2);
         const phi = p.phase + omega * time;
         // d/dt of (cx + a cos φ, cz + b sin φ) gives the velocity; heading follows (cos ψ, -sin ψ).
@@ -101,12 +122,12 @@ export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }
         return {
           id,
           specId: p.specId,
-          x: p.cx + p.a * Math.cos(phi),
-          z: p.cz + p.b * Math.sin(phi),
-          heading: Math.atan2(-vz, vx),
+          x: p.cx + p.a * Math.cos(phi) + s.x,
+          z: p.cz + p.b * Math.sin(phi) + s.z,
+          heading: Math.atan2(-vz, vx) + s.yaw,
           sailLevel: 0.8,
           roll: 0.03 * Math.sin(0.7 * time + id),
-          apparent: apparentView(wind, Math.atan2(-vz, vx), PATROL_SPEED),
+          apparent: apparentView(wind, Math.atan2(-vz, vx) + s.yaw, PATROL_SPEED),
         };
       });
     },
