@@ -179,6 +179,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
         view.addActor(e.id, es.root, { length: enemySpec.length, beam: enemySpec.beam });
       }
       es.setSailTrim(e.apparent.angle, e.sailLevel);
+      es.setWind?.({ angle: e.apparent.angle, speed: e.apparent.speed, gust: 1 });
       es.setCondition(e, v.time);
     }
     for (const [id, es] of enemyShips) {
@@ -218,6 +219,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
       }
       syncOthers(v);
       ship.setSailTrim(v.ship.apparent.angle, v.ship.sailLevel);
+      ship.setWind?.({ angle: v.ship.apparent.angle, speed: v.ship.apparent.speed, gust: v.ship.gust });
       ship.setCondition(v.ship, v.time);
       syncEnemies(v);
       view.draw(v);

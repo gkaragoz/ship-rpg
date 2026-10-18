@@ -60,6 +60,7 @@ export function createFleet(scene: THREE.Scene): Fleet {
           if (lod !== prev) ship.setLod?.(lod);
           levels[o.id] = lod;
           ship.setSailTrim(o.apparent.angle, o.sailLevel);
+          ship.setWind?.({ angle: o.apparent.angle, speed: o.apparent.speed, gust: 1 });
         }
         counts[lod]++;
         rideWaves(ship.root, o, dims, view.time, view.wind.from, ampScale, lod < 2, 0, view.weather.tuning);
