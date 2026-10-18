@@ -4,7 +4,7 @@ import type { ShipSpec } from '../ships';
 import { PORTS, getPort, terrainHeight, windAt, type Port } from '../world';
 import { createExploration } from './exploration';
 import { COMBAT, aimZone, ballHits, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball, type Side } from './combat';
-import { aiStep, createEnemy, lostTrack, pickEnemySpec, type Enemy } from './enemy';
+import { MAX_ENEMIES, aiStep, createEnemy, desiredEnemies, lostTrack, pickEnemySpec, type Enemy } from './enemy';
 import { SAILING, createPlayerShip, maxSpeed, stepPlayerShip } from './sailing';
 
 export interface Game {
@@ -22,6 +22,8 @@ const START_OFFSET = 70;
 /** Enemies appear this far from the player; a replacement comes after `RESPAWN` seconds. */
 const SPAWN_DISTANCE = 650;
 const RESPAWN = 25;
+/** Seconds between one enemy arriving and the next of a group. */
+const STAGGER = 12;
 /** Fraction of hull strength a moored ship repairs per second. */
 const REPAIR_RATE = 0.02;
 
@@ -30,7 +32,6 @@ export function createGame(spec: ShipSpec): Game {
   const start = getPort(START_PORT) ?? PORTS[0];
   if (!start) throw new Error('no ports defined');
   const rng = createRng(0x5eed);
-  const enemySpec = pickEnemySpec(spec);
   const maxHp = spec.stats.hp;
 
   const makeShip = (): ReturnType<typeof createPlayerShip> =>
@@ -79,6 +80,7 @@ export function createGame(spec: ShipSpec): Game {
   // --- enemies -----------------------------------------------------------------------------
   /** Place a new enemy in open water about SPAWN_DISTANCE away, preferring the player's heading. */
   const spawnEnemy = (): void => {
+    const enemySpec = pickEnemySpec(spec, enemyCounter % MAX_ENEMIES); // a squadron of up to three different types
     const preferred = ship.heading;
     for (let k = 0; k < 16; k++) {
       const angle = k === 0 ? preferred : rng() * Math.PI * 2;
@@ -164,7 +166,7 @@ export function createGame(spec: ShipSpec): Game {
         e.ship.speed *= 1 - 0.5 * dt;
         continue;
       }
-      const ai = aiStep(e, ship, wind);
+      const ai = aiStep(e, ship, wind, enemies.filter((o) => o !== e && o.sinking < 0).map((o) => o.ship));
       stepPlayerShip(e.ship, e.spec, wind, ai.controls, dt);
       if (lostTrack(e, Math.hypot(e.ship.x - ship.x, e.ship.z - ship.z), dt)) {
         // Out of sight for too long: the enemy gives up (or, damaged, got away).
@@ -182,7 +184,10 @@ export function createGame(spec: ShipSpec): Game {
     }
     enemies = enemies.filter((e) => !e.gone && e.sinking < CONFIG.sinkSeconds);
     if (!sunk && respawnIn > 0) respawnIn -= dt;
-    if (!sunk && respawnIn <= 0 && !enemies.some((e) => e.sinking < 0)) spawnEnemy();
+    if (!sunk && respawnIn <= 0 && enemies.filter((e) => e.sinking < 0).length < desiredEnemies(kills)) {
+      spawnEnemy();
+      respawnIn = STAGGER;
+    }
   };
 
   reset();

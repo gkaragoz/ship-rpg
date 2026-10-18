@@ -33,15 +33,20 @@ export function createEnemy(id: string, spec: ShipSpec, x: number, z: number, he
   return { id, spec, ship, hp: maxHp, maxHp, reload: { port: COMBAT.enemyReload / 2, starboard: COMBAT.enemyReload / 2 }, sinking: -1, fleeing: false, lostFor: 0, gone: false };
 }
 
-/** A gunned ship whose hull strength is the closest to 80% of the player's. */
-export function pickEnemySpec(player: ShipSpec): ShipSpec {
+/** How many enemies are afloat at once: one at first, a second after 2 kills, a third after 4. */
+export const MAX_ENEMIES = 3;
+export const desiredEnemies = (kills: number): number => Math.min(MAX_ENEMIES, 1 + Math.floor(kills / 2));
+
+/**
+ * The armed ship (8+ cannons) whose hull strength is the closest to 80% of the player's;
+ * `rank` 1, 2, … picks the next closest, so a group is a mixed squadron rather than clones.
+ */
+export function pickEnemySpec(player: ShipSpec, rank = 0): ShipSpec {
   const wanted = player.stats.hp * 0.8;
-  const armed = SHIP_SPECS.filter((s) => s.stats.cannons >= 8);
-  let best = armed[0] ?? player;
-  for (const s of armed) {
-    if (Math.abs(s.stats.hp - wanted) < Math.abs(best.stats.hp - wanted)) best = s;
-  }
-  return best;
+  const armed = SHIP_SPECS.filter((s) => s.stats.cannons >= 8).sort(
+    (a, b) => Math.abs(a.stats.hp - wanted) - Math.abs(b.stats.hp - wanted),
+  );
+  return armed[rank % Math.max(armed.length, 1)] ?? player;
 }
 
 const BROADSIDE_ANGLE = Math.PI / 2;
@@ -52,6 +57,8 @@ const FIRE_RANGE = 180;
 const PARALLEL_RANGE = 130;
 const CLOSE_IN = 300;
 const NO_GO = 0.75;
+/** Enemies closer than this to each other steer apart (m). */
+const SEPARATION = 70;
 /** Below this fraction of its hull an enemy breaks off. */
 export const FLEE_HULL = 0.25;
 /** Farther than this from the player counts as having lost him; after `LOSE_SECONDS` of it the enemy gives up. */
@@ -73,7 +80,12 @@ export interface AiResult {
 }
 
 /** Close in on the player, turn broadside at about 150 m and fire; stay off the wind and the shore. */
-export function aiStep(e: Enemy, player: Pick<PlayerShip, 'x' | 'z'>, wind: WindView): AiResult {
+export function aiStep(
+  e: Enemy,
+  player: Pick<PlayerShip, 'x' | 'z'>,
+  wind: WindView,
+  others: readonly Pick<PlayerShip, 'x' | 'z'>[] = [],
+): AiResult {
   const s = e.ship;
   const dx = player.x - e.ship.x;
   const dz = player.z - e.ship.z;
@@ -102,6 +114,16 @@ export function aiStep(e: Enemy, player: Pick<PlayerShip, 'x' | 'z'>, wind: Wind
   if (probe(s.heading, 90) || probe(desired, 90)) {
     const leftClear = !probe(s.heading + 0.7, 90);
     desired = s.heading + (leftClear ? 0.9 : -0.9);
+  }
+
+  // Keep clear of other enemies: head away from one that is too close.
+  for (const o of others) {
+    const ox = s.x - o.x;
+    const oz = s.z - o.z;
+    if (ox * ox + oz * oz < SEPARATION * SEPARATION) {
+      desired = Math.atan2(-oz, ox);
+      break;
+    }
   }
 
   const rudder = clamp(angleDiff(s.heading, desired) * 2.5, -1, 1);

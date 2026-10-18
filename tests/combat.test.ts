@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createRng, type WindView } from '../src/core';
 import { createGame } from '../src/gameplay';
 import { COMBAT, aimZone, ballHits, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball } from '../src/gameplay/combat';
-import { FLEE_HULL, LOSE_RANGE, LOSE_SECONDS, aiStep, createEnemy, lostTrack, pickEnemySpec } from '../src/gameplay/enemy';
+import { FLEE_HULL, LOSE_RANGE, LOSE_SECONDS, MAX_ENEMIES, aiStep, createEnemy, desiredEnemies, lostTrack, pickEnemySpec } from '../src/gameplay/enemy';
 import { getShipSpec } from '../src/ships';
 
 const spec = (id: string) => {
@@ -391,5 +391,34 @@ describe('enemy fleeing and losing track', () => {
     expect(e.lostFor).toBe(0);
     for (let i = 0; i < 60 * LOSE_SECONDS + 1; i++) lost = lostTrack(e, far, 1 / 60);
     expect(lost).toBe(true);
+  });
+});
+
+describe('several enemies', () => {
+  it('adds one enemy per two kills, up to the maximum', () => {
+    expect([0, 1, 2, 3, 4, 5, 6, 50].map(desiredEnemies)).toEqual([1, 1, 2, 2, 3, 3, MAX_ENEMIES, MAX_ENEMIES]);
+    expect(MAX_ENEMIES).toBe(3);
+  });
+
+  it('picks a mixed squadron: rank 0 is the closest match, the next ranks are other armed ships', () => {
+    const squad = [0, 1, 2].map((r) => pickEnemySpec(brig, r));
+    expect(squad[0]).toBe(pickEnemySpec(brig));
+    expect(new Set(squad.map((s) => s.id)).size).toBe(3);
+    for (const s of squad) expect(s.stats.cannons).toBeGreaterThanOrEqual(8);
+    // Closeness to 80% of the player's hull strength never gets better with the rank.
+    const gap = (s: { stats: { hp: number } }): number => Math.abs(s.stats.hp - brig.stats.hp * 0.8);
+    expect(gap(squad[0]!)).toBeLessThanOrEqual(gap(squad[1]!));
+    expect(gap(squad[1]!)).toBeLessThanOrEqual(gap(squad[2]!));
+  });
+
+  it('steers away from an enemy that is too close, and ignores distant ones', () => {
+    const e = createEnemy('e', spec('schooner'), 0, 0, 0); // heading east
+    const player = { x: 3000, z: 0 };
+    const calm = aiStep(e, player, { from: Math.PI, speed: 8 }, []);
+    // A neighbour 40 m dead ahead: head away from it (west), which is a hard turn.
+    const crowded = aiStep(e, player, { from: Math.PI, speed: 8 }, [{ x: 40, z: 0 }]);
+    expect(Math.abs(crowded.controls.rudder)).toBeGreaterThan(Math.abs(calm.controls.rudder));
+    const farAway = aiStep(e, player, { from: Math.PI, speed: 8 }, [{ x: 500, z: 0 }]);
+    expect(farAway.controls.rudder).toBe(calm.controls.rudder);
   });
 });
