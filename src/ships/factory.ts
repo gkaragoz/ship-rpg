@@ -12,6 +12,8 @@ import { createUpgradingShip } from './lazyShip';
 import type { ShipLod } from './lod';
 import { collectSailNodes, createSailTrim } from './trim';
 import { createClothUniforms } from './clothShader';
+import { clothifyProcedural } from './clothRig';
+import { requestClothBake } from './clothBake';
 import { patchFlagMaterial } from './flagCloth';
 import type { WindInput } from './clothState';
 import type { Condition } from '../core';
@@ -77,10 +79,13 @@ export function createProceduralShip(spec: ShipSpec, options: ShipOptions = {}):
   }
   const sails = collectSailNodes(root);
 
-  // Sails are scaled (the cheap fallback); the pennant and the ensign still wave in the vertex shader.
+  // The sails, jibs and flags are moved by the same cloth shaders as the GLB ships (`clothRig.ts`).
   const cloth = createClothUniforms();
+  void requestClothBake();
   patchFlagMaterial(mats.flag, cloth, false);
-  const sailTrim = createSailTrim(sails, { tiers: Math.max(1, ...spec.masts.map((m) => m.tiers ?? 2)), cloth });
+  const tiers = Math.max(1, ...spec.masts.map((m) => m.tiers ?? 2));
+  const clothRig = clothifyProcedural(root, mats, tiers, cloth);
+  const sailTrim = createSailTrim(sails, { tiers, jibs: clothRig.jibs, cloth, shaded: clothRig.shaded });
   const condition = createConditionRig(spec, mats, pivot, () => sailTrim.setDamageHeight(condition.sailHeight()));
 
   return {
@@ -98,6 +103,8 @@ export function createProceduralShip(spec: ShipSpec, options: ShipOptions = {}):
         if (o instanceof THREE.InstancedMesh) o.dispose(); // instance matrix buffer
       });
       disposeMaterials(mats);
+      for (const d of clothRig.depths) d.dispose();
+      for (const m of clothRig.materials) m.dispose();
     },
   };
 }

@@ -56,6 +56,12 @@ export function furlTargets(level: number, tiers: number, out: number[]): void {
 
 export interface ClothState {
   readonly tiers: number;
+  /** Jibs on the ship (each has its own furl and belly, see `jibFurl`, `jibBelly`). */
+  readonly jibs: number;
+  readonly jibTargets: number[];
+  readonly jibRaw: number[];
+  readonly jibFurl: Spring[];
+  readonly jibBelly: Spring[];
   /** Rate-limited furl of each slot (what the sequencing acts on) and the spring-smoothed value the shader gets. */
   readonly raw: number[];
   readonly furl: Spring[];
@@ -80,9 +86,14 @@ export interface ClothState {
 
 const spring = (x = 0): Spring => ({ x, v: 0 });
 
-export function createClothState(tiers: number): ClothState {
+export function createClothState(tiers: number, jibs = 0): ClothState {
   return {
     tiers: clamp(Math.round(tiers), 1, MAX_TIERS),
+    jibs: clamp(Math.round(jibs), 0, MAX_TIERS),
+    jibTargets: [0, 0, 0],
+    jibRaw: [0, 0, 0],
+    jibFurl: [spring(), spring(), spring()],
+    jibBelly: [spring(), spring(), spring()],
     raw: [0, 0, 0],
     furl: [spring(), spring(), spring()],
     furlAftRaw: 0,
@@ -125,21 +136,25 @@ export function flutterTarget(luff: number, speed: number, gust: number, tear: n
   return clamp(luff * 0.95 + gustPart + gale + 0.1 * clamp(speed / 9, 0, 1.2) + 0.5 * tear, 0, 1.2);
 }
 
-function stepFurl(s: ClothState, dt: number): void {
-  const n = s.tiers;
+/** One furl sequence: `raw` moves towards `targets` at the furl rate, lowest first when gathering, highest first when setting. */
+function stepFurl(raw: number[], targets: number[], n: number, dt: number): void {
   const step = FURL_RATE * dt;
   for (let k = 0; k < n; k++) {
-    const t = s.targets[k] as number;
-    const r = s.raw[k] as number;
-    if (t > r && (k === 0 || (s.raw[k - 1] as number) >= FURL_AFTER)) s.raw[k] = Math.min(t, r + step);
+    const t = targets[k] as number;
+    const r = raw[k] as number;
+    if (t > r && (k === 0 || (raw[k - 1] as number) >= FURL_AFTER)) raw[k] = Math.min(t, r + step);
   }
   for (let k = n - 1; k >= 0; k--) {
-    const t = s.targets[k] as number;
-    const r = s.raw[k] as number;
-    if (t < r && (k === n - 1 || (s.raw[k + 1] as number) <= OPEN_AFTER)) s.raw[k] = Math.max(t, r - step);
+    const t = targets[k] as number;
+    const r = raw[k] as number;
+    if (t < r && (k === n - 1 || (raw[k + 1] as number) <= OPEN_AFTER)) raw[k] = Math.max(t, r - step);
   }
-  for (let k = 1; k < n; k++) s.raw[k] = Math.min(s.raw[k] as number, s.raw[k - 1] as number); // a lower tier is never the more open one
+  for (let k = 1; k < n; k++) raw[k] = Math.min(raw[k] as number, raw[k - 1] as number); // a lower one is never the more open
 }
+
+/** Strength and settle speed of jib `i`: each jib fills a little later and a little less than the one before. */
+const jibStrength = (i: number): number => 1 - 0.12 * i;
+const jibOmega = (i: number): number => 1.6 - 0.25 * i;
 
 /** Advance the whole state by `dt` seconds towards the trim in `input`; the first call snaps to it. */
 export function stepCloth(s: ClothState, input: ClothInput, dt: number): void {
@@ -149,6 +164,7 @@ export function stepCloth(s: ClothState, input: ClothInput, dt: number): void {
   const wa = Math.abs(input.wind.angle);
   const push = windPush(input.wind.speed, input.wind.gust);
   furlTargets(level, s.tiers, s.targets);
+  furlTargets(level, s.jibs, s.jibTargets);
   const aftTarget = 1 - level;
 
   // Closer to the wind: yards braced hard round, fore-and-aft sails sheeted in.
@@ -166,6 +182,11 @@ export function stepCloth(s: ClothState, input: ClothInput, dt: number): void {
       s.raw[k] = s.targets[k] as number;
       (s.furl[k] as Spring).x = s.raw[k] as number;
     }
+    for (let k = 0; k < MAX_TIERS; k++) {
+      s.jibRaw[k] = s.jibTargets[k] as number;
+      (s.jibFurl[k] as Spring).x = s.jibRaw[k] as number;
+      (s.jibBelly[k] as Spring).x = bellyAftTarget * jibStrength(k);
+    }
     s.furlAftRaw = aftTarget;
     s.furlAft.x = aftTarget;
     s.belly.x = bellyTarget;
@@ -180,8 +201,13 @@ export function stepCloth(s: ClothState, input: ClothInput, dt: number): void {
     return;
   }
 
-  stepFurl(s, dt);
+  stepFurl(s.raw, s.targets, s.tiers, dt);
   for (let k = 0; k < s.tiers; k++) springStep(s.furl[k] as Spring, s.raw[k] as number, 7, dt);
+  stepFurl(s.jibRaw, s.jibTargets, s.jibs, dt);
+  for (let k = 0; k < s.jibs; k++) {
+    springStep(s.jibFurl[k] as Spring, s.jibRaw[k] as number, 7, dt);
+    springStep(s.jibBelly[k] as Spring, bellyAftTarget * jibStrength(k), jibOmega(k), dt);
+  }
   s.furlAftRaw += clamp(aftTarget - s.furlAftRaw, -FURL_RATE * dt, FURL_RATE * dt);
   springStep(s.furlAft, s.furlAftRaw, 7, dt);
   springStep(s.belly, bellyTarget, 1.6, dt);

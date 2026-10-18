@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clothBakeUniforms } from './clothBake';
 import { clothTime, type ClothUniforms } from './clothShader';
 import { weldedComponents } from './clothGeometry';
 
@@ -65,6 +66,22 @@ attribute vec4 flagA;
 attribute vec3 flagP;
 uniform vec4 uWind;
 uniform float uTime;
+uniform highp sampler2DArray uBake;
+uniform vec4 uBakeInfo;  // x: bake loaded, w: frames per loop
+
+// The baked flag wave (a strip pinned and driven at the pole, free at the tip), -1..1: u along the cloth, v across it.
+float bakeWave(float u, float v, float w, float seed) {
+  float n = uBakeInfo.w;
+  float fr = mod(uTime * 24.0 + seed * n, n);
+  float f0 = floor(fr);
+  float f1 = mod(f0 + 1.0, n);
+  float k = fr - f0;
+  float t = clamp((w - 0.35) / 0.5, 0.0, 1.0);   // calm loop to lively loop
+  vec2 q = (clamp(vec2(u, v), 0.0, 1.0) * vec2(15.0, 11.0) + 0.5) / vec2(16.0, 12.0);
+  float lo = mix(texture(uBake, vec3(q, 193.0 + f0)).x, texture(uBake, vec3(q, 193.0 + f1)).x, k);
+  float hi = mix(texture(uBake, vec3(q, 225.0 + f0)).x, texture(uBake, vec3(q, 225.0 + f1)).x, k);
+  return mix(lo, hi, t);
+}
 
 vec3 flagPos(float s, float depth, float L, float seed) {
   float u = clamp(s / L, 0.0, 1.0);
@@ -82,6 +99,7 @@ vec3 flagPos(float s, float depth, float L, float seed) {
   float amp = (0.025 + 0.08 * w) * L * u * (0.35 + 0.65 * u);
   float tip = 0.02 * L * smoothstep(0.55, 1.0, u) * (0.4 + w) * sin(u * 37.0 - uTime * (23.0 + 1.5 * speed) + seed * 3.0 + depth * 4.0);
   float wave = amp * sin(phase) + tip;
+  if (uBakeInfo.x > 0.5) wave = amp * 1.6 * bakeWave(u, depth / (0.5 * L), w, seed);
   vec2 t = vec2(-(1.0 + 2.0 * u * (cs - 1.0)), 2.0 * u * sn);
   vec2 perp = vec2(t.y, -t.x) / max(length(t), 1e-3);
   return vec3(x + perp.x * wave, y, z + perp.y * wave);
@@ -106,6 +124,8 @@ export function patchFlagMaterial(material: THREE.Material, uniforms: ClothUnifo
   material.onBeforeCompile = (shader): void => {
     shader.uniforms.uWind = uniforms.wind;
     shader.uniforms.uTime = clothTime;
+    shader.uniforms.uBake = clothBakeUniforms.uBake;
+    shader.uniforms.uBakeInfo = clothBakeUniforms.uBakeInfo;
     shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${HEAD}`);
     shader.vertexShader = withNormals
       ? shader.vertexShader
@@ -113,7 +133,7 @@ export function patchFlagMaterial(material: THREE.Material, uniforms: ClothUnifo
           .replace('#include <begin_vertex>', 'vec3 transformed = flagP2;')
       : shader.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position;\nvec3 flagN = normal;\nflagDeform(transformed, flagN);');
   };
-  material.customProgramCacheKey = (): string => (withNormals ? 'cloth-flag-lit-1' : 'cloth-flag-1');
+  material.customProgramCacheKey = (): string => (withNormals ? 'cloth-flag-lit-2' : 'cloth-flag-2');
   material.needsUpdate = true;
 }
 
@@ -121,7 +141,7 @@ export function patchFlagMaterial(material: THREE.Material, uniforms: ClothUnifo
 export function createFlagDepthMaterial(uniforms: ClothUniforms): THREE.MeshDepthMaterial {
   const material = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: THREE.DoubleSide });
   patchFlagMaterial(material, uniforms, false);
-  material.customProgramCacheKey = (): string => 'cloth-flag-depth-1';
+  material.customProgramCacheKey = (): string => 'cloth-flag-depth-2';
   return material;
 }
 

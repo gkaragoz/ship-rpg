@@ -3,11 +3,14 @@ import * as THREE from 'three';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SHIP_SPECS, createDeck, type ShipModelMeta } from '../src/ships';
 import type { ShipAsset } from '../src/ships/assets';
-import { prepareSail, prepareYards } from '../src/ships/clothGeometry';
+import { prepareSail } from '../src/ships/clothGeometry';
+import { prepareYards } from '../src/ships/clothYards';
 import { clothClock } from '../src/ships/clothState';
 import { prepareFlag } from '../src/ships/flagCloth';
 import { createGlbShip } from '../src/ships/glbShip';
 import { loadGlbScene } from './glbScene';
+import { gatheredXY } from './clothReference';
+import { isCloth, uniformsOf } from './clothUtil';
 
 /**
  * The cloth shaders rely on attributes derived at load time from the shipped Blender meshes: tiers from the connected
@@ -59,7 +62,7 @@ describe.each(SHIP_SPECS.map((s) => [s.id, s] as const))('cloth analysis of the 
     }
   });
 
-  it('assigns the yards, footropes and boltropes to their tier and leaves fore-and-aft spars alone', async () => {
+  it('assigns the yards, footropes and boltropes to their tier', async () => {
     const root = await loadGlbScene(`ships/${id}.glb`);
     for (const sail of meshes(root, /^LOD0_m\d+_SquareSail$/)) {
       const analysis = prepareSail(sail.geometry, 'square', 0.5, 0);
@@ -91,7 +94,6 @@ describe.each(SHIP_SPECS.map((s) => [s.id, s] as const))('cloth analysis of the 
       }
       expect(thin).toBeLessThan(A.count * 0.1);
     }
-    for (const y of meshes(root, /^LOD0_m\d+_AftYards$/)) expect(y.geometry.getAttribute('clothA')).toBeUndefined();
   });
 
   it('derives pole, length and distance along the cloth for every pennant and the ensign', async () => {
@@ -132,45 +134,46 @@ describe('createGlbShip with the cloth shaders', () => {
     return { asset: { id, scene: await loadGlbScene(`ships/${id}.glb`), meta, deck: createDeck(meta) }, spec };
   };
 
-  it('moves the LOD0 sails in the shader and the coarser levels by scale, per ship', async () => {
+  it('moves the sails of every level in the shader (pivots only swing), per ship, sharing one program', async () => {
     const { asset, spec } = await build('brig');
     const a = createGlbShip(spec, asset);
     const b = createGlbShip(spec, asset);
-    const lod0 = (s: typeof a): THREE.Object3D[] => meshes(s.root, /^LOD0_m\d+_SquareSail$/).map((m) => m.parent as THREE.Object3D);
-    const lod1 = (s: typeof a): THREE.Object3D[] => meshes(s.root, /^LOD1_m\d+_SquareSail$/).map((m) => m.parent as THREE.Object3D);
+    const pivots = (s: typeof a, lod: number): THREE.Object3D[] => meshes(s.root, new RegExp(`^LOD${lod}_m[0-9]+_SquareSail$`)).map((m) => m.parent as THREE.Object3D);
     for (let i = 0; i < 30; i++) {
       t += 0.5;
       a.setSailTrim(1.0, 0); // furled
       b.setSailTrim(1.0, 1);
     }
-    for (const p of lod0(a)) {
-      expect(p.scale.y).toBe(1); // not squashed: the cloth gathers up to its yards instead
-      expect(p.visible).toBe(true);
-      expect(p.rotation.y).toBeGreaterThan(0.3); // still braced
+    for (const lod of [0, 1, 2]) {
+      expect(pivots(a, lod).length).toBeGreaterThan(0);
+      for (const p of pivots(a, lod)) {
+        expect(p.scale.y).toBe(1); // not squashed: the cloth gathers up to its yards instead, at every level
+        expect(p.visible).toBe(true);
+        expect(p.rotation.y).toBeGreaterThan(0.3); // still braced
+      }
     }
-    for (const p of lod1(a)) expect(p.scale.y).toBeLessThan(0.1);
-    for (const p of lod1(b)) expect(p.scale.y).toBeCloseTo(1, 1);
 
-    const sailMat = (s: typeof a): THREE.MeshStandardMaterial => (meshes(s.root, /^LOD0_m0_SquareSail$/)[0] as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    const sailMat = (s: typeof a, lod = 0): THREE.MeshStandardMaterial => (meshes(s.root, new RegExp(`^LOD${lod}_m0_SquareSail$`))[0] as THREE.Mesh).material as THREE.MeshStandardMaterial;
     const yardMat = (s: typeof a): THREE.MeshStandardMaterial => (meshes(s.root, /^LOD0_m0_SquareYards$/)[0] as THREE.Mesh).material as THREE.MeshStandardMaterial;
     expect(sailMat(a)).not.toBe(sailMat(b)); // private materials per ship...
     expect(sailMat(a).customProgramCacheKey()).toBe(sailMat(b).customProgramCacheKey()); // ...sharing one GL program
     expect(yardMat(a)).not.toBe(sailMat(a));
-    expect(Object.prototype.hasOwnProperty.call(yardMat(a), 'onBeforeCompile')).toBe(true);
-    const shader = { uniforms: {} as Record<string, THREE.IUniform>, vertexShader: THREE.ShaderLib.standard.vertexShader };
-    sailMat(a).onBeforeCompile(shader as unknown as THREE.WebGLProgramParametersWithUniforms, null as unknown as THREE.WebGLRenderer);
-    const furlA = shader.uniforms.uFurl?.value as THREE.Vector4;
-    sailMat(b).onBeforeCompile(shader as unknown as THREE.WebGLProgramParametersWithUniforms, null as unknown as THREE.WebGLRenderer);
-    const furlB = shader.uniforms.uFurl?.value as THREE.Vector4;
-    expect(furlA).not.toBe(furlB);
+    expect(sailMat(a, 1)).not.toBe(sailMat(a, 0)); // a level has its own detail setting
+    const ua = uniformsOf(sailMat(a));
+    const ub = uniformsOf(sailMat(b));
+    expect(ua.uFurl).not.toBe(ub.uFurl);
+    expect(ua.uFurl).toBe(uniformsOf(sailMat(a, 1)).uFurl); // but the levels share furl, belly and tear, so they never pop
+    expect(ua.uDetail?.value).toBe(1);
+    expect(uniformsOf(sailMat(a, 1)).uDetail?.value).toBe(0);
+    expect(uniformsOf(sailMat(a, 2)).uDetail?.value).toBe(0);
+    const furlA = ua.uFurl?.value as THREE.Vector4;
+    const furlB = ub.uFurl?.value as THREE.Vector4;
     expect(furlA.x).toBeGreaterThan(0.99);
     expect(furlA.z).toBeGreaterThan(0.99);
     expect(furlB.x).toBeLessThan(0.01);
 
-    // the shadow follows the cloth, the jibs stay plain cloth
+    // the shadow follows the cloth
     expect((meshes(a.root, /^LOD0_m0_SquareSail$/)[0] as THREE.Mesh).customDepthMaterial).toBeInstanceOf(THREE.MeshDepthMaterial);
-    const jib = meshes(a.root, /^LOD0_Jib$/)[0] as THREE.Mesh | undefined;
-    if (jib) expect(Object.prototype.hasOwnProperty.call(jib.material, 'onBeforeCompile')).toBe(false);
     a.dispose();
     b.dispose();
   });
@@ -179,13 +182,12 @@ describe('createGlbShip with the cloth shaders', () => {
     const { asset, spec } = await build('frigate');
     const s = createGlbShip(spec, asset);
     const mat = (meshes(s.root, /^LOD0_m0_SquareSail$/)[0] as THREE.Mesh).material as THREE.MeshStandardMaterial;
-    const shader = { uniforms: {} as Record<string, THREE.IUniform>, vertexShader: THREE.ShaderLib.standard.vertexShader };
-    mat.onBeforeCompile(shader as unknown as THREE.WebGLProgramParametersWithUniforms, null as unknown as THREE.WebGLRenderer);
+    const u = uniformsOf(mat);
     s.setSailTrim(1, 1);
     s.setCondition({ rigging: 1, flooding: 0, fire: 0 }, 0);
-    expect(shader.uniforms.uTear?.value).toBe(0);
+    expect(u.uTear?.value).toBe(0);
     s.setCondition({ rigging: 0, flooding: 0, fire: 0 }, 0);
-    expect(shader.uniforms.uTear?.value).toBe(1);
+    expect(u.uTear?.value).toBe(1);
     s.dispose();
   });
 
@@ -205,5 +207,52 @@ describe('createGlbShip with the cloth shaders', () => {
     expect(w.y).toBeCloseTo(12);
     expect(w.z).toBeCloseTo(1.1);
     s.dispose();
+  });
+});
+
+describe.each(SHIP_SPECS.map((s) => [s.id, s] as const))('cloth coverage of the %s ship', (id, spec) => {
+  const read = <T>(rel: string): T => JSON.parse(new TextDecoder().decode(readFileSync(new URL(`../public/models/${rel}`, import.meta.url)))) as T;
+
+  it('builds every sail, jib, yards and boom mesh of every level with a cloth material, and none has a frozen vertex', async () => {
+    const meta = read<ShipModelMeta>(`ships/${id}.meta.json`);
+    const asset: ShipAsset = { id, scene: await loadGlbScene(`ships/${id}.glb`), meta, deck: createDeck(meta) };
+    const ship = createGlbShip(spec, asset);
+    const cloth = meshes(ship.root, /(Sail|Jib|SquareYards|AftYards)$/);
+    expect(cloth.length).toBeGreaterThan(0);
+    const kinds = new Set<string>();
+    for (const mesh of cloth) {
+      expect(isCloth(mesh.material), mesh.name).toBe(true);
+      expect(mesh.customDepthMaterial, mesh.name).toBeInstanceOf(THREE.MeshDepthMaterial);
+      kinds.add(/Sail$/.test(mesh.name) ? 'sail' : /Jib$/.test(mesh.name) ? 'jib' : 'yards');
+      const g = mesh.geometry;
+      const A = g.getAttribute('clothA');
+      expect(A, mesh.name).toBeDefined();
+      const n = g.getAttribute('position').count;
+      const lod = Number(/^LOD(\d)/.exec(mesh.name)?.[1]);
+      let frozen = 0;
+      let moved = 0;
+      for (let v = 0; v < n; v++) {
+        const code = A.getX(v);
+        expect(code, `${mesh.name} vertex ${v} has no cloth code`).toBeGreaterThan(0);
+        const [x, y] = gatheredXY(g, v, 0.8);
+        const moves = Math.hypot(x - g.getAttribute('position').getX(v), y - g.getAttribute('position').getY(v)) > 1e-3;
+        if (moves) moved++;
+        if (code >= 10) continue; // rigging: the yards stay where they are on purpose (checked below for booms)
+        const B = g.getAttribute('clothB');
+        const head = code < 5 && B.getX(v) - g.getAttribute('position').getY(v) < 0.05; // on the head line (the yard): pinned on purpose
+        const tack = code > 4.5 && Math.hypot(g.getAttribute('position').getX(v) - B.getX(v), g.getAttribute('position').getY(v) - B.getY(v)) < 1e-6;
+        if (!moves && !head && !tack) frozen++;
+      }
+      expect(frozen, `${mesh.name} (LOD${lod}) has vertices the shader would leave frozen at furl 0.8`).toBe(0);
+      if (/AftYards$/.test(mesh.name)) {
+        let low = 0;
+        for (let v = 0; v < n; v++) if (A.getY(v) < 0.5) low++;
+        if (low > 0) expect(moved, `${mesh.name}: the boom follows the sail`).toBeGreaterThan(0);
+      }
+    }
+    expect(kinds.has('sail')).toBe(true);
+    // levels 0 and 1 (and 2) all present
+    for (const lod of [0, 1, 2]) expect(cloth.some((m) => m.name.startsWith(`LOD${lod}_`)), `LOD${lod}`).toBe(true);
+    ship.dispose();
   });
 });

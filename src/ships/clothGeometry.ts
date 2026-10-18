@@ -9,9 +9,13 @@ import * as THREE from 'three';
  *    follows a tier (yard, footrope, boltropes); `v` 0 at the foot … 1 at the yard; `u` 0…1 across; `belly` the baked
  *    billow in metres along the sail's normal axis (x for square sails, z for fore-and-aft ones).
  *  - `clothB` = (yTop, height, width, seed): the sail's head line at this vertex, its height and width there, a per-mesh seed.
- * Meshes without the attributes (every LOD1/LOD2 sail, jibs) keep code 0 and are not moved by the shader.
+ *  - `clothC` = (head anchor x, y, tallest height, 1 - tip weight): corners of fore-and-aft sails (tack, clew, peak) have no
+ *    height of their own, so they shrink towards the head anchor instead; default (0, 0, 0, 1) means "not a tip".
+ *  Code 5 is a jib: `clothA.yz` = distance from the luff and along it, `clothB.xy` = its tack; code 14 is the rigging of a
+ *  fore-and-aft sail (boom, gaff) that follows the sail's head and foot lines.
+ * Meshes without the attributes (static spars) keep code 0 and are not moved by the shader.
  */
-export type SailKind = 'square' | 'aft';
+export type SailKind = 'square' | 'aft' | 'jib';
 
 export interface SailTier {
   yBot: number;
@@ -20,8 +24,10 @@ export interface SailTier {
 
 export interface SailAnalysis {
   kind: SailKind;
-  /** Tiers bottom to top (one for a fore-and-aft sail). */
+  /** Tiers bottom to top (one for a fore-and-aft sail, one per jib for a jib mesh). */
   tiers: SailTier[];
+  /** Head and foot lines of a fore-and-aft sail as functions of x (its booms and gaffs follow them). */
+  envelope?: Envelope;
 }
 
 const CACHE = 'clothAnalysis';
@@ -121,14 +127,20 @@ function boundaryVertices(index: ArrayLike<number>, vertexCount: number): Set<nu
   return out;
 }
 
-/** Upper and lower outline of a fore-and-aft sail as functions of x: 24 bins, empty ones filled by interpolation. */
-function envelope(pos: THREE.BufferAttribute, xs: [number, number]): { top: number[]; bot: number[] } {
-  const bins = 24;
+export interface Envelope {
+  top: number[];
+  bot: number[];
+  range: [number, number];
+}
+
+/** Upper and lower outline of a fore-and-aft sail as functions of x: 48 bins, empty ones filled by interpolation. */
+function envelope(pos: THREE.BufferAttribute, range: [number, number]): Envelope {
+  const bins = 48;
   const top = new Array<number>(bins).fill(-Infinity);
   const bot = new Array<number>(bins).fill(Infinity);
-  const span = Math.max(xs[1] - xs[0], 1e-6);
+  const span = Math.max(range[1] - range[0], 1e-6);
   for (let v = 0; v < pos.count; v++) {
-    const b = Math.min(bins - 1, Math.floor(((pos.getX(v) - xs[0]) / span) * bins));
+    const b = Math.min(bins - 1, Math.floor(((pos.getX(v) - range[0]) / span) * bins));
     top[b] = Math.max(top[b] as number, pos.getY(v));
     bot[b] = Math.min(bot[b] as number, pos.getY(v));
   }
@@ -142,20 +154,32 @@ function envelope(pos: THREE.BufferAttribute, xs: [number, number]): { top: numb
       arr[b] = lo >= 0 && hi < bins ? ((arr[lo] as number) * (hi - b) + (arr[hi] as number) * (b - lo)) / (hi - lo) : (arr[lo >= 0 ? lo : hi] as number);
     }
   }
-  return { top, bot };
+  return { top, bot, range };
 }
 
-const sample = (arr: number[], x: number, xs: [number, number]): number => {
-  const f = ((x - xs[0]) / Math.max(xs[1] - xs[0], 1e-6)) * arr.length - 0.5;
+const sample = (arr: number[], x: number, range: [number, number]): number => {
+  const f = ((x - range[0]) / Math.max(range[1] - range[0], 1e-6)) * arr.length - 0.5;
   const i = Math.min(Math.max(Math.floor(f), 0), arr.length - 2);
   const t = Math.min(Math.max(f - i, 0), 1);
   return (arr[i] as number) * (1 - t) + (arr[i + 1] as number) * t;
 };
 
+const smooth = (a: number, b: number, x: number): number => {
+  const t = Math.min(Math.max((x - a) / (b - a), 0), 1);
+  return t * t * (3 - 2 * t);
+};
+
+/** Head line, foot line and height of a fore-and-aft sail at `x` for a vertex at height `y` (never outside it). */
+export function column(env: Envelope, x: number, y: number): { top: number; bot: number; height: number } {
+  const top = Math.max(sample(env.top, x, env.range), y);
+  const bot = Math.min(sample(env.bot, x, env.range), y);
+  return { top, bot, height: Math.max(top - bot, 1e-3) };
+}
+
 /**
  * Add the cloth attributes to a sail mesh. `slotOffset` shifts the tier slots up, so a mast with fewer tiers than the
- * ship's tallest uses the upper slots. Returns the analysis (also cached on the geometry, which GLB ships share), or
- * `undefined` for a mesh that is not an indexed grid.
+ * ship's tallest uses the upper slots. `kind` 'jib': every connected grid is a jib (see `jibAttributes`). Returns the
+ * analysis (also cached on the geometry, which GLB ships share), or `undefined` for a mesh that is not an indexed grid.
  */
 export function prepareSail(geometry: THREE.BufferGeometry, kind: SailKind, seed: number, slotOffset = 0): SailAnalysis | undefined {
   const cached = geometry.userData[CACHE] as SailAnalysis | undefined;
@@ -165,16 +189,20 @@ export function prepareSail(geometry: THREE.BufferGeometry, kind: SailKind, seed
   if (!pos || !index) return undefined;
   const n = pos.count;
   const { label, count } = components(index.array, n);
-  const comps: number[][] = Array.from({ length: kind === 'square' ? count : 1 }, () => []);
-  for (let v = 0; v < n; v++) comps[kind === 'square' ? (label[v] as number) : 0]?.push(v);
+  const multi = kind !== 'aft';
+  const comps: number[][] = Array.from({ length: multi ? count : 1 }, () => []);
+  for (let v = 0; v < n; v++) comps[multi ? (label[v] as number) : 0]?.push(v);
   const mean = (verts: number[]): number => verts.reduce((a, v) => a + pos.getY(v), 0) / Math.max(verts.length, 1);
   comps.sort((a, b) => mean(a) - mean(b));
   const boundary = boundaryVertices(index.array, n);
   const A = new Float32Array(n * 4);
   const B = new Float32Array(n * 4);
+  const C = new Float32Array(n * 4).fill(0);
+  for (let v = 0; v < n; v++) C[v * 4 + 3] = 1; // not a tip
   const tiers: SailTier[] = [];
-  const axis = kind === 'square' ? 0 : 2; // belly axis: x for square sails, z for fore-and-aft
+  const axis = kind === 'square' ? 0 : 2; // belly axis: x for square sails, z for fore-and-aft sails and jibs
   const across = kind === 'square' ? 2 : 0;
+  let env: Envelope | undefined;
 
   comps.forEach((verts, k) => {
     let yBot = Infinity, yTop = -Infinity, aMin = Infinity, aMax = -Infinity;
@@ -187,56 +215,48 @@ export function prepareSail(geometry: THREE.BufferGeometry, kind: SailKind, seed
     tiers.push({ yBot, yTop });
     const edge = verts.filter((v) => boundary.has(v));
     const [pa, pb, pc] = fitPlane(pos, edge.length >= 4 ? edge : verts, axis, across, 1);
-    const env = kind === 'aft' ? envelope(pos, [aMin, aMax]) : undefined;
+    const baked = (v: number): number => (edge.length ? pos.getComponent(v, axis) - (pa + pb * pos.getComponent(v, across) + pc * pos.getY(v)) : 0);
     const width = Math.max(aMax - aMin, 1e-3);
+
+    if (kind === 'jib') {
+      // tack = the most forward vertex (the bowsprit end), head = the highest; v = distance from the luff, u = along it
+      let tack = verts[0] as number;
+      let head = verts[0] as number;
+      for (const v of verts) {
+        if (pos.getX(v) > pos.getX(tack) + 1e-6 || (Math.abs(pos.getX(v) - pos.getX(tack)) <= 1e-6 && pos.getY(v) < pos.getY(tack))) tack = v;
+        if (pos.getY(v) > pos.getY(head)) head = v;
+      }
+      const tx = pos.getX(tack), ty = pos.getY(tack);
+      const dx = pos.getX(head) - tx, dy = pos.getY(head) - ty;
+      const len = Math.max(Math.hypot(dx, dy), 1e-3);
+      let perpMax = 1e-3;
+      for (const v of verts) perpMax = Math.max(perpMax, Math.abs(((pos.getX(v) - tx) * dy - (pos.getY(v) - ty) * dx) / len));
+      for (const v of verts) {
+        const px = pos.getX(v) - tx, py = pos.getY(v) - ty;
+        A.set([5 + Math.min(k + slotOffset, 2), Math.min(Math.abs((px * dy - py * dx) / len) / perpMax, 1), Math.min(Math.max((px * dx + py * dy) / (len * len), 0), 1), baked(v)], v * 4);
+        B.set([tx, ty, len, seed], v * 4);
+      }
+      return;
+    }
+
+    env = kind === 'aft' ? envelope(pos, [aMin, aMax]) : undefined;
+    let hMax = 1e-3;
+    if (env) for (let b = 0; b < env.top.length; b++) hMax = Math.max(hMax, (env.top[b] as number) - (env.bot[b] as number));
+    const headX = aMax - 0.25 * width;
+    const headY = env ? sample(env.top, headX, env.range) : yTop;
     for (const v of verts) {
       const y = pos.getY(v);
       const h = pos.getComponent(v, across);
-      const top = env ? sample(env.top, h, [aMin, aMax]) : yTop;
-      const bot = env ? sample(env.bot, h, [aMin, aMax]) : yBot;
-      const height = Math.max(top - bot, 1e-3);
-      const baked = pos.getComponent(v, axis) - (pa + pb * h + pc * y);
-      A.set([kind === 'square' ? 1 + slotOffset + k : 4, Math.min(Math.max((y - bot) / height, 0), 1), kind === 'aft' ? (aMax - h) / width : (h - aMin) / width, edge.length ? baked : 0], v * 4);
-      B.set([top, height, width, seed], v * 4);
+      const col = env ? column(env, h, y) : { top: yTop, bot: yBot, height: Math.max(yTop - yBot, 1e-3) };
+      A.set([kind === 'square' ? 1 + slotOffset + k : 4, Math.min(Math.max((y - col.bot) / col.height, 0), 1), kind === 'aft' ? (aMax - h) / width : (h - aMin) / width, baked(v)], v * 4);
+      B.set([col.top, col.height, width, seed], v * 4);
+      if (env) C.set([headX, headY, hMax, smooth(0.1, 0.45, col.height / hMax)], v * 4);
     }
   });
   geometry.setAttribute('clothA', new THREE.BufferAttribute(A, 4));
   geometry.setAttribute('clothB', new THREE.BufferAttribute(B, 4));
-  const analysis: SailAnalysis = { kind, tiers };
+  geometry.setAttribute('clothC', new THREE.BufferAttribute(C, 4));
+  const analysis: SailAnalysis = { kind, tiers, envelope: env };
   geometry.userData[CACHE] = analysis;
   return analysis;
-}
-
-/**
- * Add the cloth attributes to the yards mesh of a square-sail mast: each part (yard, footrope, boltrope, lift …) is a
- * connected piece and belongs to the tier it starts in; it is then gathered by the shader like that tier's sail
- * (no belly), except the part within a yard's thickness of the head line, so the yards stay where they are.
- */
-export function prepareYards(geometry: THREE.BufferGeometry, tiers: SailTier[], seed: number, slotOffset = 0): void {
-  if (geometry.getAttribute('clothA')) return;
-  const pos = geometry.getAttribute('position') as THREE.BufferAttribute | undefined;
-  const index = geometry.getIndex();
-  if (!pos || !index || tiers.length === 0) return;
-  const n = pos.count;
-  const { label, count } = components(index.array, n);
-  const minY = new Float64Array(count).fill(Infinity);
-  for (let v = 0; v < n; v++) minY[label[v] as number] = Math.min(minY[label[v] as number] as number, pos.getY(v));
-  const tierOf = (y: number): number => {
-    let k = 0;
-    tiers.forEach((t, i) => {
-      if (t.yBot <= y + 0.06) k = i;
-    });
-    return k;
-  };
-  const A = new Float32Array(n * 4);
-  const B = new Float32Array(n * 4);
-  for (let v = 0; v < n; v++) {
-    const k = tierOf(minY[label[v] as number] as number);
-    const t = tiers[k] as SailTier;
-    const height = Math.max(t.yTop - t.yBot, 1e-3);
-    A.set([11 + slotOffset + k, (pos.getY(v) - t.yBot) / height, 0.5, 0], v * 4);
-    B.set([t.yTop, height, 1, seed], v * 4);
-  }
-  geometry.setAttribute('clothA', new THREE.BufferAttribute(A, 4));
-  geometry.setAttribute('clothB', new THREE.BufferAttribute(B, 4));
 }

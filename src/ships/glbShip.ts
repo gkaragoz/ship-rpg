@@ -6,8 +6,9 @@ import type { ShipLod } from './lod';
 import { DEFAULT_FLAG } from './materials';
 import type { ShipSpec } from './types';
 import { collectSailNodes, createSailTrim } from './trim';
-import { components, prepareSail, prepareYards } from './clothGeometry';
-import { createClothDepthMaterial, createClothUniforms, patchSailMaterial, type ClothUniforms } from './clothShader';
+import { clothifyGlb } from './clothRig';
+import { requestClothBake } from './clothBake';
+import { createClothUniforms } from './clothShader';
 import { createFlagDepthMaterial, patchFlagMaterial, prepareFlag } from './flagCloth';
 
 /** Sail colour multiplier at rigging 0 (the atlas colour times this): the scorched sail of `condition.ts`. */
@@ -31,76 +32,6 @@ function ownMaterials(nodes: THREE.Object3D[]): THREE.MeshStandardMaterial[] {
     });
   }
   return [...clones.values()];
-}
-
-interface ClothMaterials {
-  sail: THREE.MeshStandardMaterial[];
-  rigging: THREE.MeshStandardMaterial[];
-  plain: THREE.MeshStandardMaterial[];
-}
-
-const meshesOf = (pivot: THREE.Object3D): THREE.Mesh[] => {
-  const out: THREE.Mesh[] = [];
-  pivot.traverse((o) => {
-    if (o instanceof THREE.Mesh) out.push(o);
-  });
-  return out;
-};
-
-/**
- * Give the full-quality (LOD0) sail pivots the cloth shader: the sail meshes get the cloth attributes and a patched
- * private sail material, the square yards mesh (yards, footropes, boltropes) a patched private wood material so it
- * gathers with its tier, and both a depth material for the shadow. Returns the pivots drawn by the shader, the ship's
- * tier count and the materials. A sail that is not the expected grid keeps its material (and its pivot is scaled).
- */
-function clothSails(
-  pivots: THREE.Object3D[],
-  uniforms: ClothUniforms,
-  depth: THREE.Material,
-): { shaded: Set<THREE.Object3D>; tiers: number; mats: ClothMaterials } {
-  const mats: ClothMaterials = { sail: [], rigging: [], plain: [] };
-  const maps = { sail: new Map<THREE.Material, THREE.MeshStandardMaterial>(), rigging: new Map<THREE.Material, THREE.MeshStandardMaterial>(), plain: new Map<THREE.Material, THREE.MeshStandardMaterial>() };
-  const own = (m: THREE.MeshStandardMaterial, kind: keyof ClothMaterials): THREE.MeshStandardMaterial => {
-    let c = maps[kind].get(m);
-    if (!c) {
-      c = m.clone();
-      maps[kind].set(m, c);
-      mats[kind].push(c);
-      if (kind !== 'plain') patchSailMaterial(c, uniforms);
-    }
-    return c;
-  };
-  const found = pivots.map((pivot) => {
-    const all = meshesOf(pivot);
-    const sail = all.find((m) => m.name.endsWith('SquareSail') || m.name.endsWith('AftSail'));
-    const square = sail?.name.endsWith('SquareSail') ?? false;
-    const index = sail?.geometry.getIndex();
-    const count = sail && index ? (square ? components(index.array, sail.geometry.getAttribute('position').count).count : 1) : 0;
-    return { pivot, all, sail, square, count };
-  });
-  const tiers = Math.max(1, ...found.filter((f) => f.square).map((f) => f.count));
-  const shaded = new Set<THREE.Object3D>();
-  found.forEach(({ pivot, all, sail, square, count }, i) => {
-    if (!sail || count === 0) return;
-    const seed = ((i * 0.37) % 1) + 0.05;
-    const analysis = prepareSail(sail.geometry, square ? 'square' : 'aft', seed, square ? tiers - count : 0);
-    if (!analysis) return;
-    shaded.add(pivot);
-    for (const mesh of all) {
-      if (!(mesh.material instanceof THREE.MeshStandardMaterial)) continue;
-      if (mesh === sail) {
-        mesh.material = own(mesh.material, 'sail');
-        mesh.customDepthMaterial = depth;
-      } else if (square && mesh.name.endsWith('SquareYards')) {
-        prepareYards(mesh.geometry, analysis.tiers, seed, tiers - count);
-        mesh.material = own(mesh.material, 'rigging');
-        mesh.customDepthMaterial = depth;
-      } else {
-        mesh.material = own(mesh.material, 'plain');
-      }
-    }
-  });
-  return { shaded, tiers, mats };
 }
 
 /** Nodes whose name ends with `suffix` (`LODn_Flag` pennants and ensign, `LODn_Jib` the static headsails). */
@@ -128,15 +59,10 @@ export function createGlbShip(spec: ShipSpec, asset: ShipAsset, flag: number = D
   const lods = [0, 1, 2].map((l) => root.getObjectByName(`LOD${l}`));
   const sails = collectSailNodes(root);
   const uniforms = createClothUniforms();
-  const depth = createClothDepthMaterial(uniforms);
-  // LOD0 sails are drawn by the cloth shader (they only swing); the coarser levels and the jibs are plain materials.
-  const lod0 = [...sails.square, ...sails.aft].filter((n) => n.name.startsWith('LOD0_'));
-  const lodRest = [...sails.square, ...sails.aft].filter((n) => !n.name.startsWith('LOD0_'));
-  const cloth = clothSails(lod0, uniforms, depth);
-  const sailMats = [
-    ...cloth.mats.sail, ...cloth.mats.rigging, ...cloth.mats.plain,
-    ...ownMaterials([...lodRest]), ...ownMaterials(namedNodes(root, '_Jib')),
-  ];
+  void requestClothBake(); // the shared flutter field; the analytic flutter shows until it has loaded
+  // Every sail, jib, yards and boom mesh of every level is drawn by the cloth shader (they only swing); LOD1 and LOD2 skip flutter and folds.
+  const cloth = clothifyGlb(root, sails, uniforms);
+  const sailMats = cloth.materials;
   // Pennants and the ensign are their own `LODn_Flag` meshes so each nation's colour can be set per ship, and the flag shader waves them.
   const flagMats = ownMaterials(namedNodes(root, '_Flag'));
   const flagDepth = createFlagDepthMaterial(uniforms);
@@ -149,7 +75,7 @@ export function createGlbShip(spec: ShipSpec, asset: ShipAsset, flag: number = D
     });
   }
 
-  const sailTrim = createSailTrim(sails, { tiers: cloth.tiers, cloth: uniforms, shaded: cloth.shaded });
+  const sailTrim = createSailTrim(sails, { tiers: cloth.tiers, jibs: cloth.jibs, cloth: uniforms, shaded: cloth.shaded });
   const condition = createRig(spec, pivot, () => sailTrim.setDamageHeight(condition.sailHeight()), (rigging) => {
     for (const m of sailMats) m.color.setRGB(1, 1, 1).lerp(SCORCHED, 1 - rigging);
   });
@@ -171,7 +97,7 @@ export function createGlbShip(spec: ShipSpec, asset: ShipAsset, flag: number = D
     dispose(): void {
       // Geometry, textures and the other materials belong to the shared asset, so only detach.
       condition.dispose();
-      for (const m of [...sailMats, ...flagMats, depth, flagDepth]) m.dispose();
+      for (const m of [...sailMats, ...flagMats, ...cloth.depths, flagDepth]) m.dispose();
       root.removeFromParent();
     },
   };

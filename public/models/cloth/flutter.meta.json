@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "format": "rgba16f",
+  "width": 16,
+  "height": 12,
+  "frames": 32,
+  "layers": 257,
+  "bands": [
+    1.6,
+    1,
+    0.6
+  ],
+  "levels": 2,
+  "levelPeak": [
+    0.006,
+    0.02
+  ],
+  "foldLayer": 192,
+  "flagFirst": 193,
+  "flagAspect": 0.25,
+  "seed": 1707,
+  "bytes": 394752,
+  "hash": "f1de8b89",
+  "layout": "layer = (band * 2 + level) * frames + frame for sails; foldLayer: static folds; flagFirst + level * frames + frame for flags. texel = (z, dz/dx, dz/dy, 0)"
+}
