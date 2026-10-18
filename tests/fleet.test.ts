@@ -25,7 +25,7 @@ function fakeShip(): Ship & { lod: ShipLod | null } {
   return ship;
 }
 
-const other = (id: number, x: number): OtherShipView => ({ id, specId: 'tartane', x, z: 0, heading: 0, sailLevel: 1, roll: 0 });
+const other = (id: number, x: number): OtherShipView => ({ id, specId: 'tartane', x, z: 0, heading: 0, sailLevel: 1, roll: 0, apparent: { angle: 0, speed: 0 } });
 const base = createGame(spec).view();
 const viewOf = (others: OtherShipView[]): GameView => ({ ...base, others });
 const camera = new THREE.PerspectiveCamera();

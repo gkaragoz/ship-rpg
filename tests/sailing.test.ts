@@ -114,6 +114,8 @@ describe('stepPlayerShip', () => {
   it('moves along its heading: east at ψ = 0, north (−z) at ψ = π/2', () => {
     const east = afloat(0);
     east.speed = 5;
+    east.sailLevel = 0; // no sails, no leeway: the ship goes exactly where it points
+    east.sailTarget = 0;
     stepPlayerShip(east, brig, north, NONE, 1);
     expect(east.x - OPEN.x).toBeGreaterThan(1);
     expect(Math.abs(east.z - OPEN.z)).toBeLessThan(1e-9);

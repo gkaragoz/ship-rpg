@@ -13,6 +13,37 @@ export function windAt(time: number): WindView {
   return { from, speed };
 }
 
+/**
+ * Gusts: the wind is not the same everywhere. Bands of stronger and weaker air drift downwind across the sea at about
+ * two thirds of the wind's speed, so a ship meets a lull or a gust at a place and a time. A multiplier on the wind's speed,
+ * between 0.75 and 1.25, averaging about 1, and a pure function of position and time.
+ */
+export function gustAt(x: number, z: number, time: number, wind: WindView): number {
+  // Wind blows towards from + π: the along-wind coordinate of a point, and the cross-wind one.
+  const dx = -Math.cos(wind.from);
+  const dz = Math.sin(wind.from);
+  const along = x * dx + z * dz - 0.65 * wind.speed * time;
+  const across = -x * dz + z * dx;
+  const g =
+    0.13 * Math.sin(along / 85 + 0.6 * Math.sin(across / 230)) +
+    0.07 * Math.sin(along / 37 + across / 160 + 1.9) +
+    0.04 * Math.sin(along / 19 - across / 90 + 4.1);
+  return clamp(1 + g, 0.75, 1.25);
+}
+
+/**
+ * The wind a moving ship feels: the true wind (blowing towards `from` + π at `speed`) less the ship's own velocity. Returned
+ * like `windAt`: the direction it seems to come from (same angle convention as headings) and its speed. A ship sailing into the
+ * wind feels more of it and from further ahead; running downwind, less.
+ */
+export function apparentWind(wind: WindView, heading: number, shipSpeed: number): WindView {
+  const ax = -wind.speed * Math.cos(wind.from) - shipSpeed * Math.cos(heading);
+  const az = wind.speed * Math.sin(wind.from) + shipSpeed * Math.sin(heading);
+  const speed = Math.hypot(ax, az);
+  if (speed < 1e-6) return { from: wind.from, speed: 0 };
+  return { from: Math.atan2(az, -ax), speed };
+}
+
 /** Polar diagram: [angle between bow and the wind's origin (rad), sail efficiency 0…1]. */
 const POLAR: readonly (readonly [number, number])[] = [
   [0, 0],

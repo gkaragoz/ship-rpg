@@ -1,4 +1,4 @@
-export { NOMINAL_WIND, sailEfficiency, windAt } from './wind';
+export { NOMINAL_WIND, apparentWind, gustAt, sailEfficiency, windAt } from './wind';
 export { ISLANDS, WORLD_BOUNDS, terrainHeight } from './islands';
 export type { Island, PortDef } from './islands';
 export { PORTS, getPort } from './ports';

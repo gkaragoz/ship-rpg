@@ -1,5 +1,5 @@
 import { createAudio } from '../audio';
-import { angleDiff, createInput, type Controls, type GameView } from '../core';
+import { createInput, type Controls, type GameView } from '../core';
 import { createGame } from '../gameplay';
 import { createAutoQuality, createSailingView, lowerQuality, nextQuality } from '../render';
 import { getSettings } from '../settings';
@@ -178,7 +178,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
         enemyShips.set(e.id, es);
         view.addActor(e.id, es.root, { length: enemySpec.length, beam: enemySpec.beam });
       }
-      es.setSailTrim(angleDiff(v.wind.from, e.heading), e.sailLevel);
+      es.setSailTrim(e.apparent.angle, e.sailLevel);
       es.setCondition(e, v.time);
     }
     for (const [id, es] of enemyShips) {
@@ -217,7 +217,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
         audio.thunder(Math.hypot(v.weather.strike.x - v.ship.x, v.weather.strike.z - v.ship.z), v.weather.strike.power);
       }
       syncOthers(v);
-      ship.setSailTrim(angleDiff(v.wind.from, v.ship.heading), v.ship.sailLevel);
+      ship.setSailTrim(v.ship.apparent.angle, v.ship.sailLevel);
       ship.setCondition(v.ship, v.time);
       syncEnemies(v);
       view.draw(v);

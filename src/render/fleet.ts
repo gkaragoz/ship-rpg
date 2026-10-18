@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { angleDiff, type GameView } from '../core';
+import type { GameView } from '../core';
 import { lodUpdateDue, selectLod, type Ship, type ShipLod } from '../ships';
 import { rideWaves } from './ride';
 
@@ -59,7 +59,7 @@ export function createFleet(scene: THREE.Scene): Fleet {
           lod = override ?? selectLod(distance, dims.length, prev);
           if (lod !== prev) ship.setLod?.(lod);
           levels[o.id] = lod;
-          ship.setSailTrim(angleDiff(view.wind.from, o.heading), o.sailLevel);
+          ship.setSailTrim(o.apparent.angle, o.sailLevel);
         }
         counts[lod]++;
         rideWaves(ship.root, o, dims, view.time, view.wind.from, ampScale, lod < 2, 0, view.weather.tuning);

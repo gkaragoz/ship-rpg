@@ -2,7 +2,7 @@
 
 Environment rules and static world data shared by gameplay, rendering and UI. Depends on `core` only.
 
-- `wind.ts`: `windAt(time)` (deterministic wind), `sailEfficiency(angle)` (polar: 0 in irons … 1 broad reach), `NOMINAL_WIND`
+- `wind.ts`: `windAt(time)` (deterministic wind), `sailEfficiency(angle)` (polar: 0 in irons … 1 broad reach), `NOMINAL_WIND`, `gustAt(x, z, time, wind)` (bands of stronger and weaker air drifting downwind, 0.75–1.25) and `apparentWind(wind, heading, speed)` (the wind a moving ship feels)
 - `sea.ts`: the sea surface as Gerstner waves (`WAVES`, `waveHeight`, `waveSlope`, `chop`), the sea state `seaStateAt(time, windSpeed)` 0 (glassy) … 1 (storm), `seaAmp`, `seaName`
 - `clock.ts`: the time of day (`hourAt`, `startHourFor`, `sunState`: sun and moon directions, daylight, twilight, `formatHour`), a pure function of game time
 - `weather.ts`: `weatherAt(time, overrides)`: the game's own weather with any part taken over by the weather simulator (wind, sea state, cloud, haze, rain, lightning, wave tuning), `WEATHER_PRESETS`

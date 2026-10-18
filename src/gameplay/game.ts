@@ -1,8 +1,8 @@
 import { stepCrashes } from './crashes';
 import { CONFIG, createRng } from '../core';
-import type { Controls, GameEvent, GameView } from '../core';
+import type { Controls, GameEvent, GameView, WindView } from '../core';
 import { getDeck, type ShipSpec } from '../ships';
-import { DEFAULT_CLOCK, PORTS, getPort, hourAt, seaAmp, startHourFor, waveHeight, type ClockSettings, type Port, type Weather, type WeatherOverrides } from '../world';
+import { DEFAULT_CLOCK, PORTS, getPort, gustAt, hourAt, seaAmp, startHourFor, waveHeight, type ClockSettings, type Port, type Weather, type WeatherOverrides } from '../world';
 import { createExploration } from './exploration';
 import { COMBAT, ELEVATION, cannonsPerSide, stepBall, windVelocity, type Ball, type Side } from './combat';
 import { planBroadside } from './gunnery';
@@ -91,6 +91,8 @@ export function createGame(spec: ShipSpec): Game {
   let wind = { from: weather.windFrom, speed: weather.windSpeed };
   let clock: ClockSettings = { ...DEFAULT_CLOCK };
   let sea = weather.seaState; // how rough the sea is this step
+  /** The wind a ship at a place feels now: the true wind in the gust over it. */
+  const feel = (s: { x: number; z: number }): WindView => ({ from: wind.from, speed: wind.speed * gustAt(s.x, s.z, time, wind) });
   const deck = getDeck(spec.id); // only ships with a walkable GLB deck carry a visible crew
   const crew = deck ? createCrew(deck, crewCountFor(spec.length)) : null;
   const npcs = createNpcFleet({ x: ship.x, z: ship.z }); // patrols around the start, on open water
@@ -217,7 +219,7 @@ export function createGame(spec: ShipSpec): Game {
         continue;
       }
       const ai = aiStep(e, ship, wind, enemies.filter((o) => o !== e && o.sinking < 0).map((o) => o.ship));
-      stepPlayerShip(e.ship, e.spec, wind, ai.controls, dt, seaEffects(e.spec, e.ship.heading, wind.from, sea));
+      stepPlayerShip(e.ship, e.spec, feel(e.ship), ai.controls, dt, seaEffects(e.spec, e.ship.heading, wind.from, sea));
       stepBody(e.ship.body, e.ship, e.spec, time, wind.from, sea, dt, false, weather.tuning);
       e.hp = Math.max(0, e.hp - stepAffliction(e.ship, e.maxHp, false, dt));
       checkEnemySunk(e);
@@ -279,7 +281,7 @@ export function createGame(spec: ShipSpec): Game {
         return;
       }
       if (controls.interact) toggleDock();
-      stepPlayerShip(ship, spec, wind, controls, dt, seaEffects(spec, ship.heading, wind.from, sea));
+      stepPlayerShip(ship, spec, feel(ship), controls, dt, seaEffects(spec, ship.heading, wind.from, sea));
       stepBody(ship.body, ship, spec, time, wind.from, sea, dt, !!dockedAt, weather.tuning);
       crew?.update(dt);
       npcs.update(dt);
@@ -298,7 +300,7 @@ export function createGame(spec: ShipSpec): Game {
 
       stepEnemies(dt);
       // Ships that share the sea run into each other.
-      const crash = stepCrashes({ ship, spec, maxHp, active: !dockedAt && !sunk }, enemies, npcs.view());
+      const crash = stepCrashes({ ship, spec, maxHp, active: !dockedAt && !sunk }, enemies, npcs.view(wind));
       events.push(...crash.events);
       crash.apply(
         (lost) => ((hp = Math.max(0, hp - lost)), checkPlayerSunk()),
@@ -312,7 +314,7 @@ export function createGame(spec: ShipSpec): Game {
     view(): GameView {
       const n = nearest();
       const nearestPort = n && portView(n, ship, !dockedAt && canDock(n.distance));
-      const enemyViews = enemies.map((e) => enemyView(e, ship));
+      const enemyViews = enemies.map((e) => enemyView(e, ship, feel(e.ship)));
       const afloat = enemies.filter((e) => e.sinking < 0);
       const drained = events;
       events = [];
@@ -322,9 +324,9 @@ export function createGame(spec: ShipSpec): Game {
         hour: hourAt(time, clock),
         weather: weatherState.view(weather),
         seaState: sea,
-        others: npcs.view(),
+        others: npcs.view(wind),
         crew: crew?.view() ?? [],
-        ship: playerView(ship, spec, { hp, maxHp, reload, elevation, air: windVelocity(wind) }, afloat),
+        ship: playerView(ship, spec, { hp, maxHp, reload, elevation, air: windVelocity(wind), wind: feel(ship), gust: gustAt(ship.x, ship.z, time, wind) }, afloat),
         nearestPort,
         docked: dockedAt?.id ?? null,
         grounded: ship.grounded > 0,

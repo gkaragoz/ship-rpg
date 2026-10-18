@@ -73,8 +73,9 @@ describe('seaEffects', () => {
   const battleship = spec('battleship');
 
   it('changes nothing in fair weather', () => {
-    expect(seaEffects(tartane, 0.3, 1.2, 0)).toBe(NO_SEA_EFFECTS);
-    expect(seaEffects(tartane, 0.3, 1.2, 0.3)).toBe(NO_SEA_EFFECTS);
+    // no change to speed, turning or flooding (the ship still slips to leeward: `lee`, which the duel simulator leaves out)
+    expect(seaEffects(tartane, 0.3, 1.2, 0)).toEqual({ ...NO_SEA_EFFECTS, lee: 1 });
+    expect(seaEffects(tartane, 0.3, 1.2, 0.3)).toEqual({ ...NO_SEA_EFFECTS, lee: 1 });
     expect(gunScatter({ heave: 0, pitch: 0.2, waveRoll: 0.2 }, 0.2)).toBe(1);
   });
 

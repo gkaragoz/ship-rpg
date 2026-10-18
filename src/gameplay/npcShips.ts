@@ -1,5 +1,6 @@
-import type { OtherShipView } from '../core';
-import { terrainHeight } from '../world';
+import type { OtherShipView, WindView } from '../core';
+import { terrainHeight, windAt } from '../world';
+import { apparentView } from './enemyView';
 
 /** An elliptical patrol around (cx, cz): semi-axes a (x) and b (z), starting phase, direction. */
 interface Patrol {
@@ -75,7 +76,8 @@ export const PATROL_SPEED = 5;
 
 export interface NpcFleet {
   update(dt: number): void;
-  view(): OtherShipView[];
+  /** The patrols now; `wind` is the true wind they are sailing in (for the apparent wind they feel). */
+  view(wind?: WindView): OtherShipView[];
 }
 
 /**
@@ -89,7 +91,7 @@ export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }
     update(dt): void {
       time += dt;
     },
-    view(): OtherShipView[] {
+    view(wind: WindView = windAt(time)): OtherShipView[] {
       return patrols.map((p, id) => {
         const omega = (p.dir * PATROL_SPEED) / ((p.a + p.b) / 2);
         const phi = p.phase + omega * time;
@@ -104,6 +106,7 @@ export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }
           heading: Math.atan2(-vz, vx),
           sailLevel: 0.8,
           roll: 0.03 * Math.sin(0.7 * time + id),
+          apparent: apparentView(wind, Math.atan2(-vz, vx), PATROL_SPEED),
         };
       });
     },

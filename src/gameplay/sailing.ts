@@ -1,7 +1,7 @@
 import { angleDiff, clamp, wrapAngle } from '../core';
 import type { Controls, WindView } from '../core';
 import type { ShipSpec } from '../ships';
-import { NOMINAL_WIND, sailEfficiency, terrainHeight } from '../world';
+import { NOMINAL_WIND, apparentWind, sailEfficiency, terrainHeight } from '../world';
 import { NO_SEA_EFFECTS, createBody, type Body, type SeaEffects } from './buoyancy';
 import { floodSpeedFactor, repairRigging, riggingSpeedFactor, riggingTurnFactor } from './damage';
 
@@ -27,6 +27,10 @@ export const SAILING = {
   minAuthority: 0.35,
   /** Sternway in irons, as a fraction of top speed at full sail. */
   ironsDrift: 0.08,
+  /** Heel (rad) of a ship under full sail in a wind of `NOMINAL_WIND`, abeam. */
+  heel: 0.14,
+  /** Leeway: the angle (rad) between where the keel points and where the ship goes, at that heel (it grows and shrinks with it). */
+  leeway: 0.07,
 } as const;
 
 export interface PlayerShip {
@@ -115,10 +119,17 @@ export function stepPlayerShip(s: PlayerShip, spec: ShipSpec, wind: WindView, co
   s.speed *= 1 - 0.05 * Math.abs(s.rudder) * dt;
   s.flooding = Math.min(1, s.flooding + sea.shipping * dt); // green water over the bow
 
+  // The wind the ship feels (its own motion included) heels it and pushes it sideways: leeway, away from the wind.
+  const felt = apparentWind(wind, s.heading, s.speed);
+  const feltRel = angleDiff(felt.from, s.heading);
+  const feltFactor = clamp(felt.speed / NOMINAL_WIND, 0.3, 1.5);
+  const heel = Math.sign(feltRel) * SAILING.heel * s.sailLevel * Math.sin(Math.abs(feltRel)) * feltFactor;
+  const sideSpeed = s.grounded > 0 ? 0 : Math.tan(SAILING.leeway * (heel / SAILING.heel)) * Math.abs(s.speed) * sea.lee;
+
   const px = s.x;
   const pz = s.z;
-  s.x += Math.cos(s.heading) * s.speed * dt;
-  s.z -= Math.sin(s.heading) * s.speed * dt;
+  s.x += (Math.cos(s.heading) * s.speed + Math.sin(s.heading) * sideSpeed) * dt;
+  s.z += (-Math.sin(s.heading) * s.speed + Math.cos(s.heading) * sideSpeed) * dt;
   if (isBlocked(s, spec)) {
     // Touched the bottom: undo the move and drift back out stern-first.
     s.x = px;
@@ -127,8 +138,7 @@ export function stepPlayerShip(s: PlayerShip, spec: ShipSpec, wind: WindView, co
     s.grounded = SAILING.groundedTime;
   }
 
-  // Heel away from the wind under sail, and lean out of a turn.
-  const heel = Math.sign(rel) * 0.14 * s.sailLevel * Math.sin(Math.abs(rel)) * windFactor;
+  // Heel away from the wind under sail (computed above from the apparent wind), and lean out of a turn.
   const lean = -s.rudder * 0.06 * authority;
   s.roll += (heel + lean - s.roll) * Math.min(1, dt * 2);
 }

@@ -40,6 +40,14 @@ export interface Condition {
   fire: number;
 }
 
+/** The wind a moving ship feels: the true wind less the ship's own motion. */
+export interface ApparentWindView {
+  /** Angle between the bow and where the wind seems to come from (+ from port, - from starboard), radians. */
+  angle: number;
+  /** m/s */
+  speed: number;
+}
+
 export interface WindView {
   from: number;
   /** m/s */
@@ -107,6 +115,9 @@ export interface ShipView extends Condition, Attitude {
   aim: AimZoneView;
   /** How high the guns are laid (rad) and the range it gives: the landing point of the middle ball is `arc`'s last point. */
   elevation: number;
+  /** The wind the ship feels, and the gust multiplier (0.75 … 1.25) it is sailing in. */
+  apparent: ApparentWindView;
+  gust: number;
   /** The flight a ball of each broadside will fly now (muzzle to landing), with drag, wind and the ship's own speed. */
   arc: { port: readonly ArcPointView[]; starboard: readonly ArcPointView[] };
   /** A live enemy lies inside that side's landing zone right now. */
@@ -115,6 +126,7 @@ export interface ShipView extends Condition, Attitude {
 
 export interface EnemyView extends Condition, Attitude {
   id: string;
+  apparent: ApparentWindView;
   specId: string;
   name: string;
   /** Nation id (see `world/nations.ts`). */
@@ -183,6 +195,7 @@ export interface OtherShipView {
   heading: number;
   sailLevel: number;
   roll: number;
+  apparent: ApparentWindView;
 }
 
 export type CrewAnim = 'Idle' | 'Walk' | 'Run';

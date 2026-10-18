@@ -84,6 +84,8 @@ export interface SeaEffects {
   turn: number;
   /** Flooding gained per second from green water coming over the bow. */
   shipping: number;
+  /** Share of the full leeway (the sideways slip under wind) a ship makes: 1 in the game, 0 in the duel simulator, which has no sea. */
+  lee: number;
 }
 
 /** Scatter multiplier for guns fired from a hull that is rolling and pitching in a rough sea (1 in fair weather). */
@@ -91,7 +93,9 @@ export function gunScatter(body: Attitude, seaState: number): number {
   return 1 + smooth(0.3, 1, seaState) * (3 * Math.abs(body.waveRoll) + 2 * Math.abs(body.pitch));
 }
 
-export const NO_SEA_EFFECTS: SeaEffects = { speed: 1, turn: 1, shipping: 0 };
+export const NO_SEA_EFFECTS: SeaEffects = { speed: 1, turn: 1, shipping: 0, lee: 0 };
+/** The effects of a calm sea in the game: nothing, but the ship slips to leeward. */
+const CALM: SeaEffects = { ...NO_SEA_EFFECTS, lee: 1 };
 
 const smooth = (a: number, b: number, v: number): number => {
   const t = clamp((v - a) / (b - a), 0, 1);
@@ -102,7 +106,7 @@ const smooth = (a: number, b: number, v: number): number => {
 export function seaEffects(spec: ShipSpec, heading: number, windFrom: number, seaState: number): SeaEffects {
   // Below a moderate sea nothing changes: fair-weather sailing and the balance tables stay as they are.
   const rough = smooth(0.3, 1, seaState);
-  if (rough <= 0) return NO_SEA_EFFECTS;
+  if (rough <= 0) return CALM;
   const headSea = Math.max(0, Math.cos(heading - windFrom)); // headings and the wind's origin share one angle convention;
   const size = clamp(30 / spec.length, 0.5, 1.6);
   // Green water over the bow of a low ship: wave height against freeboard, only when meeting the waves.
@@ -111,5 +115,6 @@ export function seaEffects(spec: ShipSpec, heading: number, windFrom: number, se
     speed: 1 - 0.22 * rough * headSea * size,
     turn: 1 - 0.2 * rough * size,
     shipping: 0.02 * awash * (0.4 + 0.6 * headSea),
+    lee: 1,
   };
 }

@@ -1,5 +1,6 @@
-import type { BallView, EnemyView, PortView, ShipView } from '../core';
-import type { Port } from '../world';
+import { angleDiff } from '../core';
+import type { ApparentWindView, BallView, EnemyView, PortView, ShipView, WindView } from '../core';
+import { apparentWind, type Port } from '../world';
 import type { Ball } from './combat';
 import type { ShipSpec } from '../ships';
 import { COMBAT, aimZone, cannonsPerSide, targetInZone } from './combat';
@@ -8,9 +9,16 @@ import type { Enemy } from './enemy';
 import { SAILING, maxSpeed, type PlayerShip } from './sailing';
 
 /** What render and UI may know about an enemy, seen from the player's ship. */
-export function enemyView(e: Enemy, from: PlayerShip): EnemyView {
+/** The wind a ship feels, as the views carry it. */
+export const apparentView = (wind: WindView, heading: number, speed: number): ApparentWindView => {
+  const felt = apparentWind(wind, heading, speed);
+  return { angle: angleDiff(felt.from, heading), speed: felt.speed };
+};
+
+export function enemyView(e: Enemy, from: PlayerShip, wind: WindView): EnemyView {
   return {
     id: e.id,
+    apparent: apparentView(wind, e.ship.heading, e.ship.speed),
     specId: e.spec.id,
     name: e.spec.name,
     nation: e.nation,
@@ -39,7 +47,7 @@ export function enemyView(e: Enemy, from: PlayerShip): EnemyView {
 export function playerView(
   ship: PlayerShip,
   spec: ShipSpec,
-  state: { hp: number; maxHp: number; reload: { port: number; starboard: number }; elevation: number; air: { x: number; z: number } },
+  state: { hp: number; maxHp: number; reload: { port: number; starboard: number }; elevation: number; air: { x: number; z: number }; wind: WindView; gust: number },
   afloat: readonly Enemy[],
 ): ShipView {
   const zone = aimZone(spec, ship.speed, state.elevation);
@@ -66,6 +74,8 @@ export function playerView(
     guns: cannonsPerSide(spec),
     aim: zone,
     elevation: state.elevation,
+    apparent: apparentView(state.wind, ship.heading, ship.speed),
+    gust: state.gust,
     arc: { port: arcFor(spec, ship, 'port', state.elevation, state.air), starboard: arcFor(spec, ship, 'starboard', state.elevation, state.air) },
     inRange: {
       port: afloat.some((e) => targetInZone(zone, ship, 'port', e.ship, e.spec.length)),
