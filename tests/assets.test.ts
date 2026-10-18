@@ -130,7 +130,8 @@ describe.each(SHIP_SPECS.map((s) => s.id))('%s (generic ship builder)', (id) => 
   const { gltf: g, bytes } = readGlb(`ships/${id}.glb`);
   const meta = readJson<GeneratedMeta>(`ships/${id}.meta.json`);
   const lods = [0, 1, 2].map((l) => stats(g, find(g, `LOD${l}`)));
-  const pbr = meta.pbr === true || ['tartane', 'brig', 'galleon', 'battleship'].includes(id); // the flagship ships carry baked PBR textures, the rest a flat-colour atlas
+  const pbr = meta.pbr === true;
+  it('is a PBR ship (all 16 are)', () => expect(pbr).toBe(true)); // the flagship ships carry baked PBR textures, the rest a flat-colour atlas
   const pivots = (l: number): number[] => g.nodes.flatMap((n, i) => ((n.name ?? '').startsWith(`LOD${l}_`) && (n.name ?? '').includes('_trim-') ? [i] : []));
 
   it('has the root, three LOD groups and clean names', () => {

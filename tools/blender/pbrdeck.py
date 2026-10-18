@@ -231,6 +231,26 @@ def small_extras(kit, masts):
     return None
 
 
+def oars(kit):
+    """Sweeps run out through the rail (xebec, galeoth): shaft, grip and blade, both sides."""
+    s = kit.s
+    n = s['oars']
+    if n <= 0:
+        return
+    length = s['length'] * 0.18
+    d0 = Vector((0.15, -0.55, 0.8)).normalized()
+    for k in range(n):
+        t = 0.28 + 0.5 * ((k + 0.5) / n)
+        x, ytop, z = rail_xz(s, t)
+        y = ytop - bulwark(s) / 2
+        for side in (1, -1):
+            d = Vector((d0.x, d0.y, d0.z * side))
+            start = Vector((x, y, side * abs(z))) - d * (length * 0.25)
+            end = start + d * length * 1.25
+            kit.wood.tube([start, start.lerp(end, 0.7), end], [0.045, 0.04, 0.03], SPAR, seg=5)
+            kit.wood.box(end - d * 0.45, (0.08, 0.04, 0.9), SPAR, rot=None)
+
+
 def build(kit, masts, level):
     cfg = kit.cfg
     st = getattr(kit, 'step', lambda name, fn, *a: fn(*a))
@@ -242,6 +262,7 @@ def build(kit, masts, level):
     bar = st('barrels', barrels, kit, masts, hat)
     kit.extra.extend([o for o in [hat, cap] if o] + bar)
     st('helm', helm, kit)
+    st('oars', oars, kit)
     if kit.s['length'] < 20:
         st('extras', small_extras, kit, masts)
     st('boats', boats, kit)

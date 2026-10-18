@@ -83,7 +83,7 @@ channels, ratlines, stays, yards, blocks and boltroped sails with tattered feet.
 | Galleon | 30,870 / 2,199 / 817 | 13 | 1.67 MB |
 | Battleship | 37,710 / 2,423 / 897 | 13 | 1.90 MB |
 
-The other 12 ships still use the flat-colour atlas builder (`SHIP_ASSETS.md`) until they get the same treatment.
+The other 12 ships use the same PBR pipeline (table in `SHIP_ASSETS.md`).
 
 The flat-colour ships carry the LOD0 extras listed in `SHIP_ASSETS.md`.
 

@@ -68,9 +68,9 @@ Changing a spec: edit `specs.ts`, `npm run export:specs`, re-run the ship throug
 `make_tartane.py` is the legacy hand-tuned tartane (superseded by the generic builder, which now has all its details); new ships should use the generic builder.
 A rig the builder does not know needs a new builder in `shipbuilder.py` (and `trim-…` pivots following the contract in `SHIP_ASSETS.md`).
 
-## PBR ships (baked textures): tartane, brig, galleon, battleship
-`make_ships.py` sends the ids in `PBR_IDS` to `pbrship.build_ship`; the other ids use the flat-colour builder above. Same wrapper, same `IDS`, same `RESULT`; one PBR ship takes about 5–10 s headless
-(textures 5–8 s of numpy, vertex AO 1–3 s), so run them two per call (tartane + brig, galleon + battleship) when Llama drives it.
+## PBR ships (baked textures): all 16
+`make_ships.py` sends the ids in `PBR_IDS` (all 16) to `pbrship.build_ship`; the flat-colour builder above remains for reference. Same wrapper, same `IDS`, same `RESULT`; one PBR ship takes about 5–10 s headless
+(textures 5–8 s of numpy, vertex AO 1–3 s), so run about 3 ships per call (all 16 in 5–6 calls) when Llama drives it.
 
 | File | Job |
 |---|---|

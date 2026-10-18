@@ -28,7 +28,8 @@ from shipbuilder import B, LOD_CFG, Mast  # noqa: E402
 
 REPO = HERE.parents[1]
 OUT = REPO / "public" / "models" / "ships"
-PBR_IDS = ("tartane", "brig", "galleon", "battleship")   # built by pbrship.py (baked PBR textures); the rest use the flat-colour atlas
+SPEC_IDS = ("tartane", "yacht", "lugger", "sloop", "schooner", "barque", "xebec", "galeoth", "caravel", "fleut", "brig", "pinnace", "corvette", "galleon", "frigate", "battleship")
+PBR_IDS = tuple(SPEC_IDS)   # every ship is built by pbrship.py (baked PBR textures); the flat-colour builder stays for reference
 SPECS = {s['id']: s for s in json.loads((HERE / "ships.json").read_text(encoding="utf-8"))}
 
 
