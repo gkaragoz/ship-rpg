@@ -27,6 +27,11 @@ only, on error report the text and stop". Open a **new chat per task**; long pro
 model loop (a 4.5k-token deliberation on vertex indices was the failure mode). Check results from disk (`ls`, parse the GLB), not
 from the model's summary.
 
+Both generators end with a `RESULT` dict, so the same wrapper works for `make_tartane.py` and `make_crew.py` (only the path changes).
+Requirements: Blender 5.x (tested on 5.2.2 LTS) with its bundled glTF exporter and numpy, `blender-mcp` add-on enabled ("MCP Bridge Server" running), no extra pip packages.
+Headless smoke test (about 5 s each) and success check: `blender -b --factory-startup --python tools/blender/make_tartane.py` must finish without a traceback and update
+`public/models/ships/tartane.{glb,meta.json}`; then `npm run check` (the asset contract tests) must pass.
+
 ## Rules every generator must follow (learned the hard way)
 1. **Do not touch the user's open scene.** Build inside `shipkit.Scratch()`: it snapshots datablocks, selection, active object and
    frame range, and on exit removes everything it created. Never `read_factory_settings`, never delete existing objects.
@@ -38,10 +43,11 @@ from the model's summary.
 7. Re-run is idempotent (outputs overwritten, scratch objects removed). Dependencies: only `bpy`, `bmesh`, `numpy`, `mathutils`.
 
 ## Adding another ship
+(`make_tartane.py` is tartane-specific today: lateen rig, `trim-aft` only. Square rigs need new builders and `trim-square` pivots; the helpers in `shipkit.py` are generic.)
 1. Copy `make_tartane.py`; replace `SHIP` (dimensions, station tables, mast/yard/jib positions), `SWATCHES`, and `LOD_CFG` if the rig differs
    (square rigs need `trim-square` pivots and a tier builder).
 2. Keep the LOD ladder idea: LOD0 = hero (all detail, merged by material), LOD1 ≈ 1/6 of the triangles, LOD2 ≈ silhouette; budgets scale with `length`.
-3. Add the id to `GLB_SHIP_IDS` in `src/ships/assets.ts`, extend `tests/assets.test.ts` budgets, run `npm run check` and look at it in the browser (`?perf&lod=N`).
+3. Add the id to `GLB_SHIP_IDS` in `src/ships/assets.ts`, extend `tests/assets.test.ts` (it hard-codes the tartane budgets 2000/450/130; add a per-ship table), run `npm run check` and look at it in the browser (`?perf&lod=N`).
 4. Next step for the whole fleet: port `src/ships/hullShape.ts` (`halfBeam`, `deckHeight`, `keelHeight`, `sectionPoint`) to Python and export `ShipSpec` as JSON so
    `make_ship.py <id>` builds any ship with the same proportions as the procedural one.
 

@@ -63,7 +63,7 @@ space as above. Contract, budgets and LOD policy: `SHIP_ASSETS.md`.
 | Item | Value |
 |---|---|
 | Hull | 15 stations, L 12.0 · B 3.96 · draft 1.2 · freeboard 1.35 · sheer 0.7 (matches `specs.ts`) |
-| Mesh bounds | x −6.3…8.0 (rudder → bowsprit), y −1.2…11.0 (keel → masthead), z ±1.98 |
+| Mesh bounds | x −6.3…8.0 (rudder → bowsprit), y −1.2…11.4 (keel → yard tip; mast top 11.0), z ±1.98 |
 | Rig | 1 mast at x 0.96, lateen yard on a `trim-aft` pivot (~47° from horizontal, low end forward), jib, stays, shrouds |
 | LOD0 (hero) | 1,886 tris, 3 draw calls: hull, deck + seams, rail, wale, planks, rivets, rudder/tiller, hatch, barrels, anchor, lantern |
 | LOD1 | 317 tris, 2 draw calls (no seams/rivets/props, coarser sail) |

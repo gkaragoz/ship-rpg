@@ -25,8 +25,8 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   const syncOthers = (v: GameView): void => {
     if (npcs.length === v.others.length) return;
     for (const o of v.others.slice(npcs.length)) {
-      const s = getShipSpec(o.specId);
-      if (s) npcs.push(createShip(s));
+      // Always push one ship per entry so ship i keeps matching others[i].
+      npcs.push(createShip(getShipSpec(o.specId) ?? spec));
     }
     view.setOthers(npcs);
   };

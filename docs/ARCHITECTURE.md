@@ -20,7 +20,7 @@ input → gameplay state (fixed update) → render reads state (per frame, inter
 `core` owns read-only view types (e.g. `GameView`, `ShipView`: position, heading, sail trim). `gameplay` produces objects satisfying them; `main.ts` passes the view to `render` each frame. So `render` depends only on `core` types, never on `gameplay`. Define these types in phase 3.
 
 ## Status
-Phase 2 done: `core` (loop), `ships` (specs + procedural factory), `render` (gallery stage), `ui` (gallery panel), composed in `main.ts`. `world` and `gameplay` do not exist yet. `render` currently receives a plain `THREE.Object3D` from `main.ts`, so it does not import `ships`. See `ROADMAP.md`.
+Phases 1–2c done: `core` (loop, views), `ships` (specs, procedural factory, GLB tartane with LODs), `world` (wind), `gameplay` (sailing, deck crew, NPC patrols), `render` (gallery, sailing view with ocean/sky, fleet, crew), `ui` (gallery panel, HUD), composed in `main.ts` and `app/*`. `render` depends only on `core` view types for game state and may use `ships` models/LOD helpers; it never imports `gameplay`. See `ROADMAP.md`.
 
 ## Blender models, LOD and crew (phase 2c)
 - `main.ts` preloads GLBs (`loadShipAssets`, `loadCrewAssets`) before the first mode; failures only log and fall back to procedural ships / an empty deck.

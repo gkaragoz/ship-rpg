@@ -9,9 +9,12 @@ const VARIANT_FILES = ['Male_Standard', 'Male_Broad', 'Male_Stout', 'Female_Stan
 type Tinted = 'skin' | 'shirt' | 'pants' | 'hair' | 'hat';
 const TINT: Record<string, Tinted> = { Skin: 'skin', Shirt: 'shirt', Pants: 'pants', Hair: 'hair', Hat: 'hat' };
 
-/** Camera distance (m) where a sailor drops to LOD1 / LOD2, and where it is hidden. */
-const LOD_AT = [12, 30] as const;
-const HIDE_AT = 90;
+/**
+ * Camera distance (m) where a sailor drops to LOD1 / LOD2, and where it is hidden. The chase
+ * camera can sit 8 ship lengths away (96 m on the tartane), so the crew stays visible there.
+ */
+const LOD_AT = [25, 60] as const;
+const HIDE_AT = 160;
 /** Beyond this distance the skeleton is advanced only every fourth frame. */
 const FULL_RATE_AT = 30;
 const FADE = 0.25;
@@ -131,6 +134,9 @@ export function createCrewRenderer(): CrewRenderer | null {
   const drop = (a: Actor): void => {
     a.mixer.stopAllAction();
     a.root.removeFromParent();
+    a.root.traverse((o) => {
+      if (o instanceof THREE.SkinnedMesh) o.skeleton.dispose(); // each clone owns a bone texture
+    });
     a.materials.forEach((m) => m.dispose());
   };
 

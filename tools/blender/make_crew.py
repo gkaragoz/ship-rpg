@@ -2,7 +2,7 @@
 Run inside Blender; exports only its own scratch objects and restores the open scene."""
 import bpy, bmesh, math, os, json
 import numpy as np
-from mathutils import Vector, Quaternion, Euler
+from mathutils import Vector, Euler
 
 from pathlib import Path
 
@@ -495,4 +495,5 @@ if __name__ == "__main__":
     )
     with open(f"{OUT}/crew.json", "w") as f:
         json.dump(meta_all, f, indent=2)
+    RESULT = {"variants": list(meta), "bytes": {k: v["bytes"] for k, v in meta.items()}}
     print("CREW_DONE")
