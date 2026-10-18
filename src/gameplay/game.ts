@@ -1,6 +1,8 @@
 import type { Controls, GameView } from '../core';
-import type { ShipSpec } from '../ships';
+import { getDeck, type ShipSpec } from '../ships';
 import { windAt } from '../world';
+import { createCrew, crewCountFor } from './crew';
+import { createNpcFleet } from './npcShips';
 import { SAILING, createPlayerShip, maxSpeed, stepPlayerShip } from './sailing';
 
 export interface Game {
@@ -14,6 +16,9 @@ export function createGame(spec: ShipSpec): Game {
   const ship = createPlayerShip();
   let time = 0;
   let wind = windAt(time);
+  const deck = getDeck(spec.id); // only ships with a walkable GLB deck carry a visible crew
+  const crew = deck ? createCrew(deck, crewCountFor(spec.length)) : null;
+  const npcs = createNpcFleet('tartane');
 
   return {
     spec,
@@ -21,11 +26,15 @@ export function createGame(spec: ShipSpec): Game {
       time += dt;
       wind = windAt(time);
       stepPlayerShip(ship, spec, wind, controls, dt);
+      crew?.update(dt);
+      npcs.update(dt);
     },
     view(): GameView {
       return {
         time,
         wind,
+        others: npcs.view(),
+        crew: crew?.view() ?? [],
         ship: {
           x: ship.x,
           z: ship.z,
