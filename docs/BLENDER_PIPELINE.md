@@ -1,6 +1,6 @@
 # Blender pipeline (Llama + `blender-mcp`)
 
-How the tartane and the crew were produced, so the other 15 ships (and more crew) can be made the same way.
+How the ships (tartane by hand, the other 15 generated from `ShipSpec` data) and the crew are produced, so a changed or new ship can be regenerated the same way.
 
 ## Pieces
 | Piece | Where |
@@ -57,13 +57,15 @@ result = g["RESULT"]
 ```
 Changing a spec: edit `specs.ts`, `npm run export:specs`, re-run the ship through Llama, `npm run check`. Changing the look of every ship: edit `shipbuilder.py` and re-run all ids.
 
-## Adding another ship
-A new ship with a standard rig only needs a spec in `specs.ts` (+ id in `GLB_SHIP_IDS`). The hand-tuned `make_tartane.py` is the model for ships that need bespoke detail
-(`trim-aft` only). Square rigs and the rest are covered by `shipbuilder.py`; the helpers in `shipkit.py` are generic.
-1. Copy `make_tartane.py`; replace `SHIP` (dimensions, station tables, mast/yard/jib positions), `SWATCHES`, and `LOD_CFG` if the rig differs
-   (square rigs need `trim-square` pivots and a tier builder).
-2. Keep the LOD ladder idea: LOD0 = hero (all detail, merged by material), LOD1 ≈ 1/6 of the triangles, LOD2 ≈ silhouette; budgets scale with `length`.
-3. Add the id to `GLB_SHIP_IDS` in `src/ships/assets.ts`, extend `tests/assets.test.ts` (it hard-codes the tartane budgets 2000/450/130; add a per-ship table), run `npm run check` and look at it in the browser (`?perf&lod=N`).
+## Adding or regenerating a ship
+1. Edit (or add) the spec in `src/ships/specs.ts`; for a new ship also add its id to `GLB_SHIP_IDS` in `src/ships/assets.ts` and a patrol/gallery use as needed.
+2. `npm run export:specs` (rewrites `tools/blender/ships.json`; `tests/shipsJson.test.ts` fails if you forget).
+3. Smoke-test headless: `blender -b --factory-startup --python tools/blender/make_ships.py` (all ships, ~5 s; or set `IDS` as in the wrapper above). A budget or naming problem raises one `ValueError` per ship and **writes nothing for that ship** (the atlas PNG is saved only after validation); ships built earlier in the same call are already written.
+4. Let Llama run the wrapper with `IDS` (5 ships per call keeps each call fast; all 15 generic ships = 3 calls). Check the call's code before approving, then the result dict.
+5. `npm run check`: `tests/assets.test.ts` checks every ship (names, budgets, materials, pivots on their mast, `specHash` equal to the current spec, deck and obstacle sanity).
+6. Look at it in the browser: gallery, then `?perf&lod=0|1|2` in the sailing mode.
+`make_tartane.py` stays the model for a hand-tuned ship (bespoke detail beyond what the spec describes); new ships should normally just use the generic builder.
+A rig the builder does not know needs a new builder in `shipbuilder.py` (and `trim-…` pivots following the contract in `SHIP_ASSETS.md`).
 
 ## Crew
 `make_crew.py` builds six body types × 3 LODs, a 12-bone rig, Idle/Walk/Run actions and a palette atlas; details in `CREW.md`.

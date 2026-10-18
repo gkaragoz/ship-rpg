@@ -9,7 +9,6 @@ pivots (sails as children), `LOD0_Glass` (emissive windows and lanterns).
 """
 import importlib
 import json
-import math
 import pathlib
 import sys
 
@@ -20,7 +19,7 @@ import shipbuilder  # noqa: E402
 
 importlib.reload(shipkit)
 importlib.reload(shipbuilder)
-from shipkit import Atlas, MB, Scratch, emissive_material, empty, export_glb, tri_count, validate_ship, write_json  # noqa: E402
+from shipkit import Atlas, MB, Scratch, emissive_material, empty, export_glb, fnv1a, tri_count, validate_ship, write_json  # noqa: E402
 from shipbuilder import B, LOD_CFG, Mast  # noqa: E402
 
 REPO = HERE.parents[1]
@@ -95,6 +94,11 @@ def build_lod(level, spec, masts, atlas, mat, glass_mat, root):
     return lantern
 
 
+def spec_hash(spec):
+    """Ties a GLB to the spec it was built from; tests/assets.test.ts recomputes it from specs.ts."""
+    return fnv1a(json.dumps(spec, sort_keys=True, separators=(',', ':'), ensure_ascii=False))
+
+
 def build_meta(spec, masts, report, lantern, budget):
     L = spec['length']
     deck = []
@@ -112,7 +116,7 @@ def build_meta(spec, masts, report, lantern, budget):
     first = masts[0].base if masts else (0.0, 0.0, 0.0)
     lantern = lantern or (-L / 2, shipbuilder.deck_height(spec, 0), 0.0)
     return dict(id=spec['id'], length=L, beam=spec['beam'], lods=report['lods'], budgets=budget,
-                trimPivot=[round(first[0], 3), round(first[1], 3), 0.0], deckMargin=0.3,
+                specHash=spec_hash(spec), trimPivot=[round(first[0], 3), round(first[1], 3), 0.0], deckMargin=0.3,
                 deck=dict(columns=["x", "y", "halfWidth"], stations=deck), obstacles=obstacles,
                 lantern=[round(c, 3) + 0.0 for c in lantern])
 
@@ -122,7 +126,7 @@ def build_ship(spec_id):
     OUT.mkdir(parents=True, exist_ok=True)
     budget = budgets(spec['length'])
     with Scratch() as sc:
-        atlas = Atlas(f"{spec_id}_atlas", swatches(spec), OUT / f"{spec_id}_atlas.png")
+        atlas = Atlas(f"{spec_id}_atlas", swatches(spec))
         mat = atlas.material(f"{spec_id}_atlas_mat")
         glass_mat = emissive_material(f"{spec_id}_glass", (1.0, 0.82, 0.48), 3.0)
         root = empty(spec_id)
@@ -143,6 +147,7 @@ def build_ship(spec_id):
             has_trim_pivot=all(any(o.name.startswith(f"LOD{l}_") and "_trim-" in o.name for o in objs) for l in (0, 1, 2)),
         )
         validate_ship(report, budget)
+        atlas.save(OUT / f"{spec_id}_atlas.png")
         size = export_glb(OUT / f"{spec_id}.glb", objs, root)
         meta = build_meta(spec, masts, report, lantern, budget)
         meta['bytes'] = size

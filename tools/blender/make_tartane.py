@@ -253,7 +253,7 @@ def build_meta(report):
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     with Scratch() as sc:
-        atlas = Atlas("tartane_atlas", SWATCHES, OUT / "tartane_atlas.png")
+        atlas = Atlas("tartane_atlas", SWATCHES)
         mat = atlas.material("tartane_atlas_mat")
         glass_mat = emissive_material("tartane_glass", (1.0, 0.75, 0.3), 3.0)
         root = empty(SHIP['id'])
@@ -272,6 +272,7 @@ def main():
             has_trim_pivot=all(any(o.name == f"LOD{l}_trim-aft" for o in objs) for l in (0, 1, 2)),
         )
         validate_ship(report, BUDGETS)
+        atlas.save(OUT / "tartane_atlas.png")
         size = export_glb(OUT / f"{SHIP['id']}.glb", objs, root)
         meta = build_meta(report)
         meta['bytes'] = size

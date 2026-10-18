@@ -33,6 +33,7 @@ class Scratch:
         self.sc = sc
         self.before = {k: set(getattr(bpy.data, k)) for k in self.COLLS}
         self.frames = (sc.frame_start, sc.frame_end, sc.render.fps)
+        self.frame = sc.frame_current
         self.sel = list(bpy.context.selected_objects)
         self.active = bpy.context.view_layer.objects.active
         return self
@@ -42,6 +43,7 @@ class Scratch:
 
     def __exit__(self, *exc):
         self.sc.frame_start, self.sc.frame_end, self.sc.render.fps = self.frames
+        self.sc.frame_current = self.frame
         for k in self.COLLS:
             coll = getattr(bpy.data, k)
             for d in [d for d in coll if d not in self.before[k]]:
@@ -84,11 +86,15 @@ class Atlas:
         self.image = bpy.data.images.new(name, ATLAS_PX, ATLAS_PX, alpha=False)
         self.image.colorspace_settings.name = 'sRGB'
         self.image.pixels.foreach_set(px.ravel())
-        if png_path:
-            self.image.filepath_raw = str(png_path)
-            self.image.file_format = 'PNG'
-            self.image.save()
         self.image.pack()
+        if png_path:
+            self.save(png_path)
+
+    def save(self, png_path):
+        """Write the editable PNG next to the GLB (call after validation so a failed ship leaves no files)."""
+        self.image.filepath_raw = str(png_path)
+        self.image.file_format = 'PNG'
+        self.image.save()
 
     def uv(self, swatch):
         k = self.names.index(swatch)
@@ -245,6 +251,11 @@ def validate_ship(report, budgets, max_materials=2):
             errs.append(f"{lod}: {n} tris > budget {limit}")
         if n < 1:
             errs.append(f"{lod}: empty")
+    t = [report["lods"][f"LOD{i}"]["tris"] for i in range(3)]
+    if t[1] >= 0.3 * t[0]:
+        errs.append(f"LOD1 has {t[1]} tris, not under 30% of LOD0 ({t[0]})")
+    if t[2] >= 0.6 * t[1]:
+        errs.append(f"LOD2 has {t[2]} tris, not under 60% of LOD1 ({t[1]})")
     if report["materials"] > max_materials:
         errs.append(f"{report['materials']} materials > {max_materials}")
     for n in report["names"]:
@@ -254,6 +265,14 @@ def validate_ship(report, budgets, max_materials=2):
         errs.append("no *_trim-aft pivot")
     if errs:
         raise ValueError("; ".join(errs))
+
+
+def fnv1a(text):
+    """32-bit FNV-1a of the UTF-8 text as 8 hex digits (tests/assets.test.ts computes the same)."""
+    h = 0x811C9DC5
+    for b in text.encode("utf-8"):
+        h = ((h ^ b) * 0x01000193) & 0xFFFFFFFF
+    return f"{h:08x}"
 
 
 def write_json(path, data):

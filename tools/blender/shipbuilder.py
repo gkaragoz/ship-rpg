@@ -9,11 +9,10 @@ import math
 
 from mathutils import Vector
 
-from shipkit import MB, empty
+from shipkit import MB
 
 SECTION_FULLNESS = 0.6
 DEPTH_EXPONENT = 0.8
-SQUARE_SAIL_TRIM = 0.0   # trim pivots start unrotated; the game sets the angle every frame
 
 
 def B(p):

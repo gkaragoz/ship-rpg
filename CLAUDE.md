@@ -1,6 +1,6 @@
 # Ship RPG
 
-Browser-based 3D naval RPG in the spirit of Pirates of the Caribbean (2003) / Sea Dogs. Three.js + TypeScript (strict) + Vite. Ships are generated procedurally from data. The exceptions are Blender GLBs made through the local Llama + `blender-mcp` pipeline (`tools/blender`): the **tartane** (3 LODs) and the **crew**, in `public/models/` (contract in `docs/SHIP_ASSETS.md`, how to make more in `docs/BLENDER_PIPELINE.md`). The procedural ship is always the fallback.
+Browser-based 3D naval RPG in the spirit of Pirates of the Caribbean (2003) / Sea Dogs. Three.js + TypeScript (strict) + Vite. Ships are generated procedurally from data. Every ship and the crew also ship as Blender GLBs (3 LODs each) made through the local Llama + `blender-mcp` pipeline (`tools/blender`, run `npm run export:specs` after changing `specs.ts`), in `public/models/` (contract in `docs/SHIP_ASSETS.md`, how to make or regenerate them in `docs/BLENDER_PIPELINE.md`). The procedural ship stays as the fallback and the reference the Python port follows.
 
 ## Commands
 - `npm run dev` — dev server

@@ -194,10 +194,24 @@ const contractBudgets = (length: number): Record<string, number> => ({
 });
 
 interface GeneratedMeta extends ShipMeta {
+  specHash: string;
   beam: number;
   budgets: Record<string, number>;
   bytes: number;
   deckMargin: number;
+}
+
+/** Same canonical form as tools/blender/make_ships.py `spec_hash`: sorted keys, no spaces, FNV-1a 32. */
+const canonical = (v: unknown): string =>
+  Array.isArray(v)
+    ? `[${v.map(canonical).join(',')}]`
+    : v && typeof v === 'object'
+      ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`).join(',')}}`
+      : JSON.stringify(v);
+function fnv1a(text: string): string {
+  let h = 0x811c9dc5;
+  for (const b of new TextEncoder().encode(text)) h = Math.imul(h ^ b, 0x01000193) >>> 0;
+  return h.toString(16).padStart(8, '0');
 }
 
 describe.each(SHIP_SPECS.filter((s) => s.id !== 'tartane').map((s) => s.id))('%s (generic ship builder)', (id) => {
@@ -265,6 +279,25 @@ describe.each(SHIP_SPECS.filter((s) => s.id !== 'tartane').map((s) => s.id))('%s
     }
     expect(meta.obstacles.filter((o) => o.type === 'circle')).toHaveLength(spec.masts.length);
     expect(meta.obstacles.filter((o) => o.type === 'rect')).toHaveLength((spec.forecastle ? 1 : 0) + (spec.sterncastle ? 1 : 0));
+  });
+
+  it('was built from the current spec (re-run make_ships.py after changing specs.ts)', () => {
+    expect(meta.specHash).toBe(fnv1a(canonical(JSON.parse(JSON.stringify(spec)))));
+  });
+
+  it('puts every sail pivot on its mast base, identically on all LODs', () => {
+    spec.masts.forEach((m, i) => {
+      const found = [0, 1, 2].flatMap((l) =>
+        g.nodes.filter((n) => (n.name ?? '').startsWith(`LOD${l}_m${i}_trim-`)).map((n) => n.translation ?? [NaN, NaN, NaN]),
+      );
+      expect(found.length, `mast ${i}`).toBeGreaterThanOrEqual(3);
+      for (const t of found) {
+        expect(t[0]).toBeCloseTo((0.5 - m.at) * spec.length, 2);
+        expect(t[1]).toBeGreaterThan(0.3);
+        expect(t[2]).toBeCloseTo(0, 5);
+        expect(t[1]).toBeCloseTo(found[0]?.[1] ?? NaN, 5);
+      }
+    });
   });
 
   it('stays small enough to load quickly', () => {
