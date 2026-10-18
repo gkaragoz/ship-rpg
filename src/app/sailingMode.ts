@@ -230,7 +230,7 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
 
   const syncEnemies = (v: ReturnType<typeof game.view>): void => {
     const live = new Set<string>();
-    for (const e of v.enemies) {
+    for (const e of [...v.enemies, ...v.consorts]) {
       live.add(e.id);
       let es = enemyShips.get(e.id);
       if (!es) {

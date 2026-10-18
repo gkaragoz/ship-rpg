@@ -24,6 +24,8 @@ import { DOCK, ELEVATE_RATE, REPAIR_RATE, RESPAWN, STAGGER } from './tuning';
 import { restoreShip, boardingView, captainView, cargoView, companyView, snapshot } from './stateView';
 import { runCommand, servicesView } from './harbour';
 import { runYard } from './shipyard';
+import { runFleetYard } from './fleetYard';
+import { createFleetDirector } from './fleetDirector';
 import { changeClock } from './clockState';
 import { COMPANY } from './company';
 import { createDesk } from './desk';
@@ -113,12 +115,16 @@ export function createGame(init: ShipSpec | GameState): Game {
   const canDock = (port: Port): boolean => insidePortZone(port, ship.x, ship.z) && Math.abs(ship.speed) <= DOCK.maxSpeed;
 
   const toggleDock = (): void => {
+    const wasDocked = !!dockedAt;
     const n = dockedAt ? null : nearest();
     dockedAt = n && canDock(n.port) ? n.port : null;
     ship.docked = !!dockedAt;
     if (dockedAt) {
       ship.speed = 0;
       st.crew = Math.max(st.crew, Math.ceil(spec.stats.crew * COMPANY.volunteers));
+      if (!wasDocked) fleet.moor(time); // the fleet comes in with the flagship (and its upkeep is paid)
+    } else if (wasDocked) {
+      fleet.launch(); // casting off: the consorts take their stations
     }
   };
 
@@ -171,6 +177,7 @@ export function createGame(init: ShipSpec | GameState): Game {
     events = [];
     respawnIn = 0;
     spawnEnemy();
+    fleet.launch();
   };
 
   // --- combat ------------------------------------------------------------------------------
@@ -204,12 +211,31 @@ export function createGame(init: ShipSpec | GameState): Game {
     events.push({ type: 'sunk', owner: 'enemy', x: e.ship.x, y: 0, z: e.ship.z, length: e.spec.length });
   };
 
+  /** Move an enemy-shaped hull one step: the sailing model, the sea's motion, leaks and fire. */
+  const advance = (c: Enemy, controls: Controls, dt: number): void => {
+    stepPlayerShip(c.ship, c.spec, feel(c.ship), controls, dt, seaEffects(c.spec, c.ship.heading, wind.from, sea));
+    stepBody(c.ship.body, c.ship, c.spec, time, wind.from, sea, dt, false, weather.tuning);
+    c.hp = Math.max(0, c.hp - stepAffliction(c.ship, c.maxHp, false, dt));
+  };
+  /** The captain's fleet: consorts that follow the flagship, fight its enemies and are shot at like it. */
+  const fleet = createFleetDirector({
+    st,
+    ship: () => ship,
+    wind: () => wind,
+    enemies: () => enemies,
+    advance,
+    fire: (hull, s, side, alive) => fire('player', hull, s, side, alive),
+    emit: (e) => events.push(e),
+    repairRate: REPAIR_RATE,
+  });
+
   /** Fly the balls: three sub-steps a frame (a ball moves 1.5 m a step, narrow targets are not skipped), drag and wind included. */
   const stepBalls = (dt: number): void => {
     const air = windVelocity(wind);
     const world: ShotWorld = {
       player: { ship, spec, maxHp, targetable: !sunk && !dockedAt }, // a moored ship is safe in the harbour
       enemies,
+      consorts: fleet.consorts(),
       rng,
       surfaceAt: (x, z) => waveHeight(x, z, time, wind.from, seaAmp(sea), 0, weather.tuning),
       emit: (e) => events.push(e),
@@ -222,6 +248,7 @@ export function createGame(init: ShipSpec | GameState): Game {
         e.hp = Math.max(0, e.hp - lost);
         checkEnemySunk(e);
       },
+      onConsortHit: (c, lost) => fleet.hit(c, lost),
     };
     balls = flyBalls(balls, dt, air, world);
   };
@@ -230,6 +257,7 @@ export function createGame(init: ShipSpec | GameState): Game {
   const giveWay = (): { x: number; z: number; length: number }[] => [
     { x: ship.x, z: ship.z, length: spec.length },
     ...enemies.filter((e) => e.sinking < 0).map((e) => ({ x: e.ship.x, z: e.ship.z, length: e.spec.length })),
+    ...fleet.consorts().filter((c) => c.sinking < 0).map((c) => ({ x: c.ship.x, z: c.ship.z, length: c.spec.length })),
   ];
 
   const stepEnemies = (dt: number): void => {
@@ -239,10 +267,18 @@ export function createGame(init: ShipSpec | GameState): Game {
         e.ship.speed *= 1 - 0.5 * dt;
         continue;
       }
-      const ai = aiStep(e, ship, wind, enemies.filter((o) => o !== e && o.sinking < 0).map((o) => o.ship));
-      stepPlayerShip(e.ship, e.spec, feel(e.ship), ai.controls, dt, seaEffects(e.spec, e.ship.heading, wind.from, sea));
-      stepBody(e.ship.body, e.ship, e.spec, time, wind.from, sea, dt, false, weather.tuning);
-      e.hp = Math.max(0, e.hp - stepAffliction(e.ship, e.maxHp, false, dt));
+      // it fights whichever of the captain's ships is nearest
+      let target: { x: number; z: number } = ship;
+      let targetD = Math.hypot(ship.x - e.ship.x, ship.z - e.ship.z);
+      for (const c of fleet.consorts()) {
+        const d = c.sinking < 0 ? Math.hypot(c.ship.x - e.ship.x, c.ship.z - e.ship.z) : Infinity;
+        if (d < targetD) {
+          target = c.ship;
+          targetD = d;
+        }
+      }
+      const ai = aiStep(e, target, wind, enemies.filter((o) => o !== e && o.sinking < 0).map((o) => o.ship));
+      advance(e, ai.controls, dt);
       checkEnemySunk(e);
       if (e.sinking >= 0) continue;
       if (lostTrack(e, Math.hypot(e.ship.x - ship.x, e.ship.z - ship.z), dt)) {
@@ -261,7 +297,7 @@ export function createGame(init: ShipSpec | GameState): Game {
     }
     enemies = enemies.filter((e) => !e.gone && e.sinking < CONFIG.sinkSeconds);
     if (!sunk && respawnIn > 0) respawnIn -= dt;
-    if (!sunk && respawnIn <= 0 && enemies.filter((e) => e.sinking < 0).length < desiredEnemies(threat)) {
+    if (!sunk && respawnIn <= 0 && enemies.filter((e) => e.sinking < 0).length < desiredEnemies(threat + 2 * st.fleet.length)) {
       spawnEnemy();
       respawnIn = STAGGER;
     }
@@ -271,6 +307,7 @@ export function createGame(init: ShipSpec | GameState): Game {
   // A loaded run keeps the state its ship was in and may begin moored.
   hp = Math.min(maxHp, Math.max(1, st.ship.hp));
   dockedAt = restoreShip(ship, st);
+  if (dockedAt) fleet.moor(time);
   if (dockedAt) st.crew = Math.max(st.crew, Math.ceil(spec.stats.crew * COMPANY.volunteers)); // a port finds crew for a ship loaded moored, too
   explore.discover();
 
@@ -280,9 +317,13 @@ export function createGame(init: ShipSpec | GameState): Game {
     },
     command(cmd): CommandResult {
       syncShip();
-      return cmd.type === 'buyShip' || cmd.type === 'repair' ? runYard(st, spec, dockedAt?.id ?? null, cmd, equip) : runCommand(st, spec, dockedAt?.id ?? null, time, cmd);
+      const at = dockedAt?.id ?? null;
+      if (cmd.type === 'buyShip' || cmd.type === 'repair') return runYard(st, spec, at, cmd, equip);
+      if (cmd.type === 'buyConsort' || cmd.type === 'sellConsort' || cmd.type === 'repairConsort' || cmd.type === 'flagship') return runFleetYard(st, spec, at, cmd, equip);
+      return runCommand(st, spec, at, time, cmd);
     },
     state(): GameState {
+      fleet.sync();
       return snapshot(st, { spec, hp, ship, dockedAt: dockedAt?.id ?? null, islands: explore.islands(), ports: explore.ports(), time });
     },
     dev: createDevHooks({
@@ -319,8 +360,17 @@ export function createGame(init: ShipSpec | GameState): Game {
       if (controls.board && !dockedAt) {
         const prize = desk.attempt(ship, enemies, rng, events);
         if (prize) {
-          prize.hp = 0;
-          checkEnemySunk(prize, true); // the prize is scuttled: it goes down with a kill's experience (and the boarding bonus)
+          if (fleet.capture(prize)) {
+            // the prize joins the fleet under the captain's flag: the kill's experience and no sinking
+            prize.gone = true;
+            awardXp(st, killXp(prize, true), ship, events);
+            threat++;
+            st.captain.kills++;
+            respawnIn = RESPAWN;
+          } else {
+            prize.hp = 0;
+            checkEnemySunk(prize, true); // no room in the fleet: the prize is scuttled, with a kill's experience (and the boarding bonus)
+          }
         }
       }
       stepPlayerShip(ship, spec, feel(ship), controls, dt, seaEffects(spec, ship.heading, wind.from, sea));
@@ -345,6 +395,8 @@ export function createGame(init: ShipSpec | GameState): Game {
       checkPlayerSunk();
 
       stepEnemies(dt);
+      if (!dockedAt) fleet.step(dt);
+      else for (const f of st.fleet) f.hp = Math.min(getShipSpec(f.specId)?.stats.hp ?? f.hp, f.hp + (getShipSpec(f.specId)?.stats.hp ?? 0) * REPAIR_RATE * dt); // moored: the fleet mends with the flagship
       // Ships that share the sea run into each other.
       const crash = stepCrashes({ ship, spec, maxHp, active: !dockedAt && !sunk }, enemies, npcs.view(wind, giveWay()), (id, dx, dz, dyaw) => npcs.nudge(id, dx, dz, dyaw));
       events.push(...crash.events);
@@ -364,6 +416,11 @@ export function createGame(init: ShipSpec | GameState): Game {
       const enemyViews = enemies.map((e) => {
         const v = enemyView(e, ship, feel(e.ship));
         const crewView = shipCrews.view(`e:${e.id}`, { specId: e.spec.id, rudder: e.ship.rudder, sailTarget: e.ship.sailTarget, reload: e.reload, reloadSeconds: COMBAT.enemyReload }, v.distance);
+        return crewView ? { ...v, crew: crewView } : v;
+      });
+      const consortViews = fleet.consorts().map((c) => {
+        const v = enemyView(c, ship, feel(c.ship));
+        const crewView = shipCrews.view(`c:${c.id}`, { specId: c.spec.id, rudder: c.ship.rudder, sailTarget: c.ship.sailTarget, reload: c.reload, reloadSeconds: COMBAT.playerReload }, v.distance);
         return crewView ? { ...v, crew: crewView } : v;
       });
       const others = npcs.view(wind, giveWay()).map((o) => {
@@ -393,6 +450,7 @@ export function createGame(init: ShipSpec | GameState): Game {
         discoveredIslands: explore.islands(),
         discoveredPorts: explore.ports(),
         enemies: enemyViews,
+        consorts: consortViews,
         balls: ballViews(balls),
         events: drained,
         sunk,

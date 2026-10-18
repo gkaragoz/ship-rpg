@@ -4,6 +4,7 @@ import { el } from './dom';
 import { createMarketTab, reasonText } from './portMarket';
 import { createTavernTab } from './portTavern';
 import { createYardTab } from './portYard';
+import { createFleetTab } from './portFleet';
 import './portPanel.css';
 
 export interface PortPanel {
@@ -31,9 +32,11 @@ export function createPortPanel(host: HTMLElement, onCommand: (cmd: PortCommand)
   const market = createMarketTab(send);
   const tavern = createTavernTab(send);
   const yard = createYardTab(send);
+  const fleet = createFleetTab(send);
   const tabs = [
     { id: 'market', label: 'Pazar', body: market },
     { id: 'yard', label: 'Tersane', body: yard },
+    { id: 'fleet', label: 'Filo', body: fleet },
     { id: 'tavern', label: 'Taverna', body: tavern },
   ] as const;
   const bar = el('div', 'port-tabs');
@@ -83,6 +86,7 @@ export function createPortPanel(host: HTMLElement, onCommand: (cmd: PortCommand)
       if (statusLeft <= 0) status.textContent = '';
       if (active === 'market') market.update(view);
       else if (active === 'tavern') tavern.update(view);
+      else if (active === 'fleet') fleet.update(view);
       else yard.update(view);
     },
     dispose(): void {

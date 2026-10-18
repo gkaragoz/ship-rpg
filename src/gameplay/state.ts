@@ -6,6 +6,18 @@ import type { ShipSpec } from '../ships';
  * so it can go through `JSON` unchanged. Transient things (enemies, balls, reload timers, patrols) are
  * not part of it: after a load the first enemy is spawned afresh, away from the player.
  */
+/** A ship of the captain's fleet besides the flagship (`GameState.ship`). */
+export interface FleetEntry {
+  specId: string;
+  hp: number;
+  rigging: number;
+  /** Sailors aboard, 0 ... its `stats.crew`. */
+  crew: number;
+}
+
+/** Most ships sailing beside the flagship. */
+export const MAX_CONSORTS = 3;
+
 export interface GameState {
   ship: { specId: string; hp: number; rigging: number; flooding: number; fire: number };
   captain: { gold: number; xp: number; kills: number };
@@ -17,6 +29,10 @@ export interface GameState {
   discovered: { islands: string[]; ports: string[] };
   /** Price pressure per port and good (`p`, stamped with the game time `t` it was last set). */
   market: Record<string, Record<string, { p: number; t: number }>>;
+  /** The consorts: bought at a yard or taken as prizes, they sail with the flagship and fight for it. */
+  fleet: FleetEntry[];
+  /** Game second the fleet's upkeep was last paid (at the last port). */
+  upkeepAt: number;
   /** Game seconds: the clock and the weather are pure functions of it. */
   time: number;
 }
@@ -49,6 +65,8 @@ export function newGameState(spec: ShipSpec): GameState {
     pose: startPose(),
     discovered: { islands: [], ports: [] },
     market: {},
+    fleet: [],
+    upkeepAt: 0,
     time: 0,
   };
 }

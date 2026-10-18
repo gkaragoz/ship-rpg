@@ -1,7 +1,8 @@
 import type { CommandResult, PortCommand, ShipOfferView, ShipyardView } from '../core';
 import { SHIP_SPECS, getShipSpec, type ShipSpec } from '../ships';
 import { PORT_ECONOMY } from '../world';
-import { holdUsed, type GameState } from './state';
+import { fleetViews, whyNotConsort } from './fleetYard';
+import { MAX_CONSORTS, holdUsed, type GameState } from './state';
 
 /** Prices and rules of the shipyard. A ship's `stats.price` is in thousands of gold. */
 export const YARD = {
@@ -54,6 +55,9 @@ export function buyShip(st: GameState, current: ShipSpec, portId: string, specId
   return { ok: true, spec: target };
 }
 
+/** Why a ship cannot join the fleet (see `fleetYard.ts`: kept here so the view stays one function). */
+const consortReasonOf = (st: GameState, portId: string, target: ShipSpec): string | null => whyNotConsort(st, portId, target);
+
 export function shipyardView(st: GameState, current: ShipSpec, portId: string): ShipyardView {
   const trade = tradeInValue(st, current);
   const offers: ShipOfferView[] = yardOffers(portId).map((s) => {
@@ -72,9 +76,10 @@ export function shipyardView(st: GameState, current: ShipSpec, portId: string): 
       trim: Math.max(0, st.crew - s.stats.crew),
       current: s.id === current.id,
       reason: reason ?? undefined,
+      consortReason: consortReasonOf(st, portId, s) ?? undefined,
     };
   });
-  return { tradeIn: trade, repairCost: repairCost(st, current), offers };
+  return { tradeIn: trade, repairCost: repairCost(st, current), offers, fleet: fleetViews(st), fleetRoom: MAX_CONSORTS - st.fleet.length };
 }
 
 /**

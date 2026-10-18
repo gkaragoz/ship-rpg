@@ -85,9 +85,13 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
     return w;
   };
   guns.append(gunLabel('Sol (Q)', gunPort.root), gunLabel('Sağ (E)', gunStbd.root));
+  // The captain's other ships: a row with a hull bar for each consort under sail.
+  const fleetBox = el('div', 'hud-fleet');
+  fleetBox.hidden = true;
+  const fleetRows: { name: HTMLElement; fill: HTMLElement; root: HTMLElement }[] = [];
   const captainHud = createCaptainHud();
   const nameEl = el('h3', undefined, shipName);
-  panel.append(nameEl, compass, rows, drive.root, hull.root, rig.root, guns, captainHud.root);
+  panel.append(nameEl, compass, rows, drive.root, hull.root, rig.root, guns, fleetBox, captainHud.root);
 
   // Nearest enemy.
   const target = el('div', 'hud-target');
@@ -132,6 +136,23 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
     },
     update(view): void {
       const { ship, wind, nearestPort, docked, grounded } = view;
+      fleetBox.hidden = view.consorts.length === 0;
+      view.consorts.forEach((c, i) => {
+        let r = fleetRows[i];
+        if (!r) {
+          const b = bar('hud-hull');
+          const name = el('span');
+          const row = el('div', 'hud-fleet-row');
+          row.append(name, b.root);
+          fleetBox.append(row);
+          r = { name, fill: b.fill, root: row };
+          fleetRows[i] = r;
+        }
+        r.root.hidden = false;
+        r.name.textContent = c.sinking >= 0 ? `${c.name} (battı)` : `${c.name}${c.fleeing ? ' (çekiliyor)' : ''}`;
+        r.fill.style.width = pct(c.hp / c.maxHp);
+      });
+      for (let i = view.consorts.length; i < fleetRows.length; i++) (fleetRows[i] as { root: HTMLElement }).root.hidden = true;
       const now = performance.now();
       const dt = Math.min((now - lastClock) / 1000, 0.5);
       lastClock = now;

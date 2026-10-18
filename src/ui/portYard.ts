@@ -12,11 +12,11 @@ export function createYardTab(send: (cmd: PortCommand) => void): { root: HTMLEle
   repair.type = 'button';
   repair.addEventListener('click', () => send({ type: 'repair' }));
   const head = el('div', 'port-yard-row port-head');
-  for (const h of ['Gemi', 'Fiyat', 'Fark', 'Gövde', 'Hız', 'Top', 'Ambar', 'Tayfa', '']) head.append(el('span', undefined, h));
+  for (const h of ['Gemi', 'Fiyat', 'Fark', 'Gövde', 'Hız', 'Top', 'Ambar', 'Tayfa', '', '']) head.append(el('span', undefined, h));
   const list = el('div', 'port-yard-list');
   root.append(info, repair, head, list);
 
-  interface Row { id: string; row: HTMLElement; price: HTMLElement; net: HTMLElement; buy: HTMLButtonElement }
+  interface Row { id: string; row: HTMLElement; price: HTMLElement; net: HTMLElement; buy: HTMLButtonElement; consort: HTMLButtonElement }
   let rows: Row[] = [];
   let key = '';
 
@@ -29,11 +29,14 @@ export function createYardTab(send: (cmd: PortCommand) => void): { root: HTMLEle
       const buy = el('button', undefined, 'Satın al');
       buy.type = 'button';
       buy.addEventListener('click', () => send({ type: 'buyShip', specId: o.specId }));
+      const consort = el('button', undefined, 'Filoya kat');
+      consort.type = 'button';
+      consort.addEventListener('click', () => send({ type: 'buyConsort', specId: o.specId }));
       const price = el('span');
       const net = el('span');
-      row.append(el('span', 'port-name', o.name), price, net, el('span', undefined, String(o.hp)), el('span', undefined, String(o.speed)), el('span', undefined, String(o.cannons)), el('span', undefined, String(o.hold)), el('span', undefined, String(o.crew)), buy);
+      row.append(el('span', 'port-name', o.name), price, net, el('span', undefined, String(o.hp)), el('span', undefined, String(o.speed)), el('span', undefined, String(o.cannons)), el('span', undefined, String(o.hold)), el('span', undefined, String(o.crew)), buy, consort);
       list.append(row);
-      return { id: o.specId, row, price, net, buy };
+      return { id: o.specId, row, price, net, buy, consort };
     });
   };
 
@@ -57,6 +60,8 @@ export function createYardTab(send: (cmd: PortCommand) => void): { root: HTMLEle
         const trimmed = o.trim > 0 ? ` · ${o.trim} tayfa terhis edilir` : '';
         r.buy.title = o.reason ? reasonText({ ok: false, reason: o.reason }) : (o.net < 0 ? `${gold(-o.net)} altın alırsın` : `${gold(o.net)} altına al`) + trimmed;
         r.buy.textContent = o.current ? 'Senin' : 'Satın al';
+        r.consort.disabled = !!o.consortReason;
+        r.consort.title = o.consortReason ? reasonText({ ok: false, reason: o.consortReason }) : `${gold(o.price)} altına filoya kat (eşlik gemisi)`;
       }
     },
   };

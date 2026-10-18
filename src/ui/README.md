@@ -9,6 +9,7 @@ DOM overlays (plain TypeScript + CSS, no framework). Depends on `core` types and
 - `debugOverlay.ts` / `.css` the frame profiler panel (F3): FPS, 1 % low, section times, a frame-time graph, plus the lines a screen adds (`app/debugLines.ts`)
 - `weatherPanel.ts` the "Hava & Zaman" tab of the settings menu: hour slider and quick hours, weather presets, a slider per weather field with an "Oto" button
 - `portPanel.ts` / `portPanel.css` harbour panel while docked: tabs for the market (`portMarket.ts`), the shipyard (`portYard.ts`) and the tavern (`portTavern.ts`); sends `PortCommand`s through the `onCommand` it is given
+- `portFleet.ts` the Filo tab of the harbour panel (the consorts: move the flag, mend, sell)
 - `hudCaptain.ts` gold, level + XP bar, crew and hold rows of the HUD panel, and the boarding / loot / level-up messages
 - `dom.ts` the shared `el()` element helper
 

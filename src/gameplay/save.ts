@@ -1,6 +1,6 @@
 import { getShipSpec } from '../ships';
 import { GOODS, ISLANDS, PORTS, TRADE, WORLD_BOUNDS, getPort } from '../world';
-import { holdUsed, type GameState } from './state';
+import { MAX_CONSORTS, holdUsed, type FleetEntry, type GameState } from './state';
 
 /** The bit of `Storage` the save needs (injectable for tests). */
 export interface StorageLike {
@@ -14,7 +14,7 @@ export interface StorageLike {
  * run's state. When `GameState` gains fields, bump `SAVE_VERSION` and add the step from the old version to `MIGRATIONS`;
  * `sanitizeState` fills in anything missing, so additive fields need a migration only when old values must be converted.
  */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 export interface SaveData {
   version: number;
   savedAt: string;
@@ -23,7 +23,13 @@ export interface SaveData {
 
 /** Steps from version `n` to `n + 1`, applied in order to the raw JSON. */
 export type Migration = (raw: Record<string, unknown>) => Record<string, unknown>;
-export const MIGRATIONS: Readonly<Record<number, Migration>> = {};
+export const MIGRATIONS: Readonly<Record<number, Migration>> = {
+  // 1 -> 2: the fleet. An old run has no consorts and has never paid upkeep.
+  1: (raw) => {
+    const state = isRecord(raw.state) ? raw.state : {};
+    return { ...raw, version: 2, state: { ...state, fleet: [], upkeepAt: typeof state.time === 'number' ? state.time : 0 } };
+  },
+};
 
 export const SAVE_KEY = 'ship-rpg.save';
 
@@ -74,6 +80,16 @@ export function sanitizeState(raw: unknown): GameState | null {
     }
   }
 
+  const fleet: FleetEntry[] = [];
+  if (Array.isArray(raw.fleet)) {
+    for (const f of raw.fleet) {
+      if (fleet.length >= MAX_CONSORTS) break;
+      const fs = isRecord(f) && typeof f.specId === 'string' ? getShipSpec(f.specId) : undefined;
+      if (!isRecord(f) || !fs) continue;
+      fleet.push({ specId: fs.id, hp: num(f.hp, fs.stats.hp, 1, fs.stats.hp), rigging: num(f.rigging, 1, 0, 1), crew: Math.floor(num(f.crew, fs.stats.crew, 0, fs.stats.crew)) });
+    }
+  }
+
   const docked = typeof pose.dockedAt === 'string' && getPort(pose.dockedAt) ? pose.dockedAt : null;
   return {
     ship: {
@@ -99,6 +115,8 @@ export function sanitizeState(raw: unknown): GameState | null {
     },
     discovered: { islands: ids(seen.islands, ISLANDS.map((i) => i.id)), ports: ids(seen.ports, PORTS.map((p) => p.id)) },
     market,
+    fleet,
+    upkeepAt: num(raw.upkeepAt, 0, 0, 1e9),
     time: num(raw.time, 0, 0, 1e9),
   };
 }

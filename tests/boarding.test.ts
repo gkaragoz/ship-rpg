@@ -94,7 +94,7 @@ describe('in the game', () => {
     return game;
   };
 
-  it('boarding a crippled enemy takes gold and goods, a kill, experience, and sinks the prize', () => {
+  it('boarding a crippled enemy takes gold and goods, a kill, experience, and the prize joins the fleet', () => {
     const game = alongside();
     expect(game.view().boarding.available).toBe(true);
     const before = game.view();
@@ -105,9 +105,29 @@ describe('in the game', () => {
     expect(v.captain.xp).toBeGreaterThan(0);
     expect(v.captain.kills).toBe(1);
     expect(v.kills).toBe(1);
-    expect(v.enemies[0]!.sinking).toBeGreaterThanOrEqual(0);
+    // the prize is no enemy any more: it is a consort under the captain's flag, and the state remembers it
+    expect(v.enemies.filter((e) => e.id === before.enemies[0]!.id && e.sinking < 0)).toHaveLength(0);
+    expect(v.consorts).toHaveLength(1);
+    expect(v.consorts[0]!.sinking).toBe(-1);
+    expect(v.consorts[0]!.nation).toBe('free');
+    expect(game.state().fleet).toHaveLength(1);
     expect(v.cargo.used).toBeLessThanOrEqual(v.cargo.capacity);
     expect(v.company.count).toBeLessThanOrEqual(before.company.count);
+  });
+
+  it('with a full fleet the prize is scuttled instead: it sinks', () => {
+    const base = createGame(brig).state();
+    const game = createGame({ ...base, fleet: [0, 1, 2].map(() => ({ specId: 'sloop', hp: 600, rigging: 1, crew: 50 })) });
+    const foe = game.view().enemies[0]!;
+    game.dev.damageEnemies(0.3);
+    game.dev.teleportPlayer(foe.x + 15, foe.z);
+    game.update(DT, idle);
+    expect(game.view().boarding.available).toBe(true);
+    game.update(DT, { ...idle, board: true });
+    const v = game.view();
+    expect(v.events.some((e) => e.type === 'boarded' && e.won)).toBe(true);
+    expect(v.consorts).toHaveLength(3);
+    expect(v.enemies[0]!.sinking).toBeGreaterThanOrEqual(0);
   });
 
   it('a beaten party loses its crew and must wait before trying again', () => {

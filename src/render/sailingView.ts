@@ -225,12 +225,14 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       lastClock = now;
       const dims = player?.dims ?? { length: 20, beam: 6 };
 
+      // the captain's other ships are drawn, wake and spray included, like the enemies
+      const afloat = view.consorts.length > 0 ? { ...view, enemies: [...view.enemies, ...view.consorts] } : view;
       if (player) place(player, ship, view.sunk ? view.sinkTime : -1, time, wind.from, ampScale);
-      for (const e of view.enemies) {
+      for (const e of afloat.enemies) {
         const a = actors.get(e.id);
         if (a) place(a, e, e.sinking, time, wind.from, ampScale);
       }
-      emitShipEffects(effects, view, player, actors, dt);
+      emitShipEffects(effects, afloat, player, actors, dt);
 
       // Cannonballs as one instanced mesh.
       const n = Math.min(view.balls.length, MAX_BALLS);
@@ -272,7 +274,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       camera.position.y = Math.max(camera.position.y, 1.5);
 
       // Ships and splashes paint foam and ripples into the wake map, which the sea then shows.
-      collectStamps(view, dt, player?.dims ?? null, (id) => actors.get(id)?.dims ?? null, camera.position.x, camera.position.z, env.wake.size / 2, stamps, env.sunShadow());
+      collectStamps(afloat, dt, player?.dims ?? null, (id) => actors.get(id)?.dims ?? null, camera.position.x, camera.position.z, env.wake.size / 2, stamps, env.sunShadow());
       const focus = player ? { position: player.model.position, length: player.dims.length } : undefined;
       const hung = [
         ...(player ? [{ root: player.model, length: player.dims.length }] : []),
@@ -295,7 +297,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       fleet.update(view, camera, ampScale);
       scenery.update(camera);
       crew?.update(view.crew, camera);
-      for (const e of view.enemies) shipCrews.update(`e:${e.id}`, actors.get(e.id)?.model, e.crew, camera);
+      for (const e of afloat.enemies) shipCrews.update(`e:${e.id}`, actors.get(e.id)?.model, e.crew, camera);
       for (const o of view.others) shipCrews.update(`o:${o.id}`, fleetShips[o.id]?.root, o.crew, camera);
       shipCrews.endFrame();
       shake = decayShake(shake, dt);

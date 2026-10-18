@@ -25,3 +25,5 @@ Public API: `createGame(spec | state)` → `{ spec, update(dt, controls), view()
 `game.dev` (damageEnemies, teleportPlayer, setKills, setRigging, setAffliction, setSea, setGold, setCrew, addXp; `Game.setClock` and `Game.setWeather` are the public ways to set the hour and the weather) are hooks for tests and the browser console: in dev the running game is on `window.__game` (e.g. `__game.dev.setKills(4)` brings three enemies). The game never calls them. Note `view()` drains events, so calling it from the console can swallow a frame's effects.
 
 Fixed-step only (see `core/loop.ts`); no wall-clock time. Quests and factions will live here (5e). Randomness comes from the seeded `core/rng`.
+
+- `fleet.ts` (consort hulls as enemy-shaped ships, `stationOf`, `consortOrders`, launch and write-back), `fleetDirector.ts` (the fleet at sea: stepping the consorts, hits, sinking, capture of a prize), `fleetYard.ts` (yard commands for consorts: buy, sell, repair, move the flag; upkeep; `FLEET` constants).

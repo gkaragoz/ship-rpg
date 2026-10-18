@@ -39,7 +39,7 @@ const OK: CommandResult = { ok: true };
 /** Carry out a port command on the run's state; `portId` is where the ship is moored (null at sea: nothing is possible). */
 export function runCommand(st: GameState, spec: ShipSpec, portId: string | null, time: number, cmd: PortCommand): CommandResult {
   if (!portId) return fail('not-docked');
-  if (cmd.type === 'buyShip' || cmd.type === 'repair') return fail('bad-qty'); // the game handles these: they change the ship itself
+  if (cmd.type !== 'buy' && cmd.type !== 'sell' && cmd.type !== 'hire' && cmd.type !== 'discharge') return fail('bad-qty'); // the game handles the yard's commands: they change the ships themselves
   const qty = Math.floor(cmd.qty);
   if (!(qty >= 1)) return fail('bad-qty');
   switch (cmd.type) {

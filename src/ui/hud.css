@@ -43,6 +43,10 @@
 }
 .hud-speed.held { border-color: #e8643c; color: #ffb199; }
 .hud-speed[hidden] { display: none; }
+.hud-fleet { margin: 6px 0 2px; }
+.hud-fleet[hidden] { display: none; }
+.hud-fleet-row { display: grid; grid-template-columns: 8.5em 1fr; gap: 6px; align-items: center; font-size: 12px; color: #9fd8a0; margin: 2px 0; }
+.hud-fleet-row[hidden] { display: none; }
 .hud-help {
   position: absolute; left: 50%; top: 12px; transform: translateX(-50%); padding: 4px 12px; font-size: 13px;
   background: rgba(11, 26, 36, 0.7); border-radius: 4px; white-space: nowrap;

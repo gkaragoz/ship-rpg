@@ -48,6 +48,7 @@ export interface Doctrine {
 }
 const DOCTRINES: Record<string, Doctrine> = {
   pirate: { closing: 0.45, surrender: 0 },
+  free: { closing: 0.45, surrender: 0 },
   default: { closing: 0.4, surrender: 0.5 },
 };
 export const doctrineFor = (nation: string): Doctrine => DOCTRINES[nation] ?? (DOCTRINES.default as Doctrine);

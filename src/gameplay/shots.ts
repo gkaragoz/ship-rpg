@@ -4,12 +4,15 @@ import { terrainHeight } from '../world';
 import { COMBAT, ballHitZone, ballSpeed, hitNormal, stepBall, type Ball } from './combat';
 import { strike } from './damage';
 import type { Enemy } from './enemy';
+import type { Consort } from './fleet';
 import type { PlayerShip } from './sailing';
 
 /** What a cannonball can meet, and what happens when it does: the game fills this in once per step. */
 export interface ShotWorld {
   player: { ship: PlayerShip; spec: ShipSpec; maxHp: number; /** False while moored (safe in harbour) or sunk. */ targetable: boolean };
   enemies: readonly Enemy[];
+  /** The captain's other ships under sail: the enemies' balls can hit them too. */
+  consorts: readonly Consort[];
   rng: () => number;
   /** Height of the sea surface under a point (m). */
   surfaceAt(x: number, z: number): number;
@@ -17,6 +20,7 @@ export interface ShotWorld {
   /** The hull points a hit took off the player, or off one enemy (the game does the bookkeeping: hp, sinking). */
   onPlayerHit(lost: number, zone: HitZone): void;
   onEnemyHit(enemy: Enemy, lost: number): void;
+  onConsortHit(consort: Consort, lost: number): void;
 }
 
 /**
@@ -31,6 +35,15 @@ export function resolveBall(b: Ball, w: ShotWorld): boolean {
       const n = hitNormal(b, w.player.ship);
       w.emit({ type: 'hit', owner: 'enemy', x: b.x, y: b.y, z: b.z, amount: lost, zone, nx: n.x, nz: n.z, speed: ballSpeed(b) });
       w.onPlayerHit(lost, zone);
+      return true;
+    }
+    for (const c of w.consorts) {
+      const hit = c.sinking < 0 ? ballHitZone(b, c.ship, c.spec) : null;
+      if (!hit) continue;
+      const lost = strike(c.ship, hit, b.damage, c.maxHp, w.rng());
+      const n = hitNormal(b, c.ship);
+      w.emit({ type: 'hit', owner: 'enemy', x: b.x, y: b.y, z: b.z, amount: lost, zone: hit, nx: n.x, nz: n.z, speed: ballSpeed(b) });
+      w.onConsortHit(c, lost);
       return true;
     }
   } else {

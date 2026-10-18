@@ -348,6 +348,23 @@ export interface ShipOfferView {
   current: boolean;
   /** Why it cannot be bought now: not-sold, same-ship, hold-too-small or no-gold. */
   reason?: string;
+  /** Why it cannot join the fleet instead: not-sold, fleet-full or no-gold. */
+  consortReason?: string;
+}
+
+/** A ship of the fleet, as the port panel lists it. */
+export interface FleetShipView {
+  index: number;
+  specId: string;
+  name: string;
+  hp: number;
+  maxHp: number;
+  rigging: number;
+  crew: number;
+  maxCrew: number;
+  /** Gold for a full repair, and what the yard pays for it. */
+  repairCost: number;
+  sellPrice: number;
 }
 
 export interface ShipyardView {
@@ -355,6 +372,9 @@ export interface ShipyardView {
   tradeIn: number;
   repairCost: number;
   offers: readonly ShipOfferView[];
+  /** The consorts, and how many more the fleet has room for. */
+  fleet: readonly FleetShipView[];
+  fleetRoom: number;
 }
 
 /** What the docked port offers (the port panel's tabs). */
@@ -372,9 +392,11 @@ export type PortCommand =
   | { type: 'buy' | 'sell'; good: string; qty: number }
   | { type: 'hire' | 'discharge'; qty: number }
   | { type: 'buyShip'; specId: string }
-  | { type: 'repair' };
+  | { type: 'repair' }
+  | { type: 'buyConsort'; specId: string }
+  | { type: 'sellConsort' | 'repairConsort' | 'flagship'; index: number };
 
-/** `reason` is a code the UI words: not-docked, bad-qty, bad-good, no-gold, no-space, no-stock, crew-full, no-crew, not-sold, same-ship, hold-too-small, nothing-to-repair. */
+/** `reason` is a code the UI words: not-docked, bad-qty, bad-good, no-gold, no-space, no-stock, crew-full, no-crew, not-sold, same-ship, hold-too-small, nothing-to-repair, fleet-full, no-such-ship. */
 export interface CommandResult {
   ok: boolean;
   reason?: string;
@@ -409,6 +431,8 @@ export interface GameView {
   /** Ids of ports the player has seen. */
   discoveredPorts: readonly string[];
   enemies: readonly EnemyView[];
+  /** The captain's other ships under sail (empty while moored): drawn like the enemies, on the player's side. */
+  consorts: readonly EnemyView[];
   balls: readonly BallView[];
   /** Drained by each `view()` call: render once per frame from it. */
   events: readonly GameEvent[];

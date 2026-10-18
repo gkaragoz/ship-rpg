@@ -145,12 +145,12 @@ export function createMapUi(host: HTMLElement): MapUi {
 
     // Enemy ships afloat, as triangles in their flag colour (radar: shown on the minimap, not the chart).
     if (!labels) {
-      for (const e of view.enemies) {
+      for (const e of [...view.enemies, ...view.consorts]) {
         if (e.sinking >= 0) continue;
         ctx.save();
         ctx.translate(sx(e.x), sy(e.z));
         ctx.rotate(-e.heading);
-        ctx.fillStyle = `#${getNation(e.nation).flag.toString(16).padStart(6, '0')}`;
+        ctx.fillStyle = e.id.startsWith('c') ? '#7bd88a' : `#${getNation(e.nation).flag.toString(16).padStart(6, '0')}`; // the captain's own ships are green
         ctx.strokeStyle = '#f3ead2';
         ctx.lineWidth = 1;
         ctx.beginPath();
