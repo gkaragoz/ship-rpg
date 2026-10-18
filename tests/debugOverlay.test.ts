@@ -24,7 +24,7 @@ describe('profiler panel lines', () => {
     const lines = profilerLines(stats, 'mini', 50);
     expect(lines).toHaveLength(2);
     expect(lines[0]).toContain('FPS');
-    expect(lines[0]).toMatch(/FPSs+6[23]/);
+    expect(lines[0]).toMatch(/FPS\s+6[23]/);
     expect(lines[1]).toContain('16.00 ms');
   });
 
