@@ -1,10 +1,11 @@
 # render
 
-three.js scenes. Depends on `core` types only (it receives plain `THREE.Object3D` models and `GameView` snapshots); never reads `gameplay` or `ships` internals.
+three.js scenes. Depends on `core` types, `ships`-free (it receives plain `THREE.Object3D` models) and reads static data from `world`; never reads `gameplay`.
 
 - `galleryView.ts` orbit stage for browsing ships, frames the model in the area not covered by panels
-- `sailingView.ts` open-sea scene: ocean, sky, chase camera, ship rides the waves
-- `waves.ts` the sea surface definition: `waveHeight` on the CPU and `waveGlsl` for the vertex shader come from the same table, keep them together
-- `ocean.ts` wave-displaced, flat-shaded sea (also exports `SUN_DIR`, `HORIZON_COLOR`), `sky.ts` gradient dome
+- `sailingView.ts` open-sea scene: ocean, sky, island scenery, chase camera, ship rides the waves
+- `waves.ts` the sea surface definition: `waveHeight` on the CPU and `waveGlsl` for the vertex shader come from the same table, keep them together; short waves fade with distance (`lod`)
+- `ocean.ts` fine near mesh + coarse far mesh to the horizon, shallows and shore foam from a baked depth texture (`FOG_NEAR`/`FOG_FAR`, `SUN_DIR`, `HORIZON_COLOR`), `sky.ts` gradient dome
+- `scenery.ts` per-island terrain mesh, cone trees, port towns (houses, pier, flag, name sprite)
 
-Dispose every renderer, geometry and control you create (see each `dispose()`).
+Dispose every renderer, geometry, texture and control you create (see each `dispose()`).

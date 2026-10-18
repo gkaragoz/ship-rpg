@@ -10,7 +10,7 @@ const ALLOWED = {
   world: ['core'],
   render: ['core', 'ships', 'world'],
   gameplay: ['core', 'ships', 'world'],
-  ui: ['core', 'gameplay'],
+  ui: ['core', 'gameplay', 'world'],
 };
 
 const forbiddenFor = (mod) =>

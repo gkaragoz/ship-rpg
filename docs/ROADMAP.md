@@ -11,5 +11,14 @@
   - [ ] sea detail: far water looks soft/smeared (flat-shaded 2.5 m grid); add a fine normal layer or foam
   - [ ] touch controls (no on-screen steering, sails or exit on mobile yet)
   - [ ] measure frame rate on a real browser/GPU (the embedded pane throttles rAF, so 60 fps is unverified; ocean is 360×360 segments)
-- [ ] 4. Islands, ports, navigation
+- [x] 4. Islands, ports, navigation (11 ports on 8 islands, grounding, docking, fog-of-war chart and minimap)
+  - [ ] polish: harbour town detail (forts, docks, ships at anchor), beach waves
+  - [ ] polish: coast sounding/depth warning on the HUD
+  - [ ] save/load of discovered map and position
+  - [ ] visual: shallows show large flat facets (smooth the depth tint), far sea shows horizontal banding (near/far seam or aliasing: investigate), island labels clipped at the top edge or hidden behind the minimap
+  - [ ] chart: fixed extent clips the ship marker near the south edge; no touch way to close it
+  - [ ] runtime check of grounding in the browser (covered by unit tests only; upwind approaches end in irons)
+  - [ ] ports feel empty: NPC ships sailing between islands (phase 5)
+  - [ ] harbour services (market, shipyard to buy/switch ships, tavern) behind the placeholder panel (phase 5)
+  - [ ] tests: HUD bearing maths now also cover the nearest-port bearing; `createGame` dock speed limit; reachability of every anchorage for the deepest keel
 - [ ] 5. Combat, trade, RPG layer

@@ -4,4 +4,4 @@ export type { LoopHandlers } from './loop';
 export { clamp, lerp, smoothstep, wrapAngle, angleDiff } from './math';
 export { createInput } from './input';
 export type { Input } from './input';
-export type { Controls, GameView, ShipView, WindView } from './views';
+export type { Controls, GameView, PortView, ShipView, WindView } from './views';

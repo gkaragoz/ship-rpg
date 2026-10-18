@@ -30,7 +30,7 @@ describe('waveHeight', () => {
 /** Evaluate the emitted GLSL terms in JS, to prove shader and CPU waves are the same function. */
 function evalGlsl(glsl: string, x: number, z: number, time: number, wind: number, amp: number): number {
   const term =
-    /h \+= ([\d.]+) \* sin\(([\d.]+) \* dot\(p, vec2\(cos\(uWind \+ ([\d.]+)\), -sin\(uWind \+ ([\d.]+)\)\)\) - ([\d.]+) \* uTime\);/g;
+    /h \+= ([\d.]+) \* sin\(([\d.]+) \* dot\(p, vec2\(cos\(uWind \+ ([\d.]+)\), -sin\(uWind \+ ([\d.]+)\)\)\) - ([\d.]+) \* uTime\)( \* lod)?;/g;
   let h = 0;
   for (const m of glsl.matchAll(term)) {
     const [a, k, phase, , omega] = [m[1], m[2], m[3], m[4], m[5]].map(Number) as [number, number, number, number, number];
@@ -53,7 +53,7 @@ describe('waveGlsl', () => {
 
   it('emits one term per wave using the shared uniforms', () => {
     const glsl = waveGlsl();
-    expect(glsl).toContain('float oceanHeight(vec2 p)');
+    expect(glsl).toContain('float oceanHeight(vec2 p, float lod)');
     expect(glsl.match(/h \+= /g)).toHaveLength(WAVES.length);
     expect(glsl).toContain('uTime');
     expect(glsl).toContain('uWind');

@@ -37,13 +37,20 @@ export function waveHeight(x: number, z: number, time: number, windFrom: number,
   return h * ampScale;
 }
 
-/** GLSL `float oceanHeight(vec2 p)` matching `waveHeight`; needs uniforms uTime, uWind, uAmp. */
+/** Waves shorter than this fade out with distance (`lod`) so far water does not shimmer. */
+const SHORT_WAVE = 50;
+
+/**
+ * GLSL `float oceanHeight(vec2 p, float lod)` matching `waveHeight` at lod = 1; needs
+ * uniforms uTime, uWind, uAmp. `lod` (1 near, 0 far) scales the short waves.
+ */
 export function waveGlsl(): string {
   const f = (n: number): string => n.toFixed(6);
   const terms = WAVES.map((w) => {
     const { k, omega } = wave(w.length);
     const a = `uWind + ${f(Math.PI + w.dir)}`;
-    return `  h += ${f(w.amplitude)} * sin(${f(k)} * dot(p, vec2(cos(${a}), -sin(${a}))) - ${f(omega)} * uTime);`;
+    const fade = w.length < SHORT_WAVE ? ' * lod' : '';
+    return `  h += ${f(w.amplitude)} * sin(${f(k)} * dot(p, vec2(cos(${a}), -sin(${a}))) - ${f(omega)} * uTime)${fade};`;
   });
-  return `float oceanHeight(vec2 p) {\n  float h = 0.0;\n${terms.join('\n')}\n  return h * uAmp;\n}`;
+  return `float oceanHeight(vec2 p, float lod) {\n  float h = 0.0;\n${terms.join('\n')}\n  return h * uAmp;\n}`;
 }

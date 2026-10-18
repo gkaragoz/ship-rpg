@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { GameView } from '../core';
 import { clamp } from '../core';
 import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR, createOcean } from './ocean';
+import { createScenery } from './scenery';
 import { createSky } from './sky';
 import { waveHeight } from './waves';
 
@@ -36,9 +37,10 @@ export function createSailingView(host: HTMLElement): SailingView {
 
   const ocean = createOcean();
   const sky = createSky();
-  scene.add(ocean.mesh, sky.mesh);
+  const scenery = createScenery();
+  scene.add(ocean.object, sky.mesh, scenery.group);
 
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 4000);
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 6000);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enablePan = false;
   controls.enableDamping = true;
@@ -126,6 +128,7 @@ export function createSailingView(host: HTMLElement): SailingView {
       controls.dispose();
       ocean.dispose();
       sky.dispose();
+      scenery.dispose();
       renderer.dispose();
       renderer.forceContextLoss(); // release the WebGL context; browsers cap how many stay alive
       renderer.domElement.remove();

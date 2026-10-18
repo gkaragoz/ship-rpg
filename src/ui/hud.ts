@@ -25,7 +25,8 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const compass = el('div', 'hud-compass');
   const bow = el('div', 'hud-bow');
   const arrow = el('div', 'hud-wind');
-  compass.append(bow, arrow);
+  const portMark = el('div', 'hud-port');
+  compass.append(bow, arrow, portMark);
   const rows = el('dl');
   const rowValue = (label: string): HTMLElement => {
     const dd = el('dd');
@@ -37,17 +38,20 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const windEl = rowValue('Rüzgâr');
   const sailEl = rowValue('Yelken');
   const driveEl = rowValue('Verim');
+  const portEl = rowValue('Liman');
   const drive = el('div', 'hud-bar');
   const driveFill = el('div');
   drive.append(driveFill);
   panel.append(el('h3', undefined, shipName), compass, rows, drive);
 
-  const help = el('div', 'hud-help', 'A / D dümen · W / S yelken · Fare: kamera · Esc: galeri');
-  root.append(panel, help);
+  const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · E liman · M harita · Fare: kamera · Esc: galeri');
+  const prompt = el('div', 'hud-prompt');
+  prompt.hidden = true;
+  root.append(panel, help, prompt);
   host.appendChild(root);
 
   return {
-    update({ ship, wind }): void {
+    update({ ship, wind, nearestPort, docked, grounded }): void {
       headingEl.textContent = `${bearing(ship.heading).toFixed(0).padStart(3, '0')}°`;
       speedEl.textContent = `${ship.knots.toFixed(1)} / ${ship.maxKnots.toFixed(1)}`;
       windEl.textContent = `${bearing(wind.from).toFixed(0).padStart(3, '0')}° · ${wind.speed.toFixed(1)} m/s`;
@@ -59,6 +63,35 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
       // The arrow is drawn pointing at the stern (wind from dead ahead); rotating it by the
       // wind's relative bearing makes it point where the wind blows toward.
       arrow.style.transform = `rotate(${(ship.heading - wind.from) * DEG}deg)`;
+
+      // Nearest port: distance, compass bearing and a marker on the compass ring.
+      portMark.hidden = !nearestPort;
+      if (nearestPort) {
+        const km = nearestPort.distance >= 1000;
+        const dist = km ? `${(nearestPort.distance / 1000).toFixed(1)} km` : `${Math.round(nearestPort.distance)} m`;
+        portEl.textContent = `${nearestPort.name} · ${dist} · ${bearing(nearestPort.direction).toFixed(0).padStart(3, '0')}°`;
+        portMark.style.transform = `rotate(${(ship.heading - nearestPort.direction) * DEG}deg)`;
+      } else {
+        portEl.textContent = '—';
+      }
+
+      if (grounded) {
+        prompt.hidden = false;
+        prompt.textContent = 'Karaya oturdun! Dümeni kır, kıçtan çık.';
+        prompt.className = 'hud-prompt hud-warn';
+      } else if (docked) {
+        prompt.hidden = true;
+      } else if (nearestPort?.dockable) {
+        prompt.hidden = false;
+        prompt.textContent = `${nearestPort.name} limanına gir [E]`;
+        prompt.className = 'hud-prompt';
+      } else if (nearestPort && nearestPort.distance < 200) {
+        prompt.hidden = false;
+        prompt.textContent = 'Limana girmek için yavaşla (W/S: yelken)';
+        prompt.className = 'hud-prompt';
+      } else {
+        prompt.hidden = true;
+      }
     },
     dispose(): void {
       root.remove();
