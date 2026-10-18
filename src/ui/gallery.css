@@ -1,0 +1,38 @@
+.gallery { position: fixed; inset: 0; pointer-events: none; font-family: Georgia, 'Times New Roman', serif; color: #f3ead2; }
+.gallery > * { pointer-events: auto; }
+.gallery-list {
+  position: absolute; top: 12px; left: 12px; bottom: 12px; width: 190px; padding: 12px;
+  overflow-y: auto; background: rgba(11, 26, 36, 0.82); border: 1px solid #c9a227; border-radius: 6px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.gallery-list h1 { margin: 0 0 8px; font-size: 18px; color: #e0b840; }
+.gallery-list h2 { margin: 12px 0 4px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #9fb7c4; }
+.gallery-list button {
+  text-align: left; padding: 6px 8px; background: transparent; color: inherit; font: inherit; font-size: 15px;
+  border: 1px solid transparent; border-radius: 4px; cursor: pointer;
+}
+.gallery-list button:hover { background: rgba(201, 162, 39, 0.18); }
+.gallery-list button.active { border-color: #c9a227; background: rgba(201, 162, 39, 0.3); }
+.gallery-card {
+  position: absolute; left: 230px; right: 12px; bottom: 12px; max-width: 640px; padding: 12px 16px;
+  background: rgba(11, 26, 36, 0.82); border: 1px solid #c9a227; border-radius: 6px;
+}
+.gallery-card h3 { margin: 0 0 4px; font-size: 22px; color: #e0b840; }
+.gallery-card p { margin: 0 0 8px; font-size: 14px; line-height: 1.4; }
+.gallery-card dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px 12px; margin: 0 0 8px; font-size: 13px; }
+.gallery-card dt { color: #9fb7c4; }
+.gallery-card dd { margin: 0 0 4px; font-weight: bold; }
+.gallery-rotate { font-size: 13px; cursor: pointer; }
+@media (max-width: 700px) {
+  .gallery-list {
+    top: 8px; left: 8px; right: 8px; bottom: auto; width: auto; padding: 6px 8px;
+    flex-direction: row; align-items: center; gap: 4px; overflow-x: auto; overflow-y: hidden;
+  }
+  .gallery-list h1 { display: none; }
+  .gallery-list h2 { margin: 0 2px 0 8px; white-space: nowrap; }
+  .gallery-list button { white-space: nowrap; }
+  .gallery-card { left: 8px; right: 8px; bottom: 8px; max-width: none; padding: 8px 12px; }
+  .gallery-card h3 { font-size: 18px; }
+  .gallery-card p { font-size: 13px; margin-bottom: 4px; }
+  .gallery-card dl { grid-template-columns: repeat(4, 1fr); gap: 2px 8px; font-size: 12px; }
+}

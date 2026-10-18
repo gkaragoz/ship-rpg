@@ -20,4 +20,4 @@ input → gameplay state (fixed update) → render reads state (per frame, inter
 `core` owns read-only view types (e.g. `GameView`, `ShipView`: position, heading, sail trim). `gameplay` produces objects satisfying them; `main.ts` passes the view to `render` each frame. So `render` depends only on `core` types, never on `gameplay`. Define these types in phase 3.
 
 ## Status
-Only `core` exists. The bare three.js scene is temporarily inline in `src/main.ts`; phase 2 moves it into `render`. See `ROADMAP.md`.
+Phase 2 done: `core` (loop), `ships` (specs + procedural factory), `render` (gallery stage), `ui` (gallery panel), composed in `main.ts`. `world` and `gameplay` do not exist yet. `render` currently receives a plain `THREE.Object3D` from `main.ts`, so it does not import `ships`. See `ROADMAP.md`.
