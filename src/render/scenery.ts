@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import { ISLANDS, PORTS, fbm, hash2, terrainHeight, type Island, type Port } from '../world';
+import { ISLANDS, PORTS, fbm, getNation, hash2, terrainHeight, type Island, type Port } from '../world';
+import { planNature, planTown } from './townPlan';
+import { instancePlacements, type InstancedSet } from './worldInstances';
+import { getWorldKit } from './worldKit';
 
 const CELL = 6;
 const SAND = new THREE.Color(0xe6d6a0);
@@ -9,8 +12,13 @@ const ROCK = new THREE.Color(0x8b8478);
 
 export interface Scenery {
   group: THREE.Group;
+  /** Swap the levels of detail of towns and forests by the camera's distance (a no-op without the world kit). */
+  update(camera: THREE.Camera): void;
   dispose(): void;
 }
+
+/** Within this distance (m) of a town or island a set draws its whole props; beyond it the cheap ones. */
+const NEAR = 480;
 
 function indexedGeometry(positions: number[], indices: number[]): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
@@ -128,8 +136,8 @@ function labelSprite(text: string): THREE.Sprite {
   return sprite;
 }
 
-/** Houses, a pier, a flag and a name label for one port. */
-function buildTown(port: Port): THREE.Group {
+/** A port town: the world kit's buildings and pier when `set` is there, else procedural boxes; always a flag and a name label. */
+function buildTown(port: Port, set: InstancedSet | null): THREE.Group {
   const g = new THREE.Group();
   g.name = `town-${port.id}`;
   const dir = new THREE.Vector2(Math.cos(port.outward), Math.sin(port.outward));
@@ -185,14 +193,15 @@ function buildTown(port: Port): THREE.Group {
   pole.position.set(port.town.x, topH + 7, port.town.z);
   const flag = new THREE.Mesh(
     new THREE.PlaneGeometry(5, 3),
-    new THREE.MeshBasicMaterial({ color: 0xc0392b, side: THREE.DoubleSide }),
+    new THREE.MeshBasicMaterial({ color: getNation(port.nation).flag, side: THREE.DoubleSide }),
   );
   flag.position.set(port.town.x + 2.5, topH + 12, port.town.z);
 
   const label = labelSprite(port.name);
   label.position.set(port.town.x, topH + 34, port.town.z);
 
-  g.add(walls, roofs, pier, pole, flag, label);
+  if (set) g.add(set.near, set.far, pole, flag, label);
+  else g.add(walls, roofs, pier, pole, flag, label);
   return g;
 }
 
@@ -200,20 +209,41 @@ function buildTown(port: Port): THREE.Group {
 export function createScenery(): Scenery {
   const group = new THREE.Group();
   group.name = 'scenery';
+  const kit = getWorldKit();
+  /** A set of props with the point it is judged from (a town's centre, an island's) and how far its props reach. */
+  const sets: { set: InstancedSet; x: number; z: number; reach: number }[] = [];
   for (const island of ISLANDS) {
     group.add(buildTerrain(island));
-    const trees = buildTrees(island);
-    if (trees) group.add(trees);
+    const nature = kit ? instancePlacements(kit, planNature(island), `nature-${island.id}`) : null;
+    if (nature) {
+      group.add(nature.near, nature.far);
+      sets.push({ set: nature, x: island.x, z: island.z, reach: island.radius * 1.4 });
+    } else {
+      const trees = buildTrees(island);
+      if (trees) group.add(trees);
+    }
   }
-  for (const port of PORTS) group.add(buildTown(port));
+  for (const port of PORTS) {
+    const town = kit ? instancePlacements(kit, planTown(port), `town-${port.id}`) : null;
+    if (town) sets.push({ set: town, x: port.town.x, z: port.town.z, reach: 80 });
+    group.add(buildTown(port, town));
+  }
+  for (const s of sets) s.set.show(1);
 
   return {
     group,
+    update(camera): void {
+      const { x, z } = camera.position;
+      for (const s of sets) s.set.show(Math.hypot(s.x - x, s.z - z) - s.reach < NEAR ? 0 : 1);
+    },
     dispose(): void {
       group.traverse((o) => {
-        if (o instanceof THREE.Mesh || o instanceof THREE.InstancedMesh) {
+        if (o instanceof THREE.InstancedMesh) {
+          o.dispose(); // instance matrix / colour buffers
+          if (o.userData.shared) return; // the kit's geometry and material are not ours
+        }
+        if (o instanceof THREE.Mesh) {
           o.geometry.dispose();
-          if (o instanceof THREE.InstancedMesh) o.dispose(); // instance matrix / colour buffers
           const m = o.material;
           for (const mat of Array.isArray(m) ? m : [m]) {
             if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshBasicMaterial) mat.dispose();

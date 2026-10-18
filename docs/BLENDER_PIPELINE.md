@@ -42,6 +42,9 @@ Headless smoke test (about 5 s for the flat-colour ships, 5–10 s per PBR ship)
 6. Test headless first: `blender -b --factory-startup --python tools/blender/make_ships.py`, then let the LLM run it in the GUI.
 7. Re-run is idempotent (outputs overwritten, scratch objects removed). Dependencies: only `bpy`, `bmesh`, `numpy`, `mathutils`.
 
+## World props (`make_world.py`)
+One call builds all 29 buildings, trees, rocks, boats and harbour props (`public/models/world/`, contract in `WORLD_ASSETS.md`): same wrapper with `p = ".../tools/blender/make_world.py"` and `result = g["RESULT"]` not needed (it prints a table and raises one `ValueError` per bad prop; about 2 s headless). Flat-colour atlas, `shipkit.MB` boxes, spars and icospheres, no textures to bake.
+
 ## Generic ships (`make_ships.py`)
 `tools/blender/ships.json` is exported from `src/ships/specs.ts` (`npm run export:specs`; `tests/shipsJson.test.ts` fails when it is stale).
 `shipbuilder.py` ports `hullShape`, `hull`, `castles`, `rig` (square, gaff, lug, lateen, spanker, shrouds, tops, pennant, bowsprit, jibs) and `details`

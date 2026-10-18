@@ -18,6 +18,6 @@ three.js scenes. Depends on `core` types and static `world` data. It may import 
 - `shipCrews.ts` the sailors of enemies and patrols; `crewPoses.ts` hand-made poses laid over the idle clip; `swimmers.ts` + `swimmerSim.ts` sailors thrown overboard that swim and drown
 - `ride.ts` floats patrol ships on the waves (and draws simulated ships with their own motion)
 - `portZones.ts` the gold entry rectangle, corner posts and anchor sign of every port near the ship (`world`'s `PORT_ZONE`)
-- `scenery.ts` per-island terrain mesh, cone trees, port towns (houses, pier, flag, name sprite)
+- `scenery.ts` per-island terrain mesh, port towns (flag, name sprite) and, from the world kit, their buildings and the island's trees (`worldKit.ts` loader, `townPlan.ts` what goes where, `worldInstances.ts` instanced levels of detail; procedural boxes and cones without the file)
 
 Dispose every renderer, geometry, texture and control you create (see each `dispose()`).

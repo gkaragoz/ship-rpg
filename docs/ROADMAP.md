@@ -31,7 +31,8 @@
   - [x] sails in folded states: fold field below the grid's sampling limit, bounded fold normals, jibs offset in z (`docs/SHIPS.md`)
   - [x] sea chart redone as an old parchment chart (zoom/pan, fog, grid, rose, route, tinted islands) in `ui/chart/`
   - [x] crews on every ship (enemies, patrols), work on deck (helm, climbing, hauling, loading and firing), sailors flung overboard by hits and spilled by sinkings that swim and drown (`docs/CREW.md`; `tests/crewJobs.test.ts`, `tests/swimmers.test.ts`)
-  - [ ] polish: harbour town detail (forts, docks, ships at anchor), beach waves
+  - [x] harbour town detail: 29 Blender world props (houses by nation, church, fort, lighthouse, windmill, crane, piers, boats, palms, pines, rocks) planned per port and island (`docs/WORLD_ASSETS.md`, `render/townPlan.ts`)
+  - [ ] polish: ships at anchor, beach waves
   - [ ] polish: coast sounding/depth warning on the HUD
   - [x] save/load of discovered map and position (5f)
   - [ ] layout: at ~800 px width the dock hint overlaps the HUD compass and the harbour panel touches the minimap; check the mobile hint toast

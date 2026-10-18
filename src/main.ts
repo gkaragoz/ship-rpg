@@ -1,6 +1,6 @@
 import { createProfiler, startLoop } from './core';
 import { getSettings } from './settings';
-import { loadCrewAssets } from './render';
+import { loadCrewAssets, loadWorldAssets } from './render';
 import { loadShipAssets, requestShipAsset, getShipSpec, type ShipSpec } from './ships';
 import type { GameState } from './gameplay';
 import { createGameSaves, describeSave } from './app/saves';
@@ -42,7 +42,7 @@ function showSailing(init: ShipSpec | GameState): void {
 
 // Blender models load first; if one fails the game falls back to procedural ships / no crew.
 root.textContent = 'Yükleniyor…';
-void Promise.all([loadShipAssets(), loadCrewAssets()]).then(() => {
+void Promise.all([loadShipAssets(), loadCrewAssets(), loadWorldAssets()]).then(() => {
   root.replaceChildren();
   showGallery();
   const settings = getSettings();

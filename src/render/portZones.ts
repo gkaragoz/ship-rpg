@@ -14,8 +14,9 @@ const BORDER = 1.3;
 const SHOW_RANGE = 1800;
 /** Height of the corner posts and of the anchor sign above the sea (m). */
 const POST = 9;
-const SIGN_HEIGHT = 20;
-const SIGN_SIZE = 22;
+const SIGN_HEIGHT = 14;
+/** The sign keeps one size on screen (a fraction of the view height), near or far. */
+const SIGN_SIZE = 0.055;
 
 /** The anchor sign: a gold anchor on a dark disc, drawn with paths so no font is needed. */
 function anchorTexture(): THREE.CanvasTexture {
@@ -124,7 +125,7 @@ export function createPortZones(): PortZones {
     const postGeo = new THREE.BufferGeometry();
     postGeo.setAttribute('position', posts);
     const postLines = new THREE.LineSegments(postGeo, postMat);
-    const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, fog: false }));
+    const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, fog: false, sizeAttenuation: false }));
     sign.scale.set(SIGN_SIZE, SIGN_SIZE, 1);
     const group = new THREE.Group();
     group.add(mesh, loop, postLines, sign);

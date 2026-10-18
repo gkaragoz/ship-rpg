@@ -5,6 +5,8 @@ export interface Port {
   name: string;
   islandId: string;
   description: string;
+  /** Nation id of the port (its architecture, its flag; see `nations.ts`). */
+  nation: string;
   /** Centre of the town on land. */
   town: { x: number; z: number };
   /** Where the shoreline meets the sea along the port's bearing. */
@@ -90,6 +92,7 @@ export const PORTS: readonly Port[] = ISLANDS.flatMap((island) =>
       name: def.name,
       islandId: island.id,
       description: def.description,
+      nation: def.nation,
       town: at(-TOWN_INLAND),
       coast: at(0),
       anchor: at(findAnchor(def.id, island.x + cx * r, island.z + cz * r, cx, cz)),

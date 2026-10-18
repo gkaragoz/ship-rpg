@@ -10,6 +10,8 @@ export interface PortDef {
   name: string;
   /** Direction from the island centre to the port, radians in the (x, z) plane. */
   angle: number;
+  /** Nation id whose architecture and flag the port has (see `nations.ts`); decides how its town is built. */
+  nation: string;
   description: string;
 }
 
@@ -30,43 +32,43 @@ export const ISLANDS: readonly Island[] = [
   {
     id: 'conceicao', name: 'Conceicao', x: -1560, z: -900, radius: 250, peak: 50, seed: 11,
     ports: [
-      { id: 'conceicao', name: 'Conceicao', angle: 0.5, description: 'Sakin bir koy kasabası; tersane ve diplomat.' },
-      { id: 'conceicao-smugglers', name: 'Conceicao Smugglers', angle: 3.9, description: 'Kayaların arkasına saklanmış kaçakçı limanı.' },
+      { id: 'conceicao', name: 'Conceicao', angle: 0.5, nation: 'spanish', description: 'Sakin bir koy kasabası; tersane ve diplomat.' },
+      { id: 'conceicao-smugglers', name: 'Conceicao Smugglers', angle: 3.9, nation: 'pirate', description: 'Kayaların arkasına saklanmış kaçakçı limanı.' },
     ],
   },
   {
     id: 'falaise', name: 'Falaise de Fleur', x: -650, z: -900, radius: 230, peak: 70, seed: 23,
-    ports: [{ id: 'falaise-de-fleur', name: 'Falaise de Fleur', angle: 1.3, description: 'Beyaz kayalıkların altında bir Fransız limanı.' }],
+    ports: [{ id: 'falaise-de-fleur', name: 'Falaise de Fleur', angle: 1.3, nation: 'french', description: 'Beyaz kayalıkların altında bir Fransız limanı.' }],
   },
   {
     id: 'redmond', name: 'Redmond', x: 650, z: -900, radius: 270, peak: 60, seed: 37,
-    ports: [{ id: 'redmond', name: 'Redmond', angle: 2.1, description: 'Kalabalık bir ticaret kenti ve garnizon.' }],
+    ports: [{ id: 'redmond', name: 'Redmond', angle: 2.1, nation: 'english', description: 'Kalabalık bir ticaret kenti ve garnizon.' }],
   },
   {
     id: 'muelle', name: 'Isla Muelle', x: -1170, z: 0, radius: 220, peak: 45, seed: 41,
-    ports: [{ id: 'isla-muelle', name: 'Isla Muelle', angle: -0.6, description: 'İskeleleriyle ünlü küçük bir ada limanı.' }],
+    ports: [{ id: 'isla-muelle', name: 'Isla Muelle', angle: -0.6, nation: 'spanish', description: 'İskeleleriyle ünlü küçük bir ada limanı.' }],
   },
   {
     id: 'douwesen', name: 'Douwesen', x: -260, z: 0, radius: 280, peak: 65, seed: 53,
     ports: [
-      { id: 'douwesen', name: 'Douwesen', angle: 1.6, description: 'Hollanda ticaret üssü; ambarlar ve tüccarlar.' },
-      { id: 'douwesen-pirates', name: 'Douwesen Pirates', angle: -2.4, description: 'Adanın arka yüzündeki korsan sığınağı.' },
+      { id: 'douwesen', name: 'Douwesen', angle: 1.6, nation: 'dutch', description: 'Hollanda ticaret üssü; ambarlar ve tüccarlar.' },
+      { id: 'douwesen-pirates', name: 'Douwesen Pirates', angle: -2.4, nation: 'pirate', description: 'Adanın arka yüzündeki korsan sığınağı.' },
     ],
   },
   {
     id: 'oxbay', name: 'Oxbay & Greenford', x: 650, z: 0, radius: 300, peak: 75, seed: 67,
     ports: [
-      { id: 'oxbay', name: 'Oxbay', angle: 3.0, description: 'Batıya bakan İngiliz limanı.' },
-      { id: 'greenford', name: 'Greenford', angle: 0.2, description: 'Şeker ve rom taşıyan yeşil bir liman.' },
+      { id: 'oxbay', name: 'Oxbay', angle: 3.0, nation: 'english', description: 'Batıya bakan İngiliz limanı.' },
+      { id: 'greenford', name: 'Greenford', angle: 0.2, nation: 'english', description: 'Şeker ve rom taşıyan yeşil bir liman.' },
     ],
   },
   {
     id: 'quebradas', name: 'Quebradas Costillas', x: 650, z: 900, radius: 240, peak: 80, seed: 79,
-    ports: [{ id: 'quebradas-costillas', name: 'Quebradas Costillas', angle: -1.4, description: 'Dik kayalıkların arasında bir İspanyol limanı.' }],
+    ports: [{ id: 'quebradas-costillas', name: 'Quebradas Costillas', angle: -1.4, nation: 'spanish', description: 'Dik kayalıkların arasında bir İspanyol limanı.' }],
   },
   {
     id: 'khoal', name: 'Khoal Roa', x: 1820, z: 900, radius: 260, peak: 55, seed: 89,
-    ports: [{ id: 'khoal-roa', name: 'Khoal Roa', angle: 3.3, description: 'Uzak doğudaki yerli köyü ve ticaret noktası.' }],
+    ports: [{ id: 'khoal-roa', name: 'Khoal Roa', angle: 3.3, nation: 'free', description: 'Uzak doğudaki yerli köyü ve ticaret noktası.' }],
   },
 ];
 

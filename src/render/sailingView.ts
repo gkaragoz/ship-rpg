@@ -293,6 +293,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       });
       lamps.update(env.look.lamps, hung, camera);
       fleet.update(view, camera, ampScale);
+      scenery.update(camera);
       crew?.update(view.crew, camera);
       for (const e of view.enemies) shipCrews.update(`e:${e.id}`, actors.get(e.id)?.model, e.crew, camera);
       for (const o of view.others) shipCrews.update(`o:${o.id}`, fleetShips[o.id]?.root, o.crew, camera);
