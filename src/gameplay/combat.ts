@@ -145,7 +145,7 @@ const flightTime = (elev: number, y: number): number => trajectoryOf(y, elev).la
 const zones = new Map<string, { zone: AimZone; flight: number }>();
 
 /**
- * Where a broadside can hit, from the same ballistics `fireBroadside` uses (see tests): the stretch
+ * Where a broadside can hit, from the same ballistics `fireGun` uses (see tests): the stretch
  * abeam where the chance of a hit is above zero, and that chance across it. Short of the far edge
  * the chance is high but not constant: high-angle shots pass over a target at middle distances.
  * `elevation` is the aimed elevation (rad); without it the default band of the enemy guns is used.

@@ -112,14 +112,29 @@ export function arcFor(spec: ShipSpec, hull: Hull, side: Side, elevation: number
   const shot: GunShot = { yaw: 0, elev: elevation, delay: 0 };
   const n = Math.max(1, cannonsPerSide(spec));
   const { ball } = fireGun('player', hull, spec, side, Math.floor((n - 1) / 2), n, shot, () => 0);
-  const path: ArcPoint[] = [{ x: ball.x, y: ball.y, z: ball.z }];
+  const start: ArcPoint = { x: ball.x, y: ball.y, z: ball.z };
   const dt = 1 / 60;
-  const all: ArcPoint[] = [];
-  while (ball.y > 0 && ball.age < COMBAT.maxAge) {
-    stepBall(ball, dt, air);
-    all.push({ x: ball.x, y: Math.max(ball.y, 0), z: ball.z });
+  // Fly it once to count the steps to the landing, then again to pick the evenly spaced points (no per-step allocations).
+  const flown = (): number => {
+    let steps = 0;
+    while (ball.y > 0 && ball.age < COMBAT.maxAge) {
+      stepBall(ball, dt, air);
+      steps++;
+    }
+    return steps;
+  };
+  const total = Math.max(1, flown());
+  const again = fireGun('player', hull, spec, side, Math.floor((n - 1) / 2), n, shot, () => 0).ball;
+  const path: ArcPoint[] = [start];
+  let step = 0;
+  for (let i = 1; i <= points; i++) {
+    const until = Math.round((i / points) * total);
+    while (step < until) {
+      stepBall(again, dt, air);
+      step++;
+    }
+    path.push({ x: again.x, y: Math.max(again.y, 0), z: again.z });
   }
-  for (let i = 1; i <= points; i++) path.push(all[Math.min(all.length - 1, Math.round((i / points) * (all.length - 1)))] ?? path[0]!);
   return path;
 }
 

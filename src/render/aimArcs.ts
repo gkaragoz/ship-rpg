@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import { CONFIG, type GameView } from '../core';
 import { waveHeight } from './waves';
 
-/** Grid resolution of each landing zone; vertices follow the waves so it never hides in a crest. */
-/** One row per sample of the hit-chance profile, so the shading follows the chance of a hit. */
+/** Grid resolution of each landing zone (vertices follow the waves so it never hides in a crest): columns along the hull, ... */
 const NX = 12;
+/** ... and one row per sample of the hit-chance profile, so the shading follows the chance of a hit. */
 const NZ = CONFIG.aimSteps;
 /** Lift above the long swell: clears the short waves the shader fades out with distance. */
 const LIFT = 0.9;

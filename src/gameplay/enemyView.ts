@@ -8,13 +8,13 @@ import { arcFor } from './gunnery';
 import type { Enemy } from './enemy';
 import { SAILING, maxSpeed, type PlayerShip } from './sailing';
 
-/** What render and UI may know about an enemy, seen from the player's ship. */
 /** The wind a ship feels, as the views carry it. */
 export const apparentView = (wind: WindView, heading: number, speed: number): ApparentWindView => {
   const felt = apparentWind(wind, heading, speed);
   return { angle: angleDiff(felt.from, heading), speed: felt.speed };
 };
 
+/** What render and UI may know about an enemy, seen from the player's ship. */
 export function enemyView(e: Enemy, from: PlayerShip, wind: WindView): EnemyView {
   return {
     id: e.id,
@@ -47,10 +47,11 @@ export function enemyView(e: Enemy, from: PlayerShip, wind: WindView): EnemyView
 export function playerView(
   ship: PlayerShip,
   spec: ShipSpec,
-  state: { hp: number; maxHp: number; reload: { port: number; starboard: number }; elevation: number; air: { x: number; z: number }; wind: WindView; gust: number },
+  state: { hp: number; maxHp: number; reload: { port: number; starboard: number }; elevation: number; air: { x: number; z: number }; wind: WindView; gust: number; armed: boolean },
   afloat: readonly Enemy[],
 ): ShipView {
   const zone = aimZone(spec, ship.speed, state.elevation);
+  const armed = state.armed && cannonsPerSide(spec) > 0; // the arcs are only drawn for a ship that can fire
   return {
     x: ship.x,
     z: ship.z,
@@ -76,7 +77,7 @@ export function playerView(
     elevation: state.elevation,
     apparent: apparentView(state.wind, ship.heading, ship.speed),
     gust: state.gust,
-    arc: { port: arcFor(spec, ship, 'port', state.elevation, state.air), starboard: arcFor(spec, ship, 'starboard', state.elevation, state.air) },
+    arc: armed ? { port: arcFor(spec, ship, 'port', state.elevation, state.air), starboard: arcFor(spec, ship, 'starboard', state.elevation, state.air) } : { port: [], starboard: [] },
     inRange: {
       port: afloat.some((e) => targetInZone(zone, ship, 'port', e.ship, e.spec.length)),
       starboard: afloat.some((e) => targetInZone(zone, ship, 'starboard', e.ship, e.spec.length)),

@@ -45,9 +45,17 @@ describe('gusts', () => {
   it('drift downwind with the wind: the same gust arrives further along later', () => {
     const t0 = 30;
     const dt = 40;
-    const carried = 0.65 * wind.speed * dt; // metres the gust field moves
+    const carried = 0.65 * 8 * dt; // metres the gust field moves (5.2 m/s whatever the wind's speed)
     // The wind blows towards +z here (from the north), so the field moves to +z.
     expect(gustAt(500, 300 + carried, t0 + dt, wind)).toBeCloseTo(gustAt(500, 300, t0, wind), 9);
+  });
+
+  it('change smoothly however long the game has run (no flicker late in a session)', () => {
+    for (const t0 of [60, 3000, 40000]) {
+      let worst = 0;
+      for (let i = 0; i < 100; i++) worst = Math.max(worst, Math.abs(gustAt(120, -80, t0 + i * 0.1 + 0.1, wind) - gustAt(120, -80, t0 + i * 0.1, wind)));
+      expect(worst).toBeLessThan(0.02);
+    }
   });
 });
 

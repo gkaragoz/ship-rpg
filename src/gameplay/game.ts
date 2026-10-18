@@ -326,7 +326,7 @@ export function createGame(spec: ShipSpec): Game {
         seaState: sea,
         others: npcs.view(wind),
         crew: crew?.view() ?? [],
-        ship: playerView(ship, spec, { hp, maxHp, reload, elevation, air: windVelocity(wind), wind: feel(ship), gust: gustAt(ship.x, ship.z, time, wind) }, afloat),
+        ship: playerView(ship, spec, { hp, maxHp, reload, elevation, air: windVelocity(wind), wind: feel(ship), gust: gustAt(ship.x, ship.z, time, wind), armed: !dockedAt && !sunk }, afloat),
         nearestPort,
         docked: dockedAt?.id ?? null,
         grounded: ship.grounded > 0,

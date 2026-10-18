@@ -13,16 +13,19 @@ export function windAt(time: number): WindView {
   return { from, speed };
 }
 
+/** How fast the bands of gusts drift downwind (m/s): two thirds of the nominal wind, a constant so the field does not smear as the wind's speed changes. */
+const GUST_DRIFT = 0.65 * NOMINAL_WIND;
+
 /**
  * Gusts: the wind is not the same everywhere. Bands of stronger and weaker air drift downwind across the sea at about
- * two thirds of the wind's speed, so a ship meets a lull or a gust at a place and a time. A multiplier on the wind's speed,
+ * about 5 m/s, so a ship meets a lull or a gust at a place and a time. A multiplier on the wind's speed,
  * between 0.75 and 1.25, averaging about 1, and a pure function of position and time.
  */
 export function gustAt(x: number, z: number, time: number, wind: WindView): number {
   // Wind blows towards from + π: the along-wind coordinate of a point, and the cross-wind one.
   const dx = -Math.cos(wind.from);
   const dz = Math.sin(wind.from);
-  const along = x * dx + z * dz - 0.65 * wind.speed * time;
+  const along = x * dx + z * dz - GUST_DRIFT * time;
   const across = -x * dz + z * dx;
   const g =
     0.13 * Math.sin(along / 85 + 0.6 * Math.sin(across / 230)) +
