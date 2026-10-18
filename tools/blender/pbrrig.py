@@ -6,10 +6,12 @@ from mathutils import Vector
 
 from hullmath import bulwark, section_point
 from pbrmesh import PM, srgb_lin
+from pbrbody import rail_xz
 from shipbuilder import shroud_layout
 
 ROPE = srgb_lin(0x40322A)
 SPAR = srgb_lin(0x6B4A2C)
+TIMBER = srgb_lin(0x3A2616)
 IRON = srgb_lin(0x3A3A40)
 CANVAS = (1.0, 0.97, 0.9)
 
@@ -75,6 +77,10 @@ def mast_static(kit, mast, tallest):
         for z in (-0.6, 0.6):
             wood.box(w((0, y2, z * half * 0.55)), (half * 1.1, 0.09, 0.09), SPAR)
         wood.box(w((0, y2 + 0.1, 0)), (r, 0.24, r), IRON)
+        if h >= 34:                                                                         # crow's nest on the topmast
+            kit.wood.revolve(w((0, y2 + 0.35, 0)), ax, [(0.62, 0), (0.7, 0.55), (0.72, 0.95)], SPAR, seg=10, smooth=False)
+            kit.atlas.revolve(w((0, y2 + 0.5, 0)), ax, [(0.65, 0), (0.65, 0.07)], seg=10, swatch='iron')
+    fife_rail(kit, mast)
     shrouds(kit, mast, square)
     # backstays from the topmast head to the rail aft of the shrouds
     hw, count, spread, head = shroud_layout(s, m)
@@ -83,6 +89,42 @@ def mast_static(kit, mast, tallest):
             top = w((0, h * (0.82 if square else 0.55), 0))
             foot = w((-1.2 - 0.9 * k - (count) * spread * 0.5, bulwark(s), side * hw * 1.02))
             line(wood, top, foot, 0.022, sag=0.25, n=6, seg=3)
+
+
+def shroud_feet(mast, side, count, spread):
+    """Where the shrouds of one side end: on the channel, a wooden plank that sticks out of the hull below the rail."""
+    s, m = mast.s, mast.m
+    rail = abs(rail_xz(s, 1 - m['at'])[2])
+    y = bulwark(s) - 0.4
+    return [Vector(mast.w(((k - (count - 1) / 2) * spread, y, side * (rail + 0.4)))) for k in range(count)]
+
+
+def channels(kit, mast, count, spread):
+    """Channels and deadeyes where the shrouds meet the hull."""
+    s = kit.s
+    for side in (-1, 1):
+        feet = shroud_feet(mast, side, count, spread)
+        mid = sum(feet, Vector()) / len(feet)
+        kit.wood.box(mid - Vector((0, 0.08, side * 0.12)), (spread * count + 0.9, 0.12, 0.75), TIMBER)
+        for f in feet:
+            kit.atlas.revolve(f - Vector((0, 0.06, 0)), (0, 1, 0), [(0.09, 0), (0.09, 0.07), (0.0, 0.07)], seg=6, swatch='wood')
+            kit.atlas.tube([f - Vector((0, 0.05, 0)), f - Vector((0, 0.9, side * -0.35))], [0.012, 0.012], swatch='iron', seg=3, caps=False)
+
+
+def fife_rail(kit, mast):
+    """Belaying rail around the foot of a mast: a rail on four posts with pins."""
+    m = mast.m
+    r = 0.1 + 0.006 * m['height'] + 0.55
+    y = 0.95
+    loop = [mast.w((r * math.cos(a), y, r * math.sin(a))) for a in [i * math.tau / 12 for i in range(13)]]
+    kit.wood.tube(loop, 0.035, SPAR, seg=4, caps=False, smooth=False)
+    for i in range(0, 12, 3):
+        a = i * math.tau / 12
+        kit.wood.tube([mast.w((r * math.cos(a), 0.0, r * math.sin(a))), mast.w((r * math.cos(a), y, r * math.sin(a)))], 0.03, SPAR, seg=4)
+    for i in range(12):
+        a = (i + 0.5) * math.tau / 12
+        p = mast.w((r * math.cos(a), y - 0.05, r * math.sin(a)))
+        kit.atlas.box(p, (0.03, 0.2, 0.03), swatch='bone')
 
 
 def shrouds(kit, mast, square):
@@ -94,11 +136,11 @@ def shrouds(kit, mast, square):
     count = max(count, min(5, round(h / 9)))
     half = 0.6 + 0.014 * h
     top_y = 0.5 * h
+    channels(kit, mast, count, spread)
     for side in (-1, 1):
-        feet, tops = [], []
+        feet, tops = shroud_feet(mast, side, count, spread), []
         for k in range(count):
             f = (k - (count - 1) / 2) / max((count - 1) / 2, 1)
-            feet.append(Vector(mast.w((f * spread * (count - 1) / 2, bulwark(s), side * hw))))
             tops.append(Vector(mast.w((f * (half * 0.8 if square else 0.05), top_y, side * (half * 0.85 if square else 0.05)))))
         for k in range(count):
             kit.wood.tube([feet[k], tops[k]], 0.026, ROPE, seg=4, caps=False, smooth=False)

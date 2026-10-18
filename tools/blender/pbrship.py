@@ -4,7 +4,6 @@
 unique hull/deck atlas + tiling wood and sail textures (numpy), vertex-baked AO, three LODs, one export.
 Materials: `<id>_atlas`, `<id>_wood`, `<id>_sail`, `<id>_glass` (emissive), `<id>_flag` (tinted by the game).
 """
-import importlib
 import random
 
 import bmesh
@@ -26,11 +25,7 @@ from pbrmesh import PM
 from shipbuilder import B, Mast
 from shipkit import Scratch, emissive_material, empty, export_glb, tri_count, validate_ship
 
-for _m in (pbrao, pbrbody, pbrcastle, pbrdeck, pbrguns, pbrhull, LAY, pbrmat, pbrmesh, pbrrig, pbrtex):
-    importlib.reload(_m)
-from pbrmesh import PM  # noqa: E402  (reloaded class)
-
-ATLAS_PX = {'tartane': 1024}
+ATLAS_PX = {'tartane': 1024, 'brig': 1536}   # about 20 mm per texel along the hull on every ship (GPU memory: 3 maps x A^2 x 4 B x 1.33)
 DEFAULT_ATLAS_PX = 2048
 TILE_PX = 512
 
@@ -69,6 +64,8 @@ def _ntri(kit):
 
 def build_lod(level, spec, masts, mats, root, A, seed):
     cfg = CFG[level]
+    if level == 0 and spec['length'] < 20:           # small ships have fewer parts, so give the hull more rings
+        cfg = dict(cfg, stations=64, segs=36)
     rng = random.Random(seed)
     kit = pbrbody.Kit(spec, cfg, A, rng, PM)
     lod = empty(f"LOD{level}", root)

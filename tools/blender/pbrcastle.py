@@ -73,6 +73,17 @@ def castle(kit, end, t0, t1, lift, height, level):
             for pts, dy, th in ((pts_b, 0.14, 0.26), (pts_t, -0.1, 0.22)):
                 strip = [[(p[0], p[1] + dy - th / 2, side * (p[2] + 0.04)), (p[0], p[1] + dy + th / 2, side * (p[2] + 0.04))] for p in pts]
                 kit.wood.grid(strip, None, kit.trim_tint, smooth=False, ref=lambda m: Vector((m.x, m.y, 0)))
+    if cfg['detail'] and height >= 2.2 and end == 'stern':          # cabin windows along the sides
+        n = max(int((t1 - t0) * L / 3.2), 1)
+        for q in range(n):
+            tt = t0 + (t1 - t0) * (q + 0.5) / n
+            x = rail_xz(s, tt)[0]
+            wy = LAY.deck_y(s, tt) + lift + height * 0.55
+            w = side_half_width(s, tt) - 0.03
+            for side in (1, -1):
+                kit.wood.box((x, wy, side * (w + 0.03)), (0.8, 0.8, 0.08), WINDOW_FRAME)
+                kit.glass.face([(x - 0.3, wy - 0.3, side * (w + 0.075)), (x + 0.3, wy - 0.3, side * (w + 0.075)),
+                                (x + 0.3, wy + 0.3, side * (w + 0.075)), (x - 0.3, wy + 0.3, side * (w + 0.075))], swatch='white', ref=(x, wy, 0))
     # roof (deck region texture), end walls
     roofP = []
     for tp in pts_t:
@@ -133,6 +144,8 @@ def stern_wall(kit):
             kit.glass.face([(wx - 0.09, wy - ww / 2, z - ww * 0.39), (wx - 0.09, wy - ww / 2, z + ww * 0.39),
                             (wx - 0.09, wy + ww / 2, z + ww * 0.39), (wx - 0.09, wy + ww / 2, z - ww * 0.39)], swatch='white',
                            ref=(wx + 1, wy, z))
+            kit.wood.box((wx - 0.1, wy, z), (0.03, ww, 0.04), WINDOW_FRAME)                  # mullions
+            kit.wood.box((wx - 0.1, wy, z), (0.03, 0.04, ww * 0.78), WINDOW_FRAME)
         kit.wood.box((wx - 0.04, base + h - 0.08, 0), (0.1, 0.16, 2 * w), GILT)          # gilt cornice
         kit.wood.box((wx - 0.04, base + 0.1, 0), (0.1, 0.16, 2 * w), GILT)
     return top

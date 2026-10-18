@@ -12,7 +12,8 @@ interface Gltf {
   nodes: GltfNode[];
   meshes: { name?: string; primitives: { attributes: Record<string, number>; indices?: number }[] }[];
   accessors: { count: number; min?: number[]; max?: number[] }[];
-  materials: { name?: string; emissiveFactor?: number[] }[];
+  materials: { name?: string; emissiveFactor?: number[]; normalTexture?: unknown; occlusionTexture?: unknown; pbrMetallicRoughness?: { metallicRoughnessTexture?: unknown } }[];
+  extensionsUsed?: string[];
   images?: unknown[];
   skins?: { joints: number[] }[];
   animations?: { name?: string }[];
@@ -156,6 +157,21 @@ describe.each(SHIP_SPECS.map((s) => s.id))('%s (generic ship builder)', (id) => 
       expect(g.materials.length).toBeLessThanOrEqual(3); // atlas + emissive glass + the flag cloth the game tints
       expect(g.images?.length).toBe(1);
     }
+  });
+
+  it.runIf(pbr)('stores baked PBR textures: albedo + normal + one ORM image per material, WebP, meshopt geometry', () => {
+    expect(g.extensionsUsed).toEqual(expect.arrayContaining(['EXT_texture_webp', 'EXT_meshopt_compression']));
+    for (const suffix of ['atlas', 'wood', 'sail']) {
+      const m = g.materials.find((x) => x.name === `${id}_${suffix}`);
+      expect(m, suffix).toBeDefined();
+      expect(m?.normalTexture, `${suffix} normal`).toBeDefined();
+      expect(m?.occlusionTexture, `${suffix} occlusion`).toBeDefined();
+      expect(m?.pbrMetallicRoughness?.metallicRoughnessTexture, `${suffix} metal-rough`).toBeDefined();
+    }
+    const glass = g.materials.find((x) => x.name === `${id}_glass`);
+    expect(glass?.emissiveFactor?.some((c) => c > 0)).toBe(true); // the night-time glow the game drives
+    expect(g.nodes.some((n) => n.name === 'LOD0_Glass')).toBe(true);
+    expect(g.nodes.some((n) => n.name === 'LOD0_Flag')).toBe(true); // tinted per nation by glbShip
   });
 
   it('has one sail pivot per sail group on every LOD, each carrying a sail mesh', () => {

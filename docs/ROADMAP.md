@@ -7,7 +7,9 @@
 - [x] 2d. All 16 ships as Blender GLBs with 3 LODs, generated through Llama from `ShipSpec` JSON (`tools/blender/shipbuilder.py`); NPC patrols (see 2e)
 - [x] 2e. Hero details on LOD0 (muzzles, rudder, anchors, ratlines, hatch, smooth sails) and a 12-ship NPC fleet
 - [x] 2g. Quality parity: all 16 ships come from the generic builder with the same LOD0 extras (tartane regenerated; deck seams, plank lines, rivets, barrels, lantern post added to every ship).
-- [ ] 2f. Per-ship polish (figureheads, boats, stern galleries), lazy GLB loading, NPC steering instead of fixed ellipses (patrols can currently overlap)
+- [x] 2h. PBR flagships: tartane, brig, galleon and battleship rebuilt with baked textures (hull/deck atlas, wood and sail tiles, normal + packed ORM maps as WebP, vertex AO, meshopt), 10–38k tris at LOD0, stern galleries, figureheads, cannons, boats, rigging detail; lazy GLB loading (`createShip` swaps the model in when it arrives). `docs/SHIP_ASSETS.md`, `docs/BLENDER_PIPELINE.md`
+- [ ] 2i. Convert the other 12 ships to the PBR pipeline (after the flagships are approved); decide KTX2/Basis or smaller atlases for GPU memory (the 4 flagships already need ~190 MB of texture memory when all are on screen)
+- [ ] 2f. NPC steering instead of fixed ellipses (patrols can currently overlap)
 - [x] 3b. Production sea (`docs/SEA.md`): Gerstner waves + sea state, clip-map mesh + quality presets (539k → 124k triangles), shading/foam/clouds/storm look, ship buoyancy springs and sea-state handling, wake map + bow wave + spray. Open: aim zones ignore the gun scatter of a rolling hull; detail-layer count and MSAA are not quality settings yet; frame rate on a real mid-range GPU is unmeasured (the dev machine runs at its 165 fps cap)
 - [x] 3. Ocean + wind + playable ship (wave ocean, sky, wind and polar, chase camera, HUD)
   - [x] polish: ship wake and foam (3b)

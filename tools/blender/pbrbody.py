@@ -107,7 +107,7 @@ def bulwarks(kit):
         kit.wood.grid(wall, None, INNER, smooth=False, ref=lambda m: Vector((m.x, m.y, math.copysign(abs(m.z) + 1, m.z))))
         kit.wood.grid(cap, None, kit.trim_tint, smooth=False, ref=lambda m: m - Vector((0, 1, 0)))
         if cfg['detail']:
-            n = max(int(s['length'] / 2.2), 6)
+            n = max(int(s['length'] / (0.9 if s['length'] < 20 else 2.2)), 6)
             for i in range(1, n):
                 t = i / n
                 x, ytop, ztop = rail_xz(s, t, side)

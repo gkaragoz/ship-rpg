@@ -27,17 +27,23 @@ def anchor(kit, top, k):
 
 
 def figurehead(kit, base, f):
-    """A gilt bust leaning out over the stem: torso, head, crown, arms and a curled scroll."""
+    """A gilt bust leaning out over the stem: torso, head, hair streaming aft, arms reaching forward, a curled scroll below."""
     x, y, z = base
-    lean = Matrix.Rotation(-0.35, 3, 'Z')
-    kit.atlas.ellipsoid((x, y, z), (0.32 * f, 0.62 * f, 0.34 * f), swatch='gilt', seg=8, rings=5, rot=lean)
-    kit.atlas.ellipsoid((x + 0.2 * f, y + 0.62 * f, z), (0.24 * f, 0.26 * f, 0.22 * f), swatch='bone', seg=8, rings=5)
-    kit.atlas.ellipsoid((x + 0.18 * f, y + 0.85 * f, z), (0.3 * f, 0.16 * f, 0.26 * f), swatch='gilt', seg=8, rings=4)
+    c = Vector((x, y, z))
+    lean = Matrix.Rotation(-0.65, 3, 'Z')
+    axis = Vector((math.sin(0.65), math.cos(0.65), 0))                           # torso direction: up and forward
+    kit.atlas.ellipsoid(c, (0.3 * f, 0.62 * f, 0.34 * f), swatch='gilt', seg=10, rings=6, rot=lean)
+    top = c + axis * 0.62 * f
+    kit.atlas.tube([top - axis * 0.08 * f, top + axis * 0.16 * f], [0.12 * f, 0.1 * f], swatch='bone', seg=8, caps=False)
+    head = top + axis * 0.38 * f
+    kit.atlas.ellipsoid(head, (0.22 * f, 0.27 * f, 0.2 * f), swatch='bone', seg=10, rings=6, rot=lean)
+    kit.atlas.ellipsoid(head + Vector((-0.1 * f, 0.07 * f, 0)), (0.27 * f, 0.26 * f, 0.24 * f), swatch='gilt', seg=10, rings=5, rot=lean)   # hair
+    kit.atlas.ellipsoid(head + Vector((-0.45 * f, -0.1 * f, 0)), (0.4 * f, 0.1 * f, 0.15 * f), swatch='gilt', seg=8, rings=4)             # streaming aft
     for sd in (-1, 1):
-        kit.atlas.ellipsoid((x + 0.18 * f, y + 0.1 * f, z + sd * 0.4 * f), (0.14 * f, 0.4 * f, 0.13 * f), swatch='gilt', seg=6, rings=4, rot=lean)
-    sc = [(x - 0.4 * f + 0.5 * f * math.cos(a), y - 0.55 * f + 0.4 * f * math.sin(a) * (1 - a / 12), z) for a in
-          [i * 0.7 for i in range(9)]]
-    kit.atlas.tube(sc, [0.07 * f * (1 - i / 12) for i in range(9)], swatch='gilt', seg=5, caps=True)
+        kit.atlas.tube([c + Vector((0.05 * f, 0.4 * f, sd * 0.3 * f)), c + Vector((0.38 * f, 0.22 * f, sd * 0.38 * f)),
+                        c + Vector((0.7 * f, 0.3 * f, sd * 0.3 * f))], [0.1 * f, 0.08 * f, 0.07 * f], swatch='gilt', seg=6)
+    sc = [(x - 0.3 * f + 0.45 * f * math.cos(a), y - 0.55 * f + 0.4 * f * math.sin(a) * (1 - a / 12), z) for a in [i * 0.7 for i in range(9)]]
+    kit.atlas.tube(sc, [0.09 * f * (1 - i / 12) for i in range(9)], swatch='gilt', seg=6, caps=True)
 
 
 def build(kit):
@@ -53,11 +59,11 @@ def build(kit):
     kit.wood.tube(stem, [r] * len(stem), TIMBER, seg=cfg['seg'])
     if not cfg['detail']:
         return
-    f = min(max(0.05 * L, 0.45), 2.4)
+    f = min(max(0.032 * L, 0.4), 1.6)
     if s['bowsprit'] > 0 and L >= 20:
         beak = [(bow[0] - 0.4, bow[1] - 0.6, 0.0), (bow[0] + 0.2 * f + 0.3, bow[1] - 0.45, 0.0), (bow[0] + 0.5 * f + 0.9, bow[1] - 0.1, 0.0)]
         kit.wood.tube(beak, [r * 1.2, r, r * 0.8], TIMBER, seg=6)
-        figurehead(kit, (bow[0] + 0.5 * f + 0.55, bow[1] - 0.25 - 0.3 * f, 0.0), f)
+        figurehead(kit, (bow[0] + 0.3 * f + 0.45, bow[1] - 0.2 - 0.45 * f, 0.0), f)
     # cathead beams and anchors on both bows
     k = min(max(0.05 * L, 0.5), 1.6)
     t = 0.86

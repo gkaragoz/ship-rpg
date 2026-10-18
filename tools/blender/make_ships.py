@@ -7,7 +7,6 @@ hand-tuned tartane, kept as a reference only). Each ship is built in a scratch s
 Node contract (docs/SHIP_ASSETS.md): `<id>` root > `LOD0|1|2` > `LODn_Body`, `LODn_m<i>_trim-square|aft`
 pivots (sails as children), `LOD0_Glass` (emissive windows and lanterns).
 """
-import importlib
 import json
 import pathlib
 import sys
@@ -16,15 +15,14 @@ import bpy
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+# The open Blender keeps imported modules between runs (and between worktrees): drop ours so this folder's code is used.
+for _name in ("shipkit", "hullmath", "shipbuilder", "shipdetails", "pbrship", "pbrao", "pbrbody", "pbrbow", "pbrcastle", "pbrdeck",
+              "pbrguns", "pbrhull", "pbrlayout", "pbrmat", "pbrmesh", "pbrrig", "pbrtex"):
+    sys.modules.pop(_name, None)
 import shipkit  # noqa: E402
 import shipbuilder  # noqa: E402
 import shipdetails  # noqa: E402
 import pbrship  # noqa: E402
-
-importlib.reload(shipkit)
-importlib.reload(shipbuilder)
-importlib.reload(shipdetails)
-importlib.reload(pbrship)
 from shipkit import Atlas, MB, Scratch, emissive_material, empty, export_glb, fnv1a, tri_count, validate_ship, write_json  # noqa: E402
 from shipbuilder import B, LOD_CFG, Mast  # noqa: E402
 

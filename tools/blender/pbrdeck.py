@@ -206,6 +206,31 @@ def stern_ensign(kit):
     flag_cloth(kit.flag, (x - 0.5, top + pole - 0.1, 0), (-w, 0, 0), w * 0.62, 0.35, n=8)
 
 
+def small_extras(kit, masts):
+    """Fishing-boat clutter of the small ships: sweeps along the rails, baskets, a heap of net, a coil of rope and a cuddy."""
+    s = kit.s
+    L = s['length']
+    for side in (-1, 1):
+        t0, t1 = 0.3, 0.78
+        x0, x1 = (t0 - 0.5) * L, (t1 - 0.5) * L
+        z = side * (deck_half(s, 0.55) - 0.35)
+        y = LAY.deck_y(s, 0.55) + 0.25
+        kit.wood.tube([(x0, y, z), (x1 - 0.7, y + 0.05, z)], [0.04, 0.035], SPAR, seg=5)
+        kit.wood.box((x1 - 0.35, y + 0.05, z), (0.75, 0.04, 0.2), SPAR)
+    base = LAY.deck_y(s, 0.25)
+    for dz, dx in ((0.7, 0.0), (-0.6, 0.5), (0.2, -0.7)):
+        kit.wood.revolve((-0.25 * L + dx, base, dz), (0, 1, 0), [(0.2, 0), (0.3, 0.2), (0.34, 0.38), (0.0, 0.38)], BOAT, seg=8)
+    bx = 0.18 * L
+    for k, (dx, dz) in enumerate(((0, 0), (0.5, 0.3), (-0.4, -0.25))):
+        kit.atlas.ellipsoid((bx + dx, LAY.deck_y(s, 0.68) + 0.12, dz), (0.55, 0.14, 0.42), swatch='rope', seg=7, rings=4)
+    kit.atlas.revolve((-0.12 * L, LAY.deck_y(s, 0.38), -0.8), (0, 1, 0), [(0.28, 0), (0.34, 0.07), (0.28, 0.14), (0.14, 0.14)], seg=10, swatch='rope')
+    cx = -0.38 * L
+    y = LAY.deck_y(s, 0.12)
+    kit.wood.box((cx, y + 0.3, 0), (1.5, 0.6, 1.3), SPAR, taper=(0.92, 0.9))
+    kit.wood.box((cx + 0.76, y + 0.28, 0), (0.05, 0.42, 0.55), TIMBER)
+    return None
+
+
 def build(kit, masts, level):
     cfg = kit.cfg
     st = getattr(kit, 'step', lambda name, fn, *a: fn(*a))
@@ -217,5 +242,7 @@ def build(kit, masts, level):
     bar = st('barrels', barrels, kit, masts, hat)
     kit.extra.extend([o for o in [hat, cap] if o] + bar)
     st('helm', helm, kit)
+    if kit.s['length'] < 20:
+        st('extras', small_extras, kit, masts)
     st('boats', boats, kit)
     return st('lanterns', lanterns, kit)
