@@ -39,8 +39,52 @@ export interface ShipView {
   roll: number;
 }
 
+/** Another ship at sea; kinematic and shown at a distance-dependent level of detail. */
+export interface OtherShipView {
+  id: number;
+  /** Which ship spec (and model) to draw. */
+  specId: string;
+  x: number;
+  z: number;
+  heading: number;
+  sailLevel: number;
+  roll: number;
+}
+
+export type CrewAnim = 'Idle' | 'Walk' | 'Run';
+
+/** Appearance choices; palette entries are indices into the crew asset's palette. */
+export interface CrewLook {
+  /** 0-2 male, 3-5 female (body types in the order of the crew asset). */
+  variant: number;
+  skin: number;
+  shirt: number;
+  pants: number;
+  hair: number;
+  hat: number;
+  hairStyle: 'short' | 'long' | 'none';
+  hatStyle: 'wide' | 'bandana' | 'cap' | 'none';
+  beard: boolean;
+}
+
+/**
+ * A sailor on the player's deck, in ship-local space (+x bow, +y up, +z starboard).
+ * `heading` faces (cos h, sin h) in the (x, z) plane.
+ */
+export interface CrewView {
+  id: number;
+  x: number;
+  y: number;
+  z: number;
+  heading: number;
+  anim: CrewAnim;
+  look: CrewLook;
+}
+
 export interface GameView {
   time: number;
   ship: ShipView;
   wind: WindView;
+  others: OtherShipView[];
+  crew: CrewView[];
 }
