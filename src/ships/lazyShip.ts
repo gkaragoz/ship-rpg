@@ -19,20 +19,22 @@ export function createUpgradingShip(placeholder: Ship, load: () => Promise<Ship 
   let condition: [Condition, number] | undefined;
   let lod: ShipLod = 0;
 
-  void load().then((real) => {
-    if (!real) return;
-    if (disposed) {
-      real.dispose();
-      return;
-    }
-    root.remove(inner.root);
-    inner.dispose();
-    inner = real;
-    root.add(real.root);
-    if (trim) real.setSailTrim(...trim);
-    if (condition) real.setCondition(...condition);
-    real.setLod?.(lod);
-  });
+  void load()
+    .then((real) => {
+      if (!real) return;
+      if (disposed) {
+        real.dispose();
+        return;
+      }
+      if (trim) real.setSailTrim(...trim);
+      if (condition) real.setCondition(...condition);
+      real.setLod?.(lod);
+      root.remove(inner.root); // swap only once the model is ready, so a throw above keeps the placeholder
+      inner.dispose();
+      inner = real;
+      root.add(real.root);
+    })
+    .catch((err: unknown) => console.warn(`ship "${placeholder.spec.id}" model could not be shown, keeping the placeholder`, err));
 
   return {
     spec: placeholder.spec,
@@ -50,6 +52,7 @@ export function createUpgradingShip(placeholder: Ship, load: () => Promise<Ship 
       inner.setLod?.(next);
     },
     dispose(): void {
+      if (disposed) return;
       disposed = true;
       inner.dispose();
       root.removeFromParent();

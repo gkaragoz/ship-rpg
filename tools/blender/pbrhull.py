@@ -128,7 +128,7 @@ def hull_region(s, W, H, rng):
     else:
         tar = np.array([0.07, 0.055, 0.045], np.float32)
         col = np.where(below[..., None], tar * (0.8 + 0.4 * tone)[..., None], col)
-    col = mix(col, algae, 0.85 * np.clip(weed, 0, 1)[..., None] * (1 if True else 0))
+    col = mix(col, algae, 0.85 * np.clip(weed, 0, 1)[..., None])
     barn = smoothstep(0.55, 0.75, fbm(H, W, H // 6, W // 6, rng, 3)) * smoothstep(-0.7, 0.0, y - wl) * smoothstep(0.35, 0.0, y - wl)
     col = mix(col, np.array([0.62, 0.6, 0.55], np.float32), 0.7 * barn[..., None])
     height += 0.006 * barn

@@ -77,4 +77,28 @@ describe('createUpgradingShip', () => {
     expect(spy).toHaveBeenCalledOnce();
     expect(ship.root.children).toEqual([]);
   });
+
+  it('keeps the placeholder when building the model throws', async () => {
+    const placeholder = fakeShip();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const bad = fakeShip();
+    bad.setSailTrim = () => {
+      throw new Error('broken model');
+    };
+    const ship = createUpgradingShip(placeholder, () => Promise.resolve(bad));
+    ship.setSailTrim(0, 1);
+    await flush();
+    expect(ship.root.children).toEqual([placeholder.root]);
+    expect(placeholder.calls).not.toContain('dispose');
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('ignores a second dispose', () => {
+    const placeholder = fakeShip();
+    const ship = createUpgradingShip(placeholder, () => Promise.resolve(undefined));
+    ship.dispose();
+    ship.dispose();
+    expect(placeholder.calls.filter((c) => c === 'dispose')).toHaveLength(1);
+  });
 });

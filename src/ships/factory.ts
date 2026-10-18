@@ -22,7 +22,7 @@ export interface Ship {
    * origin (+ = wind from port); `level` is sail deployment 0 (furled) … 1 (full).
    */
   setSailTrim(windRel: number, level: number): void;
-  /** Only on ships with level-of-detail variants (the GLB ships): 0 = full … 2 = silhouette. */
+  /** Only on ships with level-of-detail variants (the GLB ships, and ships that will become one): 0 = full … 2 = silhouette. */
   setLod?(lod: ShipLod): void;
   /**
    * Show battle damage: sails scorch, shrink and lose upper tiers (rigging), the hull sits low

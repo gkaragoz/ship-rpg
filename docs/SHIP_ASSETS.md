@@ -20,7 +20,7 @@ Space: glTF Y-up export of Blender Z-up, +x bow, +y up, +z starboard, metres, wa
 | `LODn_AftSail` | yard + sail, pivot-local, child of the pivot |
 | `LODn_m<i>_trim-square` / `_trim-aft` | the generic builder (every ship): one pivot per sail group of mast `i` (square sails, and the spanker/gaff/lug/lateen sail), sails named `LODn_m<i>_SquareSail` / `_AftSail` |
 | `LOD0_Glass` | generic builder: emissive stern windows and lanterns (LOD0 only) |
-| `LOD0_LanternGlass` | the only emissive material (LOD0 only) |
+| `LOD0_LanternGlass` | legacy tartane only; the generic builders use `LOD0_Glass` above |
 
 - **Names:** letters, digits, `_` and `-` only. `GLTFLoader` strips dots, and Blender adds `.001` to duplicates, so a clash silently renames a node.
 - **Budgets (flat-colour ships)** scale with length `L`: LOD0 ≤ 1700 + 140 L, LOD1 ≤ 160 + 20 L, LOD2 ≤ 60 + 6 L (written to `meta.budgets` and re-checked by the tests); LOD1 < 30 % and LOD2 < 60 % of the level above. Measured: tartane 2,213 / 384 / 86, yacht 2,655 / 392 / 94 … battleship 6,455 / 718 / 290; LOD0 is 2–6 draw calls (body, one per sail pivot, glass).
@@ -57,7 +57,7 @@ Measured (`npm run export:specs` is not involved; these come from `meta.json`):
 | galleon | 30,870 / 2,199 / 817 | 13 | 2048² | 1.67 MB |
 | battleship | 37,710 / 2,423 / 897 | 13 | 2048² | 1.90 MB |
 
-GPU memory: textures are RGBA8 with mips on the GPU whatever the file format, about 3 × A² × 4 B × 1.33 per ship (tartane 17 MB, brig 38 MB, galleon and battleship 67 MB each); the whole set of 16 will need KTX2/Basis or smaller atlases for the small ships.
+GPU memory: textures are RGBA8 with mips on the GPU whatever the file format, about 3 × A² × 4 B × 1.33 per ship (tartane 17 MB, brig 38 MB, galleon and battleship 67 MB each) plus about 8 MB for the three 512² tiles, which every GLB embeds again (about 220 MB for the four); the whole set of 16 will need KTX2/Basis or smaller atlases for the small ships.
 
 ## `<id>.meta.json` (written by the generator, read by `ships/deck.ts`)
 `lods` (tris/meshes/drawCalls, must equal the GLB), PBR ships also `pbr: true`, `atlasPx`, `tilePx`; `trimPivot`, `lantern`, `deck.stations` (`[x, y, halfWidth]` per hull station: deck height and **walkable** half width, already inset from the rail and 0 where the bow is too narrow) and `obstacles` (circles/rects in ship-local x/z: mast, hatch, barrels, anchor, tiller, lantern pole). Crew AI walks only where `Deck.walkable(x, z, radius)`.
@@ -70,3 +70,5 @@ GPU memory: textures are RGBA8 with mips on the GPU whatever the file format, ab
 
 ## Crew GLBs (`public/models/crew/`)
 See `CREW.md`. Loaded by `render/crew.ts`; appearance (variant, palette indices, hair/hat/beard) comes from `gameplay/crew.ts` through `CrewView`. Materials are cloned per sailor and tinted (`material.color`), the clips are crossfaded with `crossFadeTo` (never park an action at weight 0).
+
+**Known gap:** `gameplay/game.ts` reads `getDeck(spec.id)` once at `createGame`; with lazy loading the deck exists only after the ship's GLB has loaded (normally by the gallery, which shows the ship first). `main.ts` should `await requestShipAsset(spec.id)` before starting sailing (outside `src/ships`, not done here).

@@ -64,7 +64,7 @@ export function requestShipAsset(id: string, base = `${import.meta.env.BASE_URL}
   if (have) return Promise.resolve(have);
   let p = pending.get(id);
   if (!p) {
-    p = fetchAsset(id, base).finally(() => pending.delete(id));
+    p = fetchAsset(id, base);   // kept after a failure too, so a broken model is fetched and reported once
     pending.set(id, p);
   }
   return p;
