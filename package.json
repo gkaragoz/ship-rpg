@@ -11,7 +11,9 @@
     "lint": "eslint src tests scripts",
     "test": "vitest run",
     "check": "npm run typecheck && npm run lint && npm test",
-    "balance": "vite-node scripts/balance.ts"
+    "balance": "vite-node scripts/balance.ts",
+    "balance:sweep": "vite-node scripts/sweep.ts",
+    "balance:chase": "vite-node scripts/chase.ts"
   },
   "dependencies": {
     "three": "^0.170.0"

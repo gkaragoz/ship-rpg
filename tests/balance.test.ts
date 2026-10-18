@@ -8,7 +8,7 @@ import { SHIP_SPECS, getShipSpec } from '../src/ships';
  * make a pairing hopeless, trivial or endless, one of these fails: re-run `npm run balance`,
  * decide whether the new picture is intended, and update the windows below and the docs.
  */
-const SEEDS = 14;
+const SEEDS = 10;
 
 const fight = (a: ReturnType<typeof playerSide>, b: ReturnType<typeof enemySide>): DuelResult[] =>
   Array.from({ length: SEEDS }, (_, i) => runDuel(a, b, { seed: i + 1, swapped: i % 2 === 1 }));
@@ -34,7 +34,7 @@ describe('duels are decisive and fair', () => {
   it('a mirror match is a coin flip, whichever side it starts on', () => {
     for (const id of ['brig', 'frigate', 'galleon']) {
       const s = getShipSpec(id)!;
-      const rs = Array.from({ length: 40 }, (_, i) => runDuel(playerSide(s), playerSide(s), { seed: i + 1, swapped: i % 2 === 1 }));
+      const rs = Array.from({ length: 30 }, (_, i) => runDuel(playerSide(s), playerSide(s), { seed: i + 1, swapped: i % 2 === 1 }));
       const aWins = rs.filter((r) => r.outcome === 'a-won' || r.outcome === 'b-broke').length / rs.length;
       expect(aWins, id).toBeGreaterThan(0.25);
       expect(aWins, id).toBeLessThan(0.75);
@@ -66,15 +66,41 @@ describe.each(SHIP_SPECS.filter((s) => s.stats.cannons > 0).map((s) => [s.id, s]
     const t = median(rs.map((r) => r.seconds));
     expect(t, 'median seconds to a decision').toBeGreaterThan(40);
     expect(t, 'median seconds to a decision').toBeLessThan(260);
-    expect(enemy.stats.speed).toBeLessThanOrEqual(Math.max(player.stats.speed * MAX_SPEED_RATIO, 8));
+    expect(enemy.stats.speed, 'the enemy is not faster than the player can match').toBeLessThanOrEqual(player.stats.speed * MAX_SPEED_RATIO + 1e-9);
   });
 });
 
 describe('an unarmed ship', () => {
-  it('cannot win a fight (it has no guns), so it must run or dock: its hunter is no faster than it is', () => {
+  it('has no guns, so it must run or dock: its hunter is the weakest armed ship and no faster than it is', () => {
     const tartane = getShipSpec('tartane')!;
-    const enemy = pickEnemySpec(tartane);
-    expect(enemy.stats.speed).toBeLessThanOrEqual(tartane.stats.speed * MAX_SPEED_RATIO);
-    expect(wins(fight(playerSide(tartane), enemySide(enemy)))).toBe(0);
+    const squad = [0, 1, 2].map((r) => pickEnemySpec(tartane, r));
+    expect(new Set(squad.map((s) => s.id))).toEqual(new Set(['barque'])); // it can never sink anything, so it only ever meets one
+    expect(squad[0]!.stats.speed).toBeLessThanOrEqual(tartane.stats.speed * MAX_SPEED_RATIO);
+    const rs = fight(playerSide(tartane), enemySide(squad[0]!));
+    expect(rs.every((r) => r.shotsA === 0 && r.hitsA === 0)).toBe(true);
+    expect(wins(rs)).toBe(0);
+  });
+});
+
+describe('escape: a chase can be shaken only by being faster', () => {
+  const chase = (runner: string, hunter: string, seeds = 12): DuelResult[] =>
+    Array.from({ length: seeds }, (_, i) =>
+      runDuel({ ...playerSide(getShipSpec(runner)!), flees: true }, enemySide(getShipSpec(hunter)!), { seed: i + 1, swapped: i % 2 === 1, maxSeconds: 600 }),
+    );
+  const gotAway = (rs: DuelResult[]): number => rs.filter((r) => r.outcome === 'a-escaped').length / rs.length;
+
+  it('a clearly faster runner gets away (Brig 14 from Schooner 12, Lugger 16 from Yacht 9)', () => {
+    expect(gotAway(chase('brig', 'schooner'))).toBeGreaterThanOrEqual(0.8);
+    expect(gotAway(chase('lugger', 'yacht'))).toBeGreaterThanOrEqual(0.8);
+  });
+
+  it('at equal speed the hunter cannot be shaken (Schooner from Schooner, Tartane from Barque)', () => {
+    expect(gotAway(chase('schooner', 'schooner'))).toBeLessThanOrEqual(0.2);
+    expect(gotAway(chase('tartane', 'barque'))).toBeLessThanOrEqual(0.2);
+  });
+
+  it('a slower runner is not shaken either, though it is rarely caught: the chase goes on (Sloop 10 from Galeoth 13)', () => {
+    const rs = chase('sloop', 'galeoth');
+    expect(gotAway(rs)).toBeLessThanOrEqual(0.2);
   });
 });

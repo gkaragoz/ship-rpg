@@ -72,7 +72,8 @@ export function pickEnemySpec(player: ShipSpec, rank = 0): ShipSpec {
   // Nothing fits (e.g. a very slow ship): take the slowest armed ones rather than nothing.
   if (pool.length === 0) pool = [...armed].sort((a, b) => a.stats.speed - b.stats.speed).slice(0, 3);
   pool.sort((a, b) => Math.abs(strength(a) - wanted) - Math.abs(strength(b) - wanted) || a.stats.hp - b.stats.hp);
-  return pool[rank % pool.length] ?? player;
+  // An unarmed player can never sink anything, so he never meets more than one enemy: always the weakest.
+  return pool[(mine === 0 ? 0 : rank) % pool.length] ?? player;
 }
 
 const BROADSIDE_ANGLE = Math.PI / 2;

@@ -28,7 +28,7 @@ describe('an enemy that is badly hurt', () => {
     game.update(DT, { rudder: 0, sailStep: 0 });
     expect(game.view().enemies[0]!.fleeing).toBe(true);
 
-    // The player slips away: the enemy loses him after 30 s beyond 1.5 km.
+    // The player slips away: the enemy loses him after `giveUpSeconds` beyond `giveUpRange`.
     game.dev.teleportPlayer(FAR.x, FAR.z);
     const events = run(game, CONFIG.giveUpSeconds + 1);
     expect(events.filter((e) => e.type === 'escaped')).toHaveLength(1);

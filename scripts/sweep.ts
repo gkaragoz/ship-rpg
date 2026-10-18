@@ -62,9 +62,9 @@ function measure(): Score {
 
 const f = (x: number): string => `${Math.round(x * 100)}%`;
 console.log('elev        dmg/lb  ehull espread ereload | mirror: s  decisive  hit | bot: win loss draw  s');
-const bands: [number, number][] = [[0.07, 0.09]];
+const bands: [number, number][] = [[0.05, 0.11], [0.06, 0.1], [0.07, 0.09]];
 const configs: { dmg: number; hull: number; spread: number; reload: number }[] = [];
-for (const dmg of [2, 2.5, 3, 4]) {
+for (const dmg of [2.5, 4]) {
   for (const [hull, spread, reload] of [[0.7, 1.6, 10], [0.8, 1.3, 8], [1, 1, 6]] as const) configs.push({ dmg, hull, spread, reload });
 }
 for (const [lo, hi] of bands) {

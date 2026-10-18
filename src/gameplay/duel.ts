@@ -1,8 +1,8 @@
 import { createRng } from '../core';
 import type { ShipSpec } from '../ships';
 import { windAt } from '../world';
-import { COMBAT, ballHits, fireBroadside, stepBall, type Ball, type Side } from './combat';
-import { ENEMY_TUNING, LOSE_RANGE, aiStep, createEnemy, lostTrack, type Enemy } from './enemy';
+import { COMBAT, ballHits, fireBroadside, stepBall, type Ball } from './combat';
+import { ENEMY_TUNING, aiStep, createEnemy, lostTrack, type Enemy } from './enemy';
 import { stepPlayerShip } from './sailing';
 
 /**
@@ -18,6 +18,8 @@ export interface DuelSide {
   reload: number;
   /** Sideways spread, as a multiple of the player's. */
   spread: number;
+  /** Break off from the start and run: measures whether a chase can be shaken (the other side hunts). */
+  flees?: boolean;
 }
 
 /** A side that fights as the player does: full hull, the player's reload and accuracy. */
@@ -35,7 +37,7 @@ export type DuelOutcome =
   | 'b-won' // a sank
   | 'b-broke' // b was beaten down to the flee threshold and broke off: a won the fight
   | 'a-broke'
-  | 'a-escaped' // b lost track of a (a got away, usually after breaking off)
+  | 'a-escaped' // b lost track of a: a got away (a runner faster than its hunter, or two ships drifting apart)
   | 'b-escaped'
   | 'timeout';
 
@@ -82,6 +84,7 @@ function makeFighter(id: string, side: DuelSide, x: number, z: number, heading: 
   e.hp = e.maxHp;
   e.reload.port = side.reload / 2;
   e.reload.starboard = side.reload / 2;
+  e.fleeing = side.flees === true;
   return { e, side, hits: 0, shots: 0 };
 }
 
@@ -111,7 +114,7 @@ export function runDuel(a: DuelSide, b: DuelSide, options: DuelOptions = {}): Du
     me.e.reload.port = Math.max(0, me.e.reload.port - dt);
     me.e.reload.starboard = Math.max(0, me.e.reload.starboard - dt);
     if (ai.fire) {
-      const shot = fireBroadside(me === fa ? 'player' : 'enemy', me.e.ship, me.e.spec, ai.fire as Side, rng, nextId, me.side.spread);
+      const shot = fireBroadside(me === fa ? 'player' : 'enemy', me.e.ship, me.e.spec, ai.fire, rng, nextId, me.side.spread);
       balls.push(...shot.balls);
       me.shots += shot.balls.length;
       me.e.reload[ai.fire] = me.side.reload;
@@ -143,15 +146,16 @@ export function runDuel(a: DuelSide, b: DuelSide, options: DuelOptions = {}): Du
 
     if (fb.e.hp <= 0) outcome = 'a-won';
     else if (fa.e.hp <= 0) outcome = 'b-won';
-    else if (fb.e.fleeing) outcome = 'b-broke';
-    else if (fa.e.fleeing) outcome = 'a-broke';
+    // A side that was told to flee from the start has not "broken" in battle: the chase is the point.
+    else if (fb.e.fleeing && !b.flees) outcome = 'b-broke';
+    else if (fa.e.fleeing && !a.flees) outcome = 'a-broke';
     else {
       const gap = Math.hypot(fa.e.ship.x - fb.e.ship.x, fa.e.ship.z - fb.e.ship.z);
       // Out of sight for too long: the one left behind gives up, so the other has escaped.
       const aLost = lostTrack(fa.e, gap, dt);
       const bLost = lostTrack(fb.e, gap, dt);
-      if (bLost && gap > LOSE_RANGE) outcome = 'a-escaped';
-      else if (aLost && gap > LOSE_RANGE) outcome = 'b-escaped';
+      if (bLost) outcome = 'a-escaped';
+      else if (aLost) outcome = 'b-escaped';
     }
   }
 

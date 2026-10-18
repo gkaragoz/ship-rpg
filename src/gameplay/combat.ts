@@ -41,7 +41,7 @@ export const COMBAT: Record<'ballSpeed' | 'gravity' | 'yawJitter' | 'elevationMi
   /** Seconds to reload a broadside. */
   playerReload: 6,
   enemyReload: 8,
-  /** The enemy's sideways spread is this many times the player's (a handicap kept until the balance table, see ROADMAP 5a.4). */
+  /** The enemy's sideways spread is this many times the player's: part of the enemy handicap (see docs/BALANCE.md). */
   enemySpread: 1.3,
   /** Balls older than this are dropped. */
   maxAge: 6,
