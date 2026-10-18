@@ -24,8 +24,9 @@ Public API: `createGame(spec | state)` → `{ spec, update(dt, controls), view()
 
 `game.dev` (damageEnemies, teleportPlayer, setKills, setRigging, setAffliction, setSea, setGold, setCrew, addXp; `Game.setClock` and `Game.setWeather` are the public ways to set the hour and the weather) are hooks for tests and the browser console: in dev the running game is on `window.__game` (e.g. `__game.dev.setKills(4)` brings three enemies). The game never calls them. Note `view()` drains events, so calling it from the console can swallow a frame's effects.
 
-Fixed-step only (see `core/loop.ts`); no wall-clock time. Quests and factions will live here (5e). Randomness comes from the seeded `core/rng`.
+Fixed-step only (see `core/loop.ts`); no wall-clock time. Quests, standing and traffic live here (5e). Randomness comes from the seeded `core/rng`.
 
 - `fleet.ts` (consort hulls as enemy-shaped ships, `stationOf`, `consortOrders`, launch and write-back), `fleetDirector.ts` (the fleet at sea: stepping the consorts, hits, sinking, capture of a prize), `fleetYard.ts` (yard commands for consorts: buy, sell, repair, move the flag; upkeep; `FLEET` constants).
 
 - `reputation.ts` the captain's standing with each nation (kills, fading, closed ports, which navies hunt him), `quests.ts` + `questSave.ts` the tavern's errands (offers by port and day, taking, settling, saving), `traffic.ts` merchants on sea lanes (A* over open water; part of `npcShips`' list of other ships).
+- `crew.ts` (a ship's deck life: wandering, the helm, climbing and hauling when the sails change, gunners at a broadside), `crewLayout.ts` (where the masts, helm and gun stations are), `crewData.ts` (tuning and `JOBS` timings), `shipCrews.ts` (the sailors of enemies, consorts and patrols near the player, created on first sight). All of it is for show.
