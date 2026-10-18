@@ -74,4 +74,6 @@ space as above. Contract, budgets and LOD policy: `SHIP_ASSETS.md`.
 | Materials | `tartane_atlas_mat` (256² flat swatches) + emissive `tartane_glass` |
 | Deck | `meta.json`: deck profile per station, obstacles (mast, hatch, barrels, anchor, tiller, lantern pole) |
 
+Generated ships also carry cannon muzzles, a rudder, bow anchors, ratlines and a hatch at LOD0 (`SHIP_ASSETS.md`).
+
 Also on that deck: the crew (`CREW.md`).

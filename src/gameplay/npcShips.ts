@@ -13,8 +13,9 @@ interface Patrol {
 }
 
 /**
- * Spread from "alongside" to "on the horizon" so the level-of-detail ladder (≈60 m / ≈216 m for a
- * 12 m ship, five and eighteen lengths for bigger ones) is visible from the start: the near patrols pass within a few lengths of the player.
+ * Spread from "alongside" to "on the horizon" so the whole level-of-detail ladder is visible from
+ * the start (switches at 5 and 18 ship lengths, e.g. about 60 m and 216 m for a 12 m ship): the
+ * near patrols pass within a few lengths of the player, the big ships circle far out.
  */
 export const PATROLS: readonly Patrol[] = [
   { specId: 'tartane', cx: 0, cz: 0, a: 70, b: 110, phase: 0.4, dir: 1 },

@@ -279,8 +279,9 @@ describe.each(SHIP_SPECS.filter((s) => s.id !== 'tartane').map((s) => s.id))('%s
       expect(s[2]).toBeGreaterThanOrEqual(0);
     }
     expect(meta.obstacles.filter((o) => o.type === 'circle')).toHaveLength(spec.masts.length);
-    // one rect per castle plus the hatch coaming added to the full-quality model
-    expect(meta.obstacles.filter((o) => o.type === 'rect')).toHaveLength((spec.forecastle ? 1 : 0) + (spec.sterncastle ? 1 : 0) + 1);
+    // one rect per castle plus the hatch coaming added to the full-quality model (needs a mast to place it)
+    const hatch = spec.masts.length > 0 ? 1 : 0;
+    expect(meta.obstacles.filter((o) => o.type === 'rect')).toHaveLength((spec.forecastle ? 1 : 0) + (spec.sterncastle ? 1 : 0) + hatch);
   });
 
   it('was built from the current spec (re-run make_ships.py after changing specs.ts)', () => {

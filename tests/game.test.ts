@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createGame } from '../src/gameplay';
 import { getShipSpec } from '../src/ships';
+import { GLB_SHIP_IDS } from '../src/ships/assets';
 
 describe('createGame view', () => {
   const spec = getShipSpec('tartane');
@@ -14,7 +15,10 @@ describe('createGame view', () => {
     expect(v.others).toHaveLength(12);
     expect(new Set(v.others.map((o) => o.id)).size).toBe(12);
     // every patrol sails a real ship that has a GLB model
-    for (const o of v.others) expect(getShipSpec(o.specId), o.specId).toBeDefined();
+    for (const o of v.others) {
+      expect(getShipSpec(o.specId), o.specId).toBeDefined();
+      expect(GLB_SHIP_IDS, o.specId).toContain(o.specId);
+    }
     expect(new Set(v.others.map((o) => o.specId)).size).toBeGreaterThanOrEqual(10);
     expect(v.crew).toEqual([]);
   });

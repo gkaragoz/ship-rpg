@@ -45,7 +45,8 @@ Headless smoke test (about 5 s each) and success check: `blender -b --factory-st
 ## Generic ships (`make_ships.py`)
 `tools/blender/ships.json` is exported from `src/ships/specs.ts` (`npm run export:specs`; `tests/shipsJson.test.ts` fails when it is stale).
 `shipbuilder.py` ports `hullShape`, `hull`, `castles`, `rig` (square, gaff, lug, lateen, spanker, shrouds, tops, pennant, bowsprit, jibs) and `details`
-(gun ports, oars, stern windows, lanterns) and builds LOD0/1/2 per ship; it writes `<id>.glb`, `<id>.meta.json` (deck profile, one obstacle per mast and castle) and the atlas.
+(gun ports with cannon muzzles, oars, stern windows, lanterns) and builds LOD0/1/2 per ship; `shipdetails.py` adds the LOD0-only extras (rudder, bow anchors, ratlines, hatch coaming).
+It writes `<id>.glb`, `<id>.meta.json` (deck profile, one obstacle per mast and castle plus the hatch, `specHash`) and the atlas.
 Colours come from `hullColor`/`trimColor` (the lower hull is the linear-space half of the hull colour, as in `materials.ts`).
 Run any subset by passing `IDS` in the wrapper globals:
 

@@ -16,9 +16,11 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import shipkit  # noqa: E402
 import shipbuilder  # noqa: E402
+import shipdetails  # noqa: E402
 
 importlib.reload(shipkit)
 importlib.reload(shipbuilder)
+importlib.reload(shipdetails)
 from shipkit import Atlas, MB, Scratch, emissive_material, empty, export_glb, fnv1a, tri_count, validate_ship, write_json  # noqa: E402
 from shipbuilder import B, LOD_CFG, Mast  # noqa: E402
 
@@ -73,7 +75,7 @@ def build_lod(level, spec, masts, atlas, mat, glass_mat, root):
         shipbuilder.build_ports(body, spec)
     if cfg['oars']:
         shipbuilder.build_oars(body, spec)
-    extra = shipbuilder.build_hero(body, spec, masts, cfg) if cfg['hero'] else []
+    extra = shipdetails.build_hero(body, spec, masts, cfg) if cfg['hero'] else []
     body.to_object(f"LOD{level}_Body", mat, lod)
 
     pivots = 0
