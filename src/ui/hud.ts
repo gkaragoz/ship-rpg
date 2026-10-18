@@ -1,4 +1,4 @@
-import type { GameView } from '../core';
+import { CONFIG, type GameView } from '../core';
 import { getNation } from '../world';
 import './hud.css';
 
@@ -152,7 +152,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
       // Nearest enemy afloat within sight.
       let foe = null as GameView['enemies'][number] | null;
       for (const e of view.enemies) if (e.sinking < 0 && (!foe || e.distance < foe.distance)) foe = e;
-      target.hidden = !foe || foe.distance > 1500 || view.sunk;
+      target.hidden = !foe || foe.distance > CONFIG.giveUpRange || view.sunk;
       if (foe) {
         const nation = getNation(foe.nation);
         targetChip.style.background = `#${nation.flag.toString(16).padStart(6, '0')}`;

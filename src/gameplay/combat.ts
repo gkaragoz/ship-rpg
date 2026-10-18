@@ -25,26 +25,27 @@ export interface Hull {
   speed: number;
 }
 
-export const COMBAT = {
-  /** Muzzle speed, m/s. With the elevation range below shots land 100–200 m out. */
+/** Tuning constants. Plain numbers (not `as const`) so `scripts/sweep.ts` can try values; the game never changes them. */
+export const COMBAT: Record<'ballSpeed' | 'gravity' | 'yawJitter' | 'elevationMin' | 'elevationMax' | 'maxPerVolley' | 'damagePerLb' | 'playerReload' | 'enemyReload' | 'enemySpread' | 'maxAge', number> = {
+  /** Muzzle speed, m/s. With the elevation range below shots land about 115–150 m out. */
   ballSpeed: 90,
   gravity: 9.81,
   /** Random sideways spread and elevation range, radians. */
   yawJitter: 0.035,
-  elevationMin: 0.05,
-  elevationMax: 0.11,
+  elevationMin: 0.07,
+  elevationMax: 0.09,
   /** At most this many balls per broadside; guns beyond it add damage to the balls instead. */
   maxPerVolley: 24,
   /** Hit points per pound of shot. */
   damagePerLb: 2.5,
   /** Seconds to reload a broadside. */
   playerReload: 6,
-  enemyReload: 10,
+  enemyReload: 8,
   /** The enemy's sideways spread is this many times the player's (a handicap kept until the balance table, see ROADMAP 5a.4). */
-  enemySpread: 1.6,
+  enemySpread: 1.3,
   /** Balls older than this are dropped. */
   maxAge: 6,
-} as const;
+};
 
 /** Muzzle height above the sea. */
 export const muzzleHeight = (spec: ShipSpec): number => Math.max(1.2, spec.freeboard - 0.8);
@@ -100,6 +101,8 @@ export function fireBroadside(
   side: Side,
   rng: () => number,
   nextId: () => number,
+  /** Sideways spread as a multiple of `COMBAT.yawJitter`; by default 1 for the player and `COMBAT.enemySpread` for enemies. */
+  spread: number = owner === 'enemy' ? COMBAT.enemySpread : 1,
 ): { balls: Ball[]; events: GameEvent[] } {
   const n = cannonsPerSide(spec);
   const balls: Ball[] = [];
@@ -119,7 +122,7 @@ export function fireBroadside(
     const along = (-0.3 + (0.6 * (i + 0.5)) / n) * spec.length;
     const px = hull.x + c * along + dirX * (spec.beam / 2);
     const pz = hull.z - s * along + dirZ * (spec.beam / 2);
-    const yaw = (rng() * 2 - 1) * COMBAT.yawJitter * (owner === 'enemy' ? COMBAT.enemySpread : 1);
+    const yaw = (rng() * 2 - 1) * COMBAT.yawJitter * spread;
     const cy = Math.cos(yaw);
     const sy = Math.sin(yaw);
     const elev = lerp(COMBAT.elevationMin, COMBAT.elevationMax, rng());

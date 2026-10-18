@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GameEvent } from '../src/core';
+import { CONFIG, type GameEvent } from '../src/core';
 import { createGame, type Game } from '../src/gameplay';
 import { getShipSpec } from '../src/ships';
 
@@ -30,12 +30,12 @@ describe('an enemy that is badly hurt', () => {
 
     // The player slips away: the enemy loses him after 30 s beyond 1.5 km.
     game.dev.teleportPlayer(FAR.x, FAR.z);
-    const events = run(game, 31);
+    const events = run(game, CONFIG.giveUpSeconds + 1);
     expect(events.filter((e) => e.type === 'escaped')).toHaveLength(1);
     expect(game.view().enemies.filter((e) => e.sinking < 0)).toHaveLength(0);
     expect(game.view().kills).toBe(0);
 
-    // Nothing arrives for most of the 25 s, then a fresh enemy ~650 m from the player.
+    // Nothing arrives for most of the 25 s (1 s of which has passed), then a fresh enemy ~650 m from the player.
     run(game, 20);
     expect(game.view().enemies).toHaveLength(0);
     run(game, 8);

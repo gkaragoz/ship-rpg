@@ -1,4 +1,4 @@
-import { angleDiff, clamp } from '../core';
+import { CONFIG, angleDiff, clamp } from '../core';
 import { terrainHeight } from '../world';
 import type { Controls, WindView } from '../core';
 import { SHIP_SPECS, type ShipSpec } from '../ships';
@@ -6,7 +6,7 @@ import { COMBAT, type Side } from './combat';
 import { createPlayerShip, isBlocked, type PlayerShip } from './sailing';
 
 /** Enemy hull strength as a fraction of its type's listed value: the player has no aim aid yet. */
-export const ENEMY_HULL_FACTOR = 0.7;
+export const ENEMY_TUNING = { hullFactor: 0.8 };
 
 export interface Enemy {
   id: string;
@@ -32,7 +32,7 @@ export function createEnemy(id: string, spec: ShipSpec, x: number, z: number, he
   const ship = createPlayerShip(x, z, heading);
   ship.sailTarget = 1;
   ship.sailLevel = 1;
-  const maxHp = Math.round(spec.stats.hp * ENEMY_HULL_FACTOR);
+  const maxHp = Math.round(spec.stats.hp * ENEMY_TUNING.hullFactor);
   return { id, spec, nation, ship, hp: maxHp, maxHp, reload: { port: COMBAT.enemyReload / 2, starboard: COMBAT.enemyReload / 2 }, sinking: -1, fleeing: false, lostFor: 0, gone: false };
 }
 
@@ -40,16 +40,39 @@ export function createEnemy(id: string, spec: ShipSpec, x: number, z: number, he
 export const MAX_ENEMIES = 3;
 export const desiredEnemies = (kills: number): number => Math.min(MAX_ENEMIES, 1 + Math.floor(kills / 2));
 
+/** Damage of one full broadside in hull points: guns per side × shot weight (before the damage factor). */
+const broadside = (s: ShipSpec): number => Math.floor(s.stats.cannons / 2) * s.stats.shot;
+
+/** Fighting strength: grows with hull and with firepower, 0 for an unarmed ship. */
+export const strength = (s: ShipSpec): number => Math.sqrt(s.stats.hp * broadside(s));
+
+/** An enemy may be at most this much faster than the player, so he can always hold his own in a chase. */
+export const MAX_SPEED_RATIO = 1.2;
+/** An enemy's strength must lie within these multiples of the player's, so nobody faces a hopeless or a trivial fight. */
+export const STRENGTH_WINDOW = { min: 0.45, max: 1.7 };
+/** An enemy squad aims for this fraction of the player's strength. */
+const TARGET_STRENGTH = 0.85;
+
 /**
- * The armed ship (8+ cannons) whose hull strength is the closest to 80% of the player's;
- * `rank` 1, 2, … picks the next closest, so a group is a mixed squadron rather than clones.
+ * Enemies for a player ship: armed ships (8+ cannons) not faster than the player (see
+ * `MAX_SPEED_RATIO`) and within `STRENGTH_WINDOW` of his strength, the closest to `TARGET_STRENGTH` of it. `rank` 0 is
+ * the best match, 1 and 2 the next ones, so a group is a mixed squadron rather than clones.
+ * Ranks wrap around the pool, so a player with few matches meets the same types again. An unarmed
+ * player (strength 0) gets the weakest armed ships that cannot outrun him.
  */
 export function pickEnemySpec(player: ShipSpec, rank = 0): ShipSpec {
-  const wanted = player.stats.hp * 0.8;
-  const armed = SHIP_SPECS.filter((s) => s.stats.cannons >= 8).sort(
-    (a, b) => Math.abs(a.stats.hp - wanted) - Math.abs(b.stats.hp - wanted),
-  );
-  return armed[rank % Math.max(armed.length, 1)] ?? player;
+  const mine = strength(player);
+  const wanted = mine * TARGET_STRENGTH;
+  const armed = SHIP_SPECS.filter((s) => s.stats.cannons >= 8);
+  const limit = player.stats.speed * MAX_SPEED_RATIO;
+  // Not faster than the player and (for an armed player) within the strength window.
+  const fits = (s: ShipSpec): boolean =>
+    s.stats.speed <= limit && (mine === 0 || (strength(s) >= mine * STRENGTH_WINDOW.min && strength(s) <= mine * STRENGTH_WINDOW.max));
+  let pool = armed.filter(fits);
+  // Nothing fits (e.g. a very slow ship): take the slowest armed ones rather than nothing.
+  if (pool.length === 0) pool = [...armed].sort((a, b) => a.stats.speed - b.stats.speed).slice(0, 3);
+  pool.sort((a, b) => Math.abs(strength(a) - wanted) - Math.abs(strength(b) - wanted) || a.stats.hp - b.stats.hp);
+  return pool[rank % pool.length] ?? player;
 }
 
 const BROADSIDE_ANGLE = Math.PI / 2;
@@ -64,9 +87,9 @@ const NO_GO = 0.75;
 const SEPARATION = 70;
 /** Below this fraction of its hull an enemy breaks off. */
 export const FLEE_HULL = 0.25;
-/** Farther than this from the player counts as having lost him; after `LOSE_SECONDS` of it the enemy gives up. */
-export const LOSE_RANGE = 1500;
-export const LOSE_SECONDS = 30;
+/** Farther than this from the player counts as having lost him; after `LOSE_SECONDS` of it the enemy gives up (values in `core/config.ts`, shared with the HUD). */
+export const LOSE_RANGE = CONFIG.giveUpRange;
+export const LOSE_SECONDS = CONFIG.giveUpSeconds;
 
 /**
  * Track whether the enemy has lost the player: call every step with the distance. Returns true

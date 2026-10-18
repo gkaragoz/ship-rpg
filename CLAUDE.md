@@ -6,6 +6,7 @@ Browser-based 3D naval RPG in the spirit of Pirates of the Caribbean (2003) / Se
 - `npm run dev` — dev server
 - `npm run check` — typecheck + lint + tests (must pass before "done")
 - `npm run build` — production build
+- `npm run balance` — duel simulator report (see `docs/BALANCE.md`); rerun it after changing combat or enemy numbers
 
 ## Architecture (read `docs/ARCHITECTURE.md` first)
 - `src/core` loop/input/config · `render` three scene · `ships` specs+factory · `world` islands/wind · `gameplay` combat/trade · `ui` DOM HUD · `audio` procedural sound.
@@ -15,7 +16,7 @@ Browser-based 3D naval RPG in the spirit of Pirates of the Caribbean (2003) / Se
 - Keep files under ~300 lines. See `docs/CONVENTIONS.md`.
 
 ## Context docs
-`docs/ARCHITECTURE.md`, `docs/SHIPS.md` (single source of truth for the 16 ship types), `docs/GAME_DESIGN.md`, `docs/CONVENTIONS.md`, `docs/ROADMAP.md`. Update them in the same change that alters what they describe.
+`docs/ARCHITECTURE.md`, `docs/SHIPS.md` (single source of truth for the 16 ship types), `docs/GAME_DESIGN.md`, `docs/BALANCE.md`, `docs/CONVENTIONS.md`, `docs/ROADMAP.md`. Update them in the same change that alters what they describe.
 
 ## Definition of done
 1. `npm run check` passes.

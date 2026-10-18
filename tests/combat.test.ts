@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createRng, type WindView } from '../src/core';
 import { createGame } from '../src/gameplay';
 import { COMBAT, aimZone, ballHits, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball } from '../src/gameplay/combat';
-import { FLEE_HULL, LOSE_RANGE, LOSE_SECONDS, MAX_ENEMIES, SPAWN_DISTANCE, aiStep, createEnemy, desiredEnemies, findSpawn, lostTrack, pickEnemySpec } from '../src/gameplay/enemy';
-import { SHIP_SPECS } from '../src/ships';
+import { ENEMY_TUNING, FLEE_HULL, LOSE_RANGE, LOSE_SECONDS, MAX_ENEMIES, MAX_SPEED_RATIO, SPAWN_DISTANCE, STRENGTH_WINDOW, strength, aiStep, createEnemy, desiredEnemies, findSpawn, lostTrack, pickEnemySpec } from '../src/gameplay/enemy';
+import { SHIP_SPECS, type ShipSpec } from '../src/ships';
 import { terrainHeight } from '../src/world';
 import { getShipSpec } from '../src/ships';
 
@@ -110,12 +110,22 @@ describe('ballHits', () => {
 });
 
 describe('enemy AI', () => {
-  it('picks the armed ship closest to 80% of the player hull strength', () => {
-    expect(pickEnemySpec(brig).id).toBe('schooner'); // 2000 wanted: schooner 1800 beats xebec 1500
-    expect(pickEnemySpec(spec('sloop')).id).toBe('galeoth'); // 960 wanted: galeoth 1000
-    expect(pickEnemySpec(spec('battleship')).id).toBe('battleship'); // 8000 wanted: the Battleship itself (10000) is closer than the Frigate (5700)
-    expect(pickEnemySpec(spec('tartane')).id).toBe('lugger'); // 80 wanted: weakest armed ship
-    for (const id of ['tartane', 'yacht', 'galleon']) expect(pickEnemySpec(spec(id)).stats.cannons).toBeGreaterThanOrEqual(8);
+  it('picks armed ships the player can keep up with and match in strength', () => {
+    for (const player of SHIP_SPECS) {
+      const e = pickEnemySpec(player);
+      expect(e.stats.cannons).toBeGreaterThanOrEqual(8);
+      if (player.stats.cannons > 0) {
+        expect(e.stats.speed).toBeLessThanOrEqual(player.stats.speed * MAX_SPEED_RATIO + 1e-9);
+        expect(strength(e)).toBeGreaterThanOrEqual(strength(player) * STRENGTH_WINDOW.min);
+        expect(strength(e)).toBeLessThanOrEqual(strength(player) * STRENGTH_WINDOW.max);
+      }
+    }
+  });
+
+  it('gives an unarmed ship a weak hunter that cannot outrun it', () => {
+    const e = pickEnemySpec(spec('tartane'));
+    expect(e.id).toBe('barque'); // 7 knots like the Tartane, the weakest armed ship that is no faster
+    expect(strength(spec('tartane'))).toBe(0);
   });
 
   it('turns toward a distant player and does not fire', () => {
@@ -292,7 +302,7 @@ describe('aimZone', () => {
     expect(z0.far).toBeGreaterThan(z0.near);
     expect(z0.drift).toBe(0);
     expect(aimZone(brig, 8).drift).toBeGreaterThan(5);
-    expect(z0.far - z0.near).toBeGreaterThan(60); // a usefully wide band, per the elevation range
+    expect(z0.far - z0.near).toBeGreaterThan(20); // a band, not a line: the elevation range is 0.07–0.09 rad
     expect(z0.halfSpan).toBeCloseTo(brig.length * 0.3, 5);
   });
 });
@@ -358,7 +368,7 @@ describe('enemy fleeing and losing track', () => {
   const schooner = spec('schooner');
 
   it('breaks off below the flee threshold and keeps running even if repaired', () => {
-    const atLine = Math.ceil(schooner.stats.hp * 0.7 * FLEE_HULL); // enemy hull is 70% of the listed value
+    const atLine = Math.ceil(schooner.stats.hp * ENEMY_TUNING.hullFactor * FLEE_HULL); // the enemy's hull is a fraction of the listed value
     const e = createEnemy('e', schooner, 0, 0, 0);
     expect(e.maxHp * FLEE_HULL).toBeLessThanOrEqual(atLine);
     e.hp = atLine; // at or just above 25%: still fighting
@@ -409,12 +419,8 @@ describe('several enemies', () => {
   it('picks a mixed squadron: rank 0 is the closest match, the next ranks are other armed ships', () => {
     const squad = [0, 1, 2].map((r) => pickEnemySpec(brig, r));
     expect(squad[0]).toBe(pickEnemySpec(brig));
-    expect(new Set(squad.map((s) => s.id)).size).toBe(3);
+    expect(new Set(squad.map((s) => s.id)).size).toBe(3); // the Brig has enough matches for a varied squadron
     for (const s of squad) expect(s.stats.cannons).toBeGreaterThanOrEqual(8);
-    // Closeness to 80% of the player's hull strength never gets better with the rank.
-    const gap = (s: { stats: { hp: number } }): number => Math.abs(s.stats.hp - brig.stats.hp * 0.8);
-    expect(gap(squad[0]!)).toBeLessThanOrEqual(gap(squad[1]!));
-    expect(gap(squad[1]!)).toBeLessThanOrEqual(gap(squad[2]!));
   });
 
   it('steers away from an enemy that is too close, and ignores distant ones', () => {
@@ -430,15 +436,16 @@ describe('several enemies', () => {
 });
 
 describe('squadrons for every ship', () => {
-  it.each(SHIP_SPECS.map((p) => [p.id, p] as const))('%s faces three distinct armed ships, closest match first', (_id, player) => {
+  it.each(SHIP_SPECS.map((p) => [p.id, p] as const))('%s: ranks are valid, best match first, and wrap around the pool', (_id, player) => {
     const squad = [0, 1, 2].map((r) => pickEnemySpec(player, r));
-    expect(new Set(squad.map((s) => s.id)).size).toBe(3);
     for (const s of squad) expect(s.stats.cannons).toBeGreaterThanOrEqual(8);
-    const gap = (s: { stats: { hp: number } }): number => Math.abs(s.stats.hp - player.stats.hp * 0.8);
-    expect(gap(squad[0]!)).toBeLessThanOrEqual(gap(squad[1]!));
-    expect(gap(squad[1]!)).toBeLessThanOrEqual(gap(squad[2]!));
-    const armed = SHIP_SPECS.filter((x) => x.stats.cannons >= 8).length;
-    expect(pickEnemySpec(player, armed).id).toBe(squad[0]!.id); // ranks wrap around the armed list
+    if (player.stats.cannons > 0) {
+      const gap = (s: ShipSpec): number => Math.abs(strength(s) - strength(player) * 0.85);
+      expect(gap(squad[0]!)).toBeLessThanOrEqual(gap(squad[1]!) + 1e-9);
+    }
+    // A short pool repeats: rank n and rank n + pool size are the same ship.
+    const pool = new Set(Array.from({ length: 16 }, (_, r) => pickEnemySpec(player, r).id));
+    expect(pickEnemySpec(player, pool.size).id).toBe(squad[0]!.id);
   });
 });
 
