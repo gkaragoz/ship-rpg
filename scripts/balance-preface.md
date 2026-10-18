@@ -42,7 +42,7 @@ elev        dmg/lb  ehull espread ereload | mirror: s  decisive  hit | bot: win 
 
 | Constant | Before | Now | Why |
 |---|---|---|---|
-| `COMBAT.elevationMin/Max` | 0.05 / 0.11 rad | 0.07 / 0.09 | Shots used to land anywhere from 100 to 200 m, so a ship 130 m away was hit by only about a quarter of the balls however well it was placed. The narrower band lifts the hit rate from 26% to 39% and shortens a mirror duel from 134 s to 99 s. The main reason is the player's: the aim zone is now a band 35 m deep (was 90 m) that you can actually steer a target into. The effect on fairness is small. |
+| `COMBAT.elevationMin/Max` | 0.05 / 0.11 rad | 0.07 / 0.09 | The balls used to come down anywhere from about 110 to 200 m out, so a ship 130 m away was hit by only about a quarter of the balls. The narrower band lifts the hit rate from 26% to 39% and shortens a mirror duel from 134 s to 99 s. The effect on fairness is small. (An earlier version of this note claimed the narrower band made the aim zone a "35 m band"; that was wrong: the zone shows where a ball can *hit*, which is a long stretch from the hull to about 170 m because low shots hit close in. The elevation range only changes how the hit chance thins out toward the far edge.) |
 | `ENEMY_TUNING.hullFactor` | 0.7 | 0.8 | Together with reload and spread this sets how much the enemy is handicapped. With no handicap the bot wins 63% (an even fight); the old handicap gave 93%; the chosen one 86%, leaving room for a human who plays worse than the bot. |
 | `COMBAT.enemyReload` | 10 s | 8 s | Same. |
 | `COMBAT.enemySpread` | 1.6× | 1.3× | Same. |

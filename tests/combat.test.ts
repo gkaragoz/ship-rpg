@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createRng, type WindView } from '../src/core';
+import { CONFIG, createRng, type WindView } from '../src/core';
 import { createGame } from '../src/gameplay';
-import { COMBAT, aimZone, ballHits, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball } from '../src/gameplay/combat';
+import { COMBAT, aimZone, ballHits, hitChanceAt, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball } from '../src/gameplay/combat';
 import { ENEMY_TUNING, FLEE_HULL, LOSE_RANGE, LOSE_SECONDS, MAX_ENEMIES, MAX_SPEED_RATIO, SPAWN_DISTANCE, STRENGTH_WINDOW, strength, aiStep, createEnemy, desiredEnemies, findSpawn, lostTrack, pickEnemySpec } from '../src/gameplay/enemy';
 import { SHIP_SPECS, type ShipSpec } from '../src/ships';
 import { terrainHeight } from '../src/world';
@@ -264,46 +264,87 @@ describe('createGame combat', () => {
   });
 });
 
-describe('aimZone', () => {
-  /** Where a fired ball touches the sea, in the ship's frame: forward and starboard distances from its centre. */
-  const landing = (b: Ball, from: { x: number; z: number; heading: number }): { fwd: number; stbd: number } => {
-    for (let i = 0; i < 480 * 8 && b.y > 0; i++) stepBall(b, 1 / 480);
-    const dx = b.x - from.x;
-    const dz = b.z - from.z;
-    const c = Math.cos(from.heading);
-    const s = Math.sin(from.heading);
-    return { fwd: dx * c - dz * s, stbd: dx * s + dz * c };
-  };
-
-  it.each(['sloop', 'brig', 'galleon', 'battleship'])('%s: every ball of both broadsides lands inside the zone', (id) => {
-    const sp = spec(id);
-    const from = { x: 120, z: -40, heading: 0.7 };
-    const speed = 5;
-    const zone = aimZone(sp, speed);
-    for (const side of ['starboard', 'port'] as const) {
-      for (let seed = 1; seed <= 12; seed++) {
-        let n = 0;
-        const { balls } = fireBroadside('player', { ...from, speed }, sp, side, createRng(seed), () => ++n);
-        for (const b of balls) {
-          const l = landing(b, from);
-          const across = side === 'starboard' ? l.stbd : -l.stbd;
-          expect(across).toBeGreaterThan(zone.near - 1);
-          expect(across).toBeLessThan(zone.far + 1);
-          expect(l.fwd).toBeGreaterThan(zone.drift - zone.halfSpan - zone.spread - 2);
-          expect(l.fwd).toBeLessThan(zone.drift + zone.halfSpan + zone.spread + 2);
+describe('aimZone and hit chance', () => {
+  /** Fire volleys from a stationary ship at an identical stationary ship `centreDistance` away abeam; the share of balls that hit. */
+  const measuredHitRate = (sp: ShipSpec, centreDistance: number): number => {
+    let balls = 0;
+    let hits = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      let n = 0;
+      const shooter = { x: 0, z: 0, heading: 0, speed: 0 };
+      const target = { x: 0, z: centreDistance, heading: 0 }; // heading 0: starboard is +z
+      const { balls: volley } = fireBroadside('player', shooter, sp, 'starboard', createRng(seed), () => ++n);
+      for (const b of volley) {
+        balls++;
+        for (let i = 0; i < 480 * 8 && b.y > 0; i++) {
+          stepBall(b, 1 / 480);
+          if (ballHits(b, target, sp)) {
+            hits++;
+            break;
+          }
         }
       }
     }
+    return hits / balls;
+  };
+
+  it.each(['sloop', 'brig', 'frigate', 'battleship'])('%s: the predicted hit chance matches balls actually flown at a target', (id) => {
+    const sp = spec(id);
+    const zone = aimZone(sp, 0);
+    for (const frac of [0.1, 0.4, 0.7, 0.95]) {
+      const centre = zone.near + (zone.far - zone.near) * frac + sp.beam; // the ball meets the near side of the target's hull
+      // A ball can meet the target anywhere along its beam: the measured rate lies between the average and the best chance there.
+      const along = Array.from({ length: 7 }, (_, k) => hitChanceAt(sp, centre - sp.beam - sp.beam / 2 + (sp.beam * k) / 6));
+      const best = Math.max(...along);
+      const mean = along.reduce((a, b) => a + b, 0) / along.length;
+      const rate = measuredHitRate(sp, centre);
+      expect(rate, `${id} at ${Math.round(centre)} m`).toBeGreaterThan(mean - 0.2);
+      expect(rate, `${id} at ${Math.round(centre)} m`).toBeLessThan(best + 0.2);
+    }
   });
 
-  it('starts beside the hull, grows with the ship speed drift and is the same for both sides', () => {
+  it.each(['brig', 'frigate'])('%s: nothing is hit beyond the far edge or on the far side of the ship', (id) => {
+    const sp = spec(id);
+    const zone = aimZone(sp, 0);
+    expect(measuredHitRate(sp, zone.far + sp.beam + 25)).toBe(0);
+    expect(measuredHitRate(sp, -(zone.near + 20))).toBe(0); // starboard guns, target to port
+  });
+
+  it('describes a stretch that starts at the hull, ends where the longest shots come down, and a chance across it', () => {
     const z0 = aimZone(brig, 0);
-    expect(z0.near).toBeGreaterThan(brig.beam / 2);
-    expect(z0.far).toBeGreaterThan(z0.near);
+    expect(z0.near).toBeGreaterThanOrEqual(brig.beam / 2);
+    expect(z0.near).toBeLessThan(brig.beam / 2 + 30); // low flat shots hit close in
+    expect(z0.far).toBeGreaterThan(130);
+    expect(z0.far).toBeLessThan(220);
+    expect(z0.profile).toHaveLength(CONFIG.aimSteps + 1);
+    for (const p of z0.profile) {
+      expect(p).toBeGreaterThanOrEqual(0);
+      expect(p).toBeLessThanOrEqual(1);
+    }
+    expect(Math.max(...z0.profile)).toBeGreaterThan(0.9);
+    expect(z0.profile[z0.profile.length - 1]!).toBeLessThan(0.5); // it thins out toward the far edge
     expect(z0.drift).toBe(0);
     expect(aimZone(brig, 8).drift).toBeGreaterThan(5);
-    expect(z0.far - z0.near).toBeGreaterThan(20); // a band, not a line: the elevation range is 0.07–0.09 rad
     expect(z0.halfSpan).toBeCloseTo(brig.length * 0.3, 5);
+  });
+
+  it('reaches further out with a flatter or steeper range of fire', () => {
+    const base = aimZone(brig, 0).far;
+    const was = [COMBAT.elevationMin, COMBAT.elevationMax];
+    try {
+      COMBAT.elevationMin = 0.1;
+      COMBAT.elevationMax = 0.12;
+      expect(aimZone(brig, 0).far).toBeGreaterThan(base + 30);
+    } finally {
+      COMBAT.elevationMin = was[0]!;
+      COMBAT.elevationMax = was[1]!;
+    }
+    expect(aimZone(brig, 0).far).toBe(base);
+  });
+
+  it('is the same shape for any heading and both sides: it depends only on the ship', () => {
+    expect(aimZone(spec('frigate'), 0).profile).toEqual(aimZone(spec('frigate'), 0).profile);
+    expect(aimZone(spec('frigate'), 0).far).toBeGreaterThan(aimZone(spec('sloop'), 0).far - 1); // bigger muzzle height reaches at least as far
   });
 });
 
@@ -318,8 +359,8 @@ describe('targetInZone', () => {
     expect(targetInZone(zone, shooter, 'port', { x: 0, z: -mid }, 25)).toBe(true);
   });
 
-  it('is false when too close, too far or far ahead or astern', () => {
-    expect(targetInZone(zone, shooter, 'starboard', { x: 0, z: zone.near - 40 }, 25)).toBe(false);
+  it('is false when too far or far ahead or astern, and true point blank', () => {
+    expect(targetInZone(zone, shooter, 'starboard', { x: 0, z: 25 }, 25)).toBe(true); // low flat shots hit close in
     expect(targetInZone(zone, shooter, 'starboard', { x: 0, z: zone.far + 60 }, 25)).toBe(false);
     expect(targetInZone(zone, shooter, 'starboard', { x: 200, z: mid }, 25)).toBe(false);
     expect(targetInZone(zone, shooter, 'starboard', { x: -200, z: mid }, 25)).toBe(false);

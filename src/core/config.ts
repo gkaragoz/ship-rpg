@@ -7,6 +7,8 @@ export const CONFIG = {
   /** Seconds a sinking ship takes to go down (gameplay removes it, render animates it). */
   sinkSeconds: 8,
   /** An enemy that has been farther than this (m) from the player for `giveUpSeconds` gives up; the HUD shows targets out to it. */
+  /** Samples across the gun landing zone's depth (see `GameView.ship.aim.profile`). */
+  aimSteps: 12,
   giveUpRange: 1000,
   giveUpSeconds: 20,
 } as const;

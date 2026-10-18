@@ -32,9 +32,11 @@ export interface WindView {
 export interface AimZoneView {
   /** Distance from the centreline to the muzzles (half the beam). */
   side: number;
-  /** Distances from the ship's centreline between which balls land abeam. */
+  /** Distances from the ship's centreline between which a ball can hit a ship abeam. */
   near: number;
   far: number;
+  /** Chance 0…1 that a ball hits at each of `CONFIG.aimSteps + 1` distances spread evenly from `near` to `far`. */
+  profile: readonly number[];
   /** Half the length along the hull over which guns are spread. */
   halfSpan: number;
   /** Forward drift of the landing zone from the ship's own speed. */

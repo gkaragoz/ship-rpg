@@ -1,5 +1,5 @@
 import type { GameEvent, Owner } from '../core';
-import { lerp } from '../core';
+import { CONFIG, lerp } from '../core';
 import type { ShipSpec } from '../ships';
 
 export type Side = 'port' | 'starboard';
@@ -53,15 +53,43 @@ export const muzzleHeight = (spec: ShipSpec): number => Math.max(1.2, spec.freeb
 export interface AimZone {
   /** Distance from the centreline to the muzzles (half the beam). */
   side: number;
-  /** Distances from the ship's centreline (m) between which balls land abeam. */
+  /** Distances from the ship's centreline (m) between which a ball can hit a ship abeam. */
   near: number;
   far: number;
+  /** Chance 0…1 that a ball hits, at `CONFIG.aimSteps + 1` distances spread evenly from `near` to `far`. */
+  profile: number[];
   /** Half the length (m) along the hull over which the guns are spread. */
   halfSpan: number;
-  /** How far forward (m) the ship's own speed carries the landing zone. */
+  /** How far forward (m) the ship's own speed carries the zone. */
   drift: number;
   /** Extra sideways scatter (m) at the far edge. */
   spread: number;
+}
+
+/** Height (m) of a ball fired at `elev` after it has travelled `d` metres horizontally. */
+const ballHeight = (spec: ShipSpec, elev: number, d: number): number => {
+  const cos = Math.cos(elev);
+  return muzzleHeight(spec) + Math.tan(elev) * d - (COMBAT.gravity * d * d) / (2 * (COMBAT.ballSpeed * cos) ** 2);
+};
+
+/** Elevations tried when working out the chance of a hit: an even spread over the firing range. */
+const ELEVATION_SAMPLES = 24;
+
+/**
+ * Chance 0…1 that a ball of a broadside hits a ship of the same size `d` metres away abeam: the
+ * share of the elevation range for which the ball is airborne and below the target's hull-and-
+ * rigging height there (the same height test `ballHits` uses). A ball flies low and flat over the
+ * first stretch, climbs, then falls, so the hittable stretch is not just where balls land.
+ */
+export function hitChanceAt(spec: ShipSpec, d: number): number {
+  const top = spec.freeboard + 1.5;
+  let hits = 0;
+  for (let i = 0; i < ELEVATION_SAMPLES; i++) {
+    const elev = COMBAT.elevationMin + ((COMBAT.elevationMax - COMBAT.elevationMin) * i) / (ELEVATION_SAMPLES - 1);
+    const y = ballHeight(spec, elev, d);
+    if (y > 0 && y < top) hits++;
+  }
+  return hits / ELEVATION_SAMPLES;
 }
 
 /** Seconds a ball fired at `elev` takes to come down to the sea from the muzzle. */
@@ -70,21 +98,36 @@ const flightTime = (elev: number, y: number): number => {
   return (vy + Math.sqrt(vy * vy + 2 * COMBAT.gravity * y)) / COMBAT.gravity;
 };
 
-/** Where a broadside lands, from the same ballistics `fireBroadside` uses (see tests). */
+/**
+ * Where a broadside can hit, from the same ballistics `fireBroadside` uses (see tests): the stretch
+ * abeam where the chance of a hit is above zero, and that chance across it. Short of the far edge
+ * the chance is high but not constant: high-angle shots pass over a target at middle distances.
+ */
 export function aimZone(spec: ShipSpec, shipSpeed: number): AimZone {
+  const STEP = 2;
+  const MAX = 400;
+  let first = -1;
+  let last = 0;
+  for (let d = 0; d <= MAX; d += STEP) {
+    if (hitChanceAt(spec, d) > 0) {
+      if (first < 0) first = d;
+      last = d;
+    }
+  }
+  const nearD = Math.max(first, 0);
+  const farD = Math.max(last, nearD + STEP);
+  const steps = CONFIG.aimSteps;
+  const profile = Array.from({ length: steps + 1 }, (_, i) => hitChanceAt(spec, nearD + ((farD - nearD) * i) / steps));
   const y = muzzleHeight(spec);
-  const lo = flightTime(COMBAT.elevationMin, y);
-  const hi = flightTime(COMBAT.elevationMax, y);
-  const range = (elev: number, t: number): number => COMBAT.ballSpeed * Math.cos(elev) * t;
-  const near = range(COMBAT.elevationMin, lo);
-  const far = range(COMBAT.elevationMax, hi);
+  const meanFlight = (flightTime(COMBAT.elevationMin, y) + flightTime(COMBAT.elevationMax, y)) / 2;
   return {
     side: spec.beam / 2,
-    near: spec.beam / 2 + near,
-    far: spec.beam / 2 + far,
+    near: spec.beam / 2 + nearD,
+    far: spec.beam / 2 + farD,
+    profile,
     halfSpan: 0.3 * spec.length,
-    drift: shipSpeed * ((lo + hi) / 2),
-    spread: Math.tan(COMBAT.yawJitter) * far,
+    drift: shipSpeed * meanFlight,
+    spread: Math.tan(COMBAT.yawJitter) * farD,
   };
 }
 

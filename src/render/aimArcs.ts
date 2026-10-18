@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import type { GameView } from '../core';
+import { CONFIG, type GameView } from '../core';
 import { waveHeight } from './waves';
 
 /** Grid resolution of each landing zone; vertices follow the waves so it never hides in a crest. */
-/** Dense across the band too (about 8 m cells), or a crest between two vertices hides part of the zone. */
+/** One row per sample of the hit-chance profile, so the shading follows the chance of a hit. */
 const NX = 12;
-const NZ = 12;
+const NZ = CONFIG.aimSteps;
 /** Lift above the long swell: clears the short waves the shader fades out with distance. */
 const LIFT = 0.9;
 /** Only waves at least this long are followed (see `waveHeight`). */
@@ -14,6 +14,8 @@ const SWELL = 50;
 interface Side {
   sign: 1 | -1;
   positions: THREE.BufferAttribute;
+  /** RGBA per vertex: white, with the alpha following the chance of a hit. */
+  colors: THREE.BufferAttribute;
   fill: THREE.MeshBasicMaterial;
   line: THREE.LineBasicMaterial;
   spoke: THREE.BufferAttribute;
@@ -62,12 +64,15 @@ export function createAimArcs(): AimArcs {
     positions.setUsage(THREE.DynamicDrawUsage);
     const fillGeo = new THREE.BufferGeometry();
     fillGeo.setAttribute('position', positions);
+    const colors = new THREE.BufferAttribute(new Float32Array(verts * 4), 4);
+    colors.setUsage(THREE.DynamicDrawUsage);
+    fillGeo.setAttribute('color', colors);
     fillGeo.setIndex(index);
     const lineGeo = new THREE.BufferGeometry();
     lineGeo.setAttribute('position', positions);
     lineGeo.setIndex(outline);
 
-    const fill = new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide, fog: false });
+    const fill = new THREE.MeshBasicMaterial({ color: 0xffd34d, vertexColors: true, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide, fog: false });
     const line = new THREE.LineBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.95, depthWrite: false, fog: false });
     const mesh = new THREE.Mesh(fillGeo, fill);
     const loop = new THREE.LineLoop(lineGeo, line);
@@ -82,7 +87,7 @@ export function createAimArcs(): AimArcs {
     const group = new THREE.Group();
     group.add(mesh, loop, spokeLine);
     object.add(group);
-    return { sign, positions, fill, line, spoke, group };
+    return { sign, positions, colors, fill, line, spoke, group };
   };
   const sides = { port: make(-1), starboard: make(1) };
 
@@ -100,8 +105,12 @@ export function createAimArcs(): AimArcs {
     const c = Math.cos(ship.heading);
     const s = Math.sin(ship.heading);
     const arr = side.positions.array as Float32Array;
+    const rgba = side.colors.array as Float32Array;
     let k = 0;
+    let c4 = 0;
     for (let j = 0; j <= NZ; j++) {
+      // Fainter where fewer balls would hit, so the zone shows where to put the target.
+      const alpha = 0.12 + 0.88 * (ship.aim.profile[j] ?? 0);
       const lz = side.sign * (near + ((far - near) * j) / NZ);
       for (let i = 0; i <= NX; i++) {
         const lx = drift - halfSpan + (2 * halfSpan * i) / NX;
@@ -111,9 +120,14 @@ export function createAimArcs(): AimArcs {
         arr[k++] = x;
         arr[k++] = waveHeight(x, z, time, wind.from, ampScale, SWELL) + LIFT;
         arr[k++] = z;
+        rgba[c4++] = 1;
+        rgba[c4++] = 1;
+        rgba[c4++] = 1;
+        rgba[c4++] = alpha;
       }
     }
     side.positions.needsUpdate = true;
+    side.colors.needsUpdate = true;
 
     const sp = side.spoke.array as Float32Array;
     for (let e = 0; e < 2; e++) {
