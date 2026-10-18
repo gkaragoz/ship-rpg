@@ -310,6 +310,32 @@ export interface MarketLineView {
   held: number;
 }
 
+/** A ship the yard sells. */
+export interface ShipOfferView {
+  specId: string;
+  name: string;
+  /** Price in gold, and what is left to pay after the yard buys the ship you sail. */
+  price: number;
+  net: number;
+  hp: number;
+  speed: number;
+  turn: number;
+  hold: number;
+  crew: number;
+  cannons: number;
+  /** This is the ship you sail. */
+  current: boolean;
+  /** Why it cannot be bought now: not-sold, same-ship, hold-too-small or no-gold. */
+  reason?: string;
+}
+
+export interface ShipyardView {
+  /** What the yard pays for your ship now, and a full repair of it. */
+  tradeIn: number;
+  repairCost: number;
+  offers: readonly ShipOfferView[];
+}
+
 /** What the docked port offers (the port panel's tabs). */
 export interface PortServicesView {
   portId: string;
@@ -317,14 +343,17 @@ export interface PortServicesView {
   /** Gold to sign on a sailor, and how many the ship has room for. */
   hirePrice: number;
   room: number;
+  shipyard: ShipyardView;
 }
 
 /** What the port panel asks the game to do. */
 export type PortCommand =
   | { type: 'buy' | 'sell'; good: string; qty: number }
-  | { type: 'hire' | 'discharge'; qty: number };
+  | { type: 'hire' | 'discharge'; qty: number }
+  | { type: 'buyShip'; specId: string }
+  | { type: 'repair' };
 
-/** `reason` is a code the UI words: not-docked, bad-qty, no-gold, no-space, no-stock, crew-full, no-crew. */
+/** `reason` is a code the UI words: not-docked, bad-qty, bad-good, no-gold, no-space, no-stock, crew-full, no-crew, not-sold, same-ship, hold-too-small, nothing-to-repair. */
 export interface CommandResult {
   ok: boolean;
   reason?: string;

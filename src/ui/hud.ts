@@ -7,6 +7,8 @@ export interface Hud {
   update(view: GameView): void;
   /** Show a short message (a setting changed, e.g. mute). */
   notice(text: string): void;
+  /** The ship's name in the panel (it changes when a ship is bought). */
+  setShipName(name: string): void;
   dispose(): void;
 }
 
@@ -82,7 +84,8 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   };
   guns.append(gunLabel('Sol (Q)', gunPort.root), gunLabel('Sağ (E)', gunStbd.root));
   const captainHud = createCaptainHud();
-  panel.append(el('h3', undefined, shipName), compass, rows, drive.root, hull.root, rig.root, guns, captainHud.root);
+  const nameEl = el('h3', undefined, shipName);
+  panel.append(nameEl, compass, rows, drive.root, hull.root, rig.root, guns, captainHud.root);
 
   // Nearest enemy.
   const target = el('div', 'hud-target');
@@ -113,6 +116,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   let lastClock = performance.now();
 
   return {
+    setShipName: (name) => void (nameEl.textContent = name),
     notice(text): void {
       toast.textContent = text;
       toastLeft = 1.8;

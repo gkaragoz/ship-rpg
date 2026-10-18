@@ -1,6 +1,7 @@
 import type { CommandResult, MarketLineView, PortCommand, PortServicesView } from '../core';
 import type { ShipSpec } from '../ships';
 import { GOODS, TRADE, getGood, portMultiplier } from '../world';
+import { shipyardView } from './shipyard';
 import { holdUsed, type GameState } from './state';
 
 /** Price pressure of a good in a port now: what trading left, faded by the time since. */
@@ -38,6 +39,7 @@ const OK: CommandResult = { ok: true };
 /** Carry out a port command on the run's state; `portId` is where the ship is moored (null at sea: nothing is possible). */
 export function runCommand(st: GameState, spec: ShipSpec, portId: string | null, time: number, cmd: PortCommand): CommandResult {
   if (!portId) return fail('not-docked');
+  if (cmd.type === 'buyShip' || cmd.type === 'repair') return fail('bad-qty'); // the game handles these: they change the ship itself
   const qty = Math.floor(cmd.qty);
   if (!(qty >= 1)) return fail('bad-qty');
   switch (cmd.type) {
@@ -87,5 +89,5 @@ export function servicesView(st: GameState, spec: ShipSpec, portId: string, time
     trend: midPrice(st, portId, g.id, time) / g.base,
     held: st.hold[g.id] ?? 0,
   }));
-  return { portId, market, hirePrice: TRADE.hirePrice, room: Math.max(0, spec.stats.crew - st.crew) };
+  return { portId, market, hirePrice: TRADE.hirePrice, room: Math.max(0, spec.stats.crew - st.crew), shipyard: shipyardView(st, spec, portId) };
 }

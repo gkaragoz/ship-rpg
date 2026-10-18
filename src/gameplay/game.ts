@@ -21,6 +21,7 @@ import { cloneState, newGameState, startPose, type GameState } from './state';
 import { DOCK, ELEVATE_RATE, REPAIR_RATE, RESPAWN, STAGGER } from './tuning';
 import { restoreShip, boardingView, captainView, cargoView, companyView, snapshot } from './stateView';
 import { runCommand, servicesView } from './harbour';
+import { runYard } from './shipyard';
 import { changeClock } from './clockState';
 import { createDesk } from './desk';
 import { awardXp, killXp } from './plunder';
@@ -63,9 +64,9 @@ export interface Game {
 /** Open-sea sandbox: one player ship, an archipelago with ports, and an enemy hunting you. */
 export function createGame(init: ShipSpec | GameState): Game {
   const st: GameState = cloneState('ship' in init ? init : newGameState(init));
-  const spec: ShipSpec = 'ship' in init ? (getShipSpec(init.ship.specId) ?? fail(`unknown ship ${init.ship.specId}`)) : init;
+  let spec: ShipSpec = 'ship' in init ? (getShipSpec(init.ship.specId) ?? fail(`unknown ship ${init.ship.specId}`)) : init;
   const rng = createRng(0x5eed);
-  const maxHp = spec.stats.hp;
+  let maxHp = spec.stats.hp;
 
   const makeShip = (pose: GameState['pose']): PlayerShip => createPlayerShip(pose.x, pose.z, pose.heading);
 
@@ -87,8 +88,11 @@ export function createGame(init: ShipSpec | GameState): Game {
   let sea = weather.seaState; // how rough the sea is this step
   /** The wind a ship at a place feels now: the true wind in the gust over it. */
   const feel = (s: { x: number; z: number }): WindView => ({ from: wind.from, speed: wind.speed * gustAt(s.x, s.z, time, wind) });
-  const deck = getDeck(spec.id); // only ships with a walkable GLB deck carry a visible crew
-  const crew = deck ? createCrew(deck, crewCountFor(spec.length)) : null;
+  const crewFor = (s: ShipSpec): ReturnType<typeof createCrew> | null => {
+    const deck = getDeck(s.id); // only ships with a walkable GLB deck carry a visible crew
+    return deck ? createCrew(deck, crewCountFor(s.length)) : null;
+  };
+  let crew = crewFor(spec);
   const npcs = createNpcFleet({ x: ship.x, z: ship.z }); // patrols around the start, on open water
   let dockedAt: Port | null = null;
 
@@ -116,6 +120,29 @@ export function createGame(init: ShipSpec | GameState): Game {
     if (!next) return; // no room right now: the caller tries again after STAGGER
     enemies.push(next);
     enemyCounter++;
+  };
+
+  /** The run's `ship` record as the game has it now (hull and condition live in the closure while sailing). */
+  const syncShip = (): void => {
+    st.ship = { specId: spec.id, hp, rigging: ship.rigging, flooding: ship.flooding, fire: ship.fire };
+  };
+  /** The captain sails `next` now (bought, or the same ship repaired): take its numbers and condition from `st.ship`. */
+  const equip = (next: ShipSpec): void => {
+    if (next.id !== spec.id) {
+      spec = next;
+      maxHp = next.stats.hp;
+      crew = crewFor(next);
+      reload.port = 0;
+      reload.starboard = 0;
+      salvo.clear();
+      elevation = ELEVATION.rest;
+      enemies = []; // they were picked for the old ship
+      respawnIn = STAGGER;
+    }
+    hp = Math.min(maxHp, Math.max(1, st.ship.hp));
+    ship.rigging = st.ship.rigging;
+    ship.flooding = st.ship.flooding;
+    ship.fire = st.ship.fire;
   };
 
   const reset = (pose: GameState['pose'] = startPose()): void => {
@@ -236,7 +263,10 @@ export function createGame(init: ShipSpec | GameState): Game {
     get spec(): ShipSpec {
       return spec;
     },
-    command: (cmd) => runCommand(st, spec, dockedAt?.id ?? null, time, cmd),
+    command(cmd): CommandResult {
+      syncShip();
+      return cmd.type === 'buyShip' || cmd.type === 'repair' ? runYard(st, spec, dockedAt?.id ?? null, cmd, equip) : runCommand(st, spec, dockedAt?.id ?? null, time, cmd);
+    },
     state(): GameState {
       return snapshot(st, { spec, hp, ship, dockedAt: dockedAt?.id ?? null, islands: explore.islands(), ports: explore.ports(), time });
     },
@@ -309,6 +339,7 @@ export function createGame(init: ShipSpec | GameState): Game {
     },
 
     view(): GameView {
+      if (dockedAt) syncShip(); // the yard's prices depend on the hull
       const n = nearest();
       const nearestPort = n && portView(n, ship, !dockedAt && canDock(n.distance));
       const enemyViews = enemies.map((e) => enemyView(e, ship, feel(e.ship)));

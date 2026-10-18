@@ -3,7 +3,7 @@ import { createInput, type Controls, type GameView } from '../core';
 import { createGame } from '../gameplay';
 import { createAutoQuality, createSailingView, lowerQuality, nextQuality } from '../render';
 import { getSettings } from '../settings';
-import { createShip, getShipSpec, type Ship, type ShipLod, type ShipSpec } from '../ships';
+import { createShip, getShipSpec, requestShipAsset, type Ship, type ShipLod, type ShipSpec } from '../ships';
 import { createHud, createMapUi, createPortPanel, createSettingsUI, weatherTab } from '../ui';
 import { getNation, sunState, weatherAt, type Weather } from '../world';
 import { gameLines, renderLines } from './debugLines';
@@ -45,7 +45,8 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   const game = createGame(spec);
   // In dev, expose the game on window so it can be poked from the browser console (e.g. __game.dev.setKills(4)).
   if (import.meta.env.DEV) (window as unknown as { __game?: typeof game }).__game = game;
-  const ship = createShip(spec, { flag: getNation('free').flag }); // the player is a free captain
+  let ship = createShip(spec, { flag: getNation('free').flag }); // the player is a free captain
+  let shipId = spec.id;
   const store = getSettings();
   // A quality asked for in the URL is kept as it is; otherwise the game may lower the water quality when frames run slow.
   const urlQuality = new URLSearchParams(window.location.search).has('quality');
@@ -57,7 +58,14 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   // Enemy ships: a model per id the game reports, created on first sight and dropped when gone.
   const enemyShips = new Map<string, Ship>();
   const map = createMapUi(host);
-  const portPanel = createPortPanel(host, (cmd) => game.command(cmd));
+  const portPanel = createPortPanel(host, (cmd) => {
+    if (cmd.type !== 'buyShip') return game.command(cmd);
+    // A new ship: check the offer, then have its model (and deck) loaded before the game swaps it in.
+    const offer = lastView?.port?.shipyard.offers.find((o) => o.specId === cmd.specId);
+    if (!offer || offer.reason) return { ok: false, reason: offer?.reason ?? 'not-sold' };
+    void requestShipAsset(cmd.specId).finally(() => game.command(cmd));
+    return { ok: true };
+  });
   const audio = createAudio();
   let paused = false;
   let lastView: GameView | null = null;
@@ -170,6 +178,18 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     return { rudder, sailStep, interact, firePort, fireStarboard, elevate, board, restart: input.pressed(RESTART) };
   };
 
+  /** The captain bought another ship: draw it in place of the old one. */
+  const swapPlayer = (id: string): void => {
+    const next = getShipSpec(id);
+    if (!next) return;
+    const old = ship;
+    ship = createShip(next, { flag: getNation('free').flag });
+    shipId = id;
+    view.setPlayer(ship.root, { length: next.length, beam: next.beam });
+    old.dispose();
+    hud.setShipName(next.name);
+  };
+
   const syncEnemies = (v: ReturnType<typeof game.view>): void => {
     const live = new Set<string>();
     for (const e of v.enemies) {
@@ -221,6 +241,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
         lastStrike = v.weather.strike.id;
         audio.thunder(Math.hypot(v.weather.strike.x - v.ship.x, v.weather.strike.z - v.ship.z), v.weather.strike.power);
       }
+      if (v.ship.specId !== shipId) swapPlayer(v.ship.specId);
       syncOthers(v);
       ship.setSailTrim(v.ship.apparent.angle, v.ship.sailLevel);
       ship.setWind?.({ angle: v.ship.apparent.angle, speed: v.ship.apparent.speed, gust: v.ship.gust });

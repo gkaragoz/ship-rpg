@@ -3,6 +3,7 @@ import { getPort } from '../world';
 import { el } from './dom';
 import { createMarketTab, reasonText } from './portMarket';
 import { createTavernTab } from './portTavern';
+import { createYardTab } from './portYard';
 import './portPanel.css';
 
 export interface PortPanel {
@@ -12,7 +13,7 @@ export interface PortPanel {
 
 const gold = (n: number): string => Math.round(n).toLocaleString('tr-TR');
 
-/** Harbour screen shown while the ship is moored: tabs for the market, the shipyard (later) and the tavern. */
+/** Harbour screen shown while the ship is moored: tabs for the market, the shipyard and the tavern. */
 export function createPortPanel(host: HTMLElement, onCommand: (cmd: PortCommand) => CommandResult): PortPanel {
   const root = el('section', 'port-panel');
   root.hidden = true;
@@ -29,20 +30,20 @@ export function createPortPanel(host: HTMLElement, onCommand: (cmd: PortCommand)
 
   const market = createMarketTab(send);
   const tavern = createTavernTab(send);
+  const yard = createYardTab(send);
   const tabs = [
     { id: 'market', label: 'Pazar', body: market },
-    { id: 'yard', label: 'Tersane', body: null },
+    { id: 'yard', label: 'Tersane', body: yard },
     { id: 'tavern', label: 'Taverna', body: tavern },
   ] as const;
   const bar = el('div', 'port-tabs');
   const body = el('div', 'port-body');
-  const yardSoon = el('p', 'port-soon', 'Tersane yakında');
   const buttons = new Map<string, HTMLButtonElement>();
   let active: (typeof tabs)[number]['id'] = 'market';
   const show = (id: typeof active): void => {
     active = id;
     for (const [tid, b] of buttons) b.classList.toggle('on', tid === id);
-    body.replaceChildren(tabs.find((t) => t.id === id)?.body?.root ?? yardSoon);
+    body.replaceChildren(tabs.find((t) => t.id === id)?.body.root ?? market.root);
   };
   for (const t of tabs) {
     const b = el('button', undefined, t.label);
@@ -82,6 +83,7 @@ export function createPortPanel(host: HTMLElement, onCommand: (cmd: PortCommand)
       if (statusLeft <= 0) status.textContent = '';
       if (active === 'market') market.update(view);
       else if (active === 'tavern') tavern.update(view);
+      else yard.update(view);
     },
     dispose(): void {
       root.remove();

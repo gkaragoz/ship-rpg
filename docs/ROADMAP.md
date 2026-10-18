@@ -65,6 +65,6 @@
     - [x] 5a.4d guard: a balance test that fails if a pairing leaves the target range, and `docs/BALANCE.md` with the table (done)
   - [x] 5b. Gold wallet and cargo hold (state in gameplay, shown in the HUD), crew count and its effect on reload speed; boarding a defeated ship (B) for loot, crew losses, XP and captain level (`docs/GAME_DESIGN.md`). Stage 0 first: `createGame(spec | GameState)`, `Game.state()`. Open: the visible deck crew does not follow the crew count
   - [x] 5c. Trade: buy and sell goods at ports, hold capacity from ship stats, hiring crew at the tavern (`docs/ECONOMY.md`; the repo has no cargo table, so the goods and port tables are our own)
-  - [ ] 5d. Shipyard: buy, sell and repair ships from the 16 types (needs a game-state refactor: the player's ship spec, hull points and hold become mutable state; `createGame(spec)` becomes `createGame(state)`)
+  - [x] 5d. Shipyard: buy ships from the 16 types (part exchange for yours, cargo must fit), paid repair, ship swap at the quay (`docs/ECONOMY.md`). Open: a ship cannot be kept as a second hull or captured as a prize; hull repair at the quay is slow (0.2 %/s)
   - [ ] 5e. NPC traffic between ports (also feeds 5a.2 several enemies), nationalities/factions, reputation and simple quests
   - [ ] 5f. Save and load: a versioned state object (position, ship, gold, hold, discoveries, kills); plan the schema as 5b–5e add state
