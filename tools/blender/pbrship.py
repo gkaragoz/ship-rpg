@@ -152,7 +152,7 @@ def seed_of(spec_id):
 def build_ship(spec, make_meta, out_dir, budget_fn=budgets):
     """Build one PBR ship, export it and return the meta dict. `make_meta` is make_ships.build_meta."""
     sid = spec['id']
-    A = ATLAS_PX.get(sid, DEFAULT_ATLAS_PX)
+    A = ATLAS_PX.get(sid) or (1024 if spec['length'] <= 20 else 1536 if spec['length'] < 40 else DEFAULT_ATLAS_PX)
     budget = budget_fn(spec['length'])
     atlas_tex = pbrhull.build_atlas(spec, A, seed_of(sid))
     t = tiles()

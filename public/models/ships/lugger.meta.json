@@ -4,25 +4,25 @@
   "beam": 4.95,
   "lods": {
     "LOD0": {
-      "tris": 2769,
-      "meshes": 5,
-      "drawCalls": 5
+      "tris": 13314,
+      "meshes": 9,
+      "drawCalls": 9
     },
     "LOD1": {
-      "tris": 418,
-      "meshes": 3,
-      "drawCalls": 3
+      "tris": 1539,
+      "meshes": 7,
+      "drawCalls": 7
     },
     "LOD2": {
-      "tris": 108,
-      "meshes": 3,
-      "drawCalls": 3
+      "tris": 549,
+      "meshes": 7,
+      "drawCalls": 7
     }
   },
   "budgets": {
-    "LOD0": 3940,
-    "LOD1": 480,
-    "LOD2": 156
+    "LOD0": 19200,
+    "LOD1": 2120,
+    "LOD2": 860
   },
   "specHash": "ea1f7aeb",
   "trimPivot": [
@@ -137,15 +137,24 @@
     },
     {
       "type": "circle",
+      "x": -1.718,
+      "z": 0.0,
+      "r": 0.5
+    },
+    {
+      "type": "circle",
       "x": -1.92,
       "z": 0.0,
       "r": 0.338
     }
   ],
   "lantern": [
-    -7.7,
-    3.409,
+    -7.92,
+    3.264,
     0.0
   ],
-  "bytes": 224192
+  "bytes": 603712,
+  "pbr": true,
+  "atlasPx": 1024,
+  "tilePx": 512
 }
