@@ -56,6 +56,9 @@ export interface GameSettings {
   showHints: boolean;
   /** Camera orbit and zoom speed (0.4 … 2). */
   cameraSensitivity: number;
+  /** Minutes of play one day lasts (1 … 120), and whether time stands still. */
+  dayMinutes: number;
+  freezeTime: boolean;
 }
 
 export interface DebugSettings {
@@ -95,7 +98,7 @@ export const DEFAULTS: Settings = {
   version: 1,
   graphics: { preset: 'medium', ...PRESETS.medium, toneMapping: 'aces', exposure: 1, fpsLimit: 0, autoQuality: true },
   audio: { master: 0.8, sfx: 1, ambience: 0.8, music: 0.6, muted: false },
-  game: { hudScale: 1, showHints: true, cameraSensitivity: 1 },
+  game: { hudScale: 1, showHints: true, cameraSensitivity: 1, dayMinutes: 24, freezeTime: false },
   debug: { overlay: false, detail: 'full' },
 };
 
@@ -161,6 +164,8 @@ export function sanitize(raw: unknown): Settings {
       hudScale: num(p.hudScale, 0.7, 1.5, d.game.hudScale),
       showHints: bool(p.showHints, d.game.showHints),
       cameraSensitivity: num(p.cameraSensitivity, 0.4, 2, d.game.cameraSensitivity),
+      dayMinutes: num(p.dayMinutes, 1, 120, d.game.dayMinutes),
+      freezeTime: bool(p.freezeTime, d.game.freezeTime),
     },
     debug: { overlay: bool(b.overlay, d.debug.overlay), detail: oneOf(b.detail, ['mini', 'full'], d.debug.detail) },
   };

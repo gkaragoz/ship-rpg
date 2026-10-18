@@ -38,6 +38,8 @@ export interface SunShadow {
   dirZ: number;
   /** Elevation above the horizon, radians. */
   elevation: number;
+  /** How strong the light is, 0 (out) … 1 (full sun): the shadow's darkness follows. */
+  strength: number;
 }
 
 /** Stamps allowed per frame; more are dropped. */
@@ -98,7 +100,7 @@ export function shadowStamp(m: ShipMotion, sun: SunShadow, out: Stamp[]): void {
     heading: Math.atan2(-sun.dirZ, sun.dirX),
     length,
     width: across * 1.1,
-    foam: Math.min(0.55, 0.2 + sun.elevation * 0.8),
+    foam: Math.min(0.55, 0.2 + sun.elevation * 0.8) * sun.strength,
     height: 0,
     kind: 2,
   });

@@ -46,7 +46,7 @@ describe('ship shadows on the sea', () => {
   const ship = { x: 100, z: 50, heading: 0, speed: 0, length: 20, beam: 6, sinking: -1 };
   const cast = (elevation: number, dirX = 1, dirZ = 0): Stamp => {
     const out: Stamp[] = [];
-    shadowStamp(ship, { dirX, dirZ, elevation }, out);
+    shadowStamp(ship, { dirX, dirZ, elevation, strength: 1 }, out);
     return out[0]!;
   };
 
@@ -61,15 +61,15 @@ describe('ship shadows on the sea', () => {
 
   it('casts none with the sun at the horizon or below, nor for a sinking ship', () => {
     const out: Stamp[] = [];
-    shadowStamp(ship, { dirX: 1, dirZ: 0, elevation: 0.02 }, out);
-    shadowStamp({ ...ship, sinking: 2 }, { dirX: 1, dirZ: 0, elevation: 0.8 }, out);
+    shadowStamp(ship, { dirX: 1, dirZ: 0, elevation: 0.02, strength: 1 }, out);
+    shadowStamp({ ...ship, sinking: 2 }, { dirX: 1, dirZ: 0, elevation: 0.8, strength: 1 }, out);
     expect(out).toHaveLength(0);
   });
 
   it('is wider across the sun when the ship lies broadside to it', () => {
     const along = (heading: number): number => {
       const out: Stamp[] = [];
-      shadowStamp({ ...ship, heading }, { dirX: 1, dirZ: 0, elevation: 0.7 }, out);
+      shadowStamp({ ...ship, heading }, { dirX: 1, dirZ: 0, elevation: 0.7, strength: 1 }, out);
       return out[0]!.width;
     };
     expect(along(Math.PI / 2)).toBeGreaterThan(along(0)); // heading π/2 points along -z: across the sun's +x

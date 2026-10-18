@@ -8,3 +8,5 @@ export { NATIONS, getNation } from './nations';
 export type { Nation } from './nations';
 export { SEA_NAMES, SHORT_WAVE, WAVES, WAVE_TERMS, chop, seaAmp, seaName, seaStateAt, waveDirection, waveHeight, waveSlope } from './sea';
 export type { WaveSpec } from './sea';
+export { DEFAULT_CLOCK, HOUR_PRESETS, formatHour, hourAt, startHourFor, sunState } from './clock';
+export type { ClockSettings, DayPhase, SunState } from './clock';

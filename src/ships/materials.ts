@@ -35,7 +35,7 @@ export function createMaterials(spec: ShipSpec, flag: number = DEFAULT_FLAG): Sh
     }),
     dark: flat(0x140e08),
     flag: new THREE.MeshBasicMaterial({ color: flag, side: THREE.DoubleSide }),
-    window: new THREE.MeshBasicMaterial({ color: 0xffd27a }),
+    window: Object.assign(new THREE.MeshBasicMaterial({ color: 0xffd27a }), { name: 'window' }), // named: the night lamps find it
   };
 }
 

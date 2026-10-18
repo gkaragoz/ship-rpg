@@ -7,6 +7,8 @@ const CUBE_SIZE = 128;
 const REFRESH_SECONDS = 1.5;
 /** Refresh at once when the sea state moved this much since the last probe. */
 const REFRESH_STATE = 0.04;
+/** … or when the hour moved this much (about 20 s of a 24-minute day). */
+const REFRESH_HOURS = 0.2;
 
 /**
  * Image-based lighting from the live sky: the sky dome (colours of the hour and weather, clouds, sun) and the
@@ -17,7 +19,7 @@ const REFRESH_STATE = 0.04;
  */
 export interface SkyLight {
   /** Draw the probe if it is due. `intensity` scales how much light the environment adds. */
-  update(look: SeaLook, time: number, windFrom: number, seaState: number, intensity: number): void;
+  update(look: SeaLook, time: number, windFrom: number, seaState: number, intensity: number, hour: number): void;
   /** Stop lighting from the probe (the scene falls back to its hemisphere light). */
   disable(): void;
   readonly active: boolean;
@@ -36,6 +38,7 @@ export function createSkyLight(renderer: THREE.WebGLRenderer, scene: THREE.Scene
   let filtered: THREE.WebGLRenderTarget | null = null;
   let lastTime = -Infinity;
   let lastState = -1;
+  let lastHour = -1;
   let active = false;
   const origin = new THREE.Camera();
 
@@ -43,12 +46,13 @@ export function createSkyLight(renderer: THREE.WebGLRenderer, scene: THREE.Scene
     get active(): boolean {
       return active;
     },
-    update(look, time, windFrom, seaState, intensity): void {
+    update(look, time, windFrom, seaState, intensity, hour): void {
       scene.environmentIntensity = intensity;
-      const due = !active || time - lastTime >= REFRESH_SECONDS || time < lastTime || Math.abs(seaState - lastState) >= REFRESH_STATE;
+      const due = !active || time - lastTime >= REFRESH_SECONDS || time < lastTime || Math.abs(seaState - lastState) >= REFRESH_STATE || Math.abs(hour - lastHour) >= REFRESH_HOURS;
       if (!due) return;
       lastTime = time;
       lastState = seaState;
+      lastHour = hour;
       sky.update(origin, look, time, windFrom);
       const autoClear = renderer.autoClear;
       renderer.autoClear = true;

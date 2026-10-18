@@ -1,7 +1,7 @@
 import { SHIP_SPECS, createShip, type Ship, type ShipSpec } from '../ships';
 import { createGalleryView } from '../render';
 import { getSettings } from '../settings';
-import { createGalleryUI, createSettingsUI, type GalleryItem, type GalleryUI } from '../ui';
+import { createGalleryUI, createSettingsUI, weatherTab, type GalleryItem, type GalleryUI } from '../ui';
 import { renderLines } from './debugLines';
 import { applyGameSettings } from './gameSettings';
 import type { Mode } from './mode';
@@ -50,10 +50,11 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
     },
   });
   panel.ui = ui;
-  const settingsUI = createSettingsUI(host, store);
+  const settingsUI = createSettingsUI(host, store, { extraTabs: [weatherTab({ hour: () => view.hour(), setHour: (h) => view.setHour(h) })] });
   const applySettings = (): void => {
     view.setGraphics(store.get().graphics);
     view.setCameraSensitivity(store.get().game.cameraSensitivity);
+    view.setClock(store.get().game.dayMinutes, store.get().game.freezeTime);
     applyGameSettings(store.get().game);
   };
   applySettings();

@@ -9,7 +9,8 @@ import { createShadows, shadowRadius, type Shadows } from './shadows';
 import { createWake, type Wake } from './wake';
 import type { SunShadow, Stamp } from './wakeStamps';
 import type { GraphicsSettings, TextureQuality } from '../settings';
-import { seaAmp } from '../world';
+import { clamp } from '../core';
+import { seaAmp, sunState } from '../world';
 
 /** What the environment needs to know each frame. */
 export interface EnvironmentFrame {
@@ -20,6 +21,8 @@ export interface EnvironmentFrame {
   /** Where the wind comes from (see `core/views`) and how rough the sea is, 0…1. */
   windFrom: number;
   seaState: number;
+  /** The hour of the day, 0 ≤ h < 24 (see `world/clock.ts`): the sun, the moon and the colours follow it. */
+  hour: number;
   /** What ships and splashes leave on the water this frame. */
   stamps: readonly Stamp[];
   /** The ship the sun's shadow map follows, and its length (m); none keeps the map where it was. */
@@ -37,7 +40,7 @@ export interface Environment {
   readonly look: SeaLook;
   readonly wake: Wake;
   readonly shadows: Shadows;
-  /** Where the sun's shadows fall on the sea, for the wake stamps (null while shadows are off). */
+  /** Where the main light's shadows fall on the sea, for the wake stamps (null while shadows are off or the light is out). */
   sunShadow(): SunShadow | null;
   update(frame: EnvironmentFrame): void;
   setQuality(quality: Quality): void;
@@ -63,11 +66,7 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
   let viewDistance = 1;
   let shadowScale = 1;
   let textures: TextureQuality | null = null;
-  const towardSun = SUN_DIR.clone();
-  const cast: SunShadow = { dirX: -towardSun.x, dirZ: -towardSun.z, elevation: Math.asin(towardSun.y) };
-  const horizontal = Math.hypot(cast.dirX, cast.dirZ) || 1;
-  cast.dirX /= horizontal;
-  cast.dirZ /= horizontal;
+  const cast: SunShadow = { dirX: 1, dirZ: 0, elevation: 1, strength: 1 };
   excludeFromOcclusion(ocean.object);
   excludeFromOcclusion(sky.mesh);
   scene.add(hemi, sun, ocean.object, sky.mesh);
@@ -79,7 +78,7 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
     look,
     wake,
     shadows,
-    sunShadow: () => (shadows.enabled ? cast : null),
+    sunShadow: () => (shadows.enabled && cast.strength > 0.05 ? cast : null),
     apply(g): void {
       shadows.apply(g);
       viewDistance = g.viewDistance;
@@ -92,22 +91,32 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
       }
     },
     update(f): void {
-      // The day's look follows the sea state: bright and clear when calm, grey, dark and close in a storm.
-      lookFor(f.seaState, look);
+      // The look follows the hour and the sea state: bright at noon, gold at dusk, dark blue by moonlight, grey in a storm.
+      lookFor(f.seaState, sunState(f.hour), look);
       look.fogNear *= viewDistance; // the view distance setting scales how far you see
       look.fogFar *= viewDistance;
       fog.color.copy(look.horizon);
       fog.near = look.fogNear;
       fog.far = look.fogFar;
+      // the main light is the sun by day and the moon by night
+      sun.position.copy(look.lightDir).multiplyScalar(100);
+      sun.color.copy(look.lightColor);
       sun.intensity = look.sun;
+      hemi.color.copy(look.hemiSky);
+      hemi.groundColor.copy(look.hemiGround);
+      const horizontal = Math.hypot(look.lightDir.x, look.lightDir.z) || 1;
+      cast.dirX = -look.lightDir.x / horizontal;
+      cast.dirZ = -look.lightDir.z / horizontal;
+      cast.elevation = Math.asin(clamp(look.lightDir.y, -1, 1));
+      cast.strength = clamp(look.sun / 2.4, 0, 1);
       // With the sky probe lighting the standard materials, the flat hemisphere light only fills in.
       hemi.intensity = look.hemi * (skyGi ? 0.3 : 1);
-      if (skyGi) skyLight.update(look, f.time, f.windFrom, f.seaState, 0.9 * (look.hemi / 1.4));
+      if (skyGi) skyLight.update(look, f.time, f.windFrom, f.seaState, 0.9 * Math.max(look.hemi / 1.4, 0.5), f.hour);
       wake.update(renderer, f.dt, f.camera, f.stamps);
       ocean.setWake(wake, texels);
       ocean.update(f.camera, f.time, f.windFrom, seaAmp(f.seaState), f.seaState, look);
       sky.update(f.camera, look, f.time, f.windFrom);
-      if (f.focus) shadows.update(f.focus.position, towardSun, shadowRadius(f.focus.length, shadowScale));
+      if (f.focus) shadows.update(f.focus.position, look.lightDir, shadowRadius(f.focus.length, shadowScale));
     },
     setQuality(q): void {
       texels = q.wake;

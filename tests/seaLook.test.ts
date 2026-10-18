@@ -1,5 +1,7 @@
+import type * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { lookFor } from '../src/render/seaLook';
+import { sunState } from '../src/world';
 import { noiseField } from '../src/render/seaNoise';
 
 describe('lookFor', () => {
@@ -22,9 +24,40 @@ describe('lookFor', () => {
     }
   });
 
+  it('is bright at noon, gold at dusk, dark and blue at night, and the storm is darker by night than by day', () => {
+    const at = (h: number, sea = 0) => lookFor(sea, sunState(h));
+    const noon = at(12);
+    const dusk = at(18.4);
+    const night = at(0);
+    const lum = (c: THREE.Color): number => c.r * 0.3 + c.g * 0.6 + c.b * 0.1;
+    expect(lum(noon.zenith)).toBeGreaterThan(lum(night.zenith) * 5);
+    expect(dusk.horizon.r).toBeGreaterThan(dusk.horizon.b); // an orange horizon
+    expect(night.sun).toBeLessThan(noon.sun * 0.5);
+    expect(night.lamps).toBe(1);
+    expect(noon.lamps).toBe(0);
+    expect(night.stars).toBeGreaterThan(0.9);
+    expect(noon.stars).toBe(0);
+    expect(lum(at(12, 1).horizon)).toBeGreaterThan(lum(at(0, 1).horizon));
+  });
+
+  it('lights the day from the sun and the night from the moon, never from below the horizon, and fades through dusk', () => {
+    const noon = lookFor(0, sunState(12));
+    expect(noon.lightDir.y).toBeGreaterThan(0.7);
+    expect(noon.lightColor.r).toBeGreaterThan(0.9);
+    const night = lookFor(0, sunState(0));
+    expect(night.lightDir.y).toBeGreaterThan(0.2); // the moon is up at midnight
+    expect(night.lightColor.b).toBeGreaterThan(night.lightColor.r); // and its light is blue
+    let previous = lookFor(0, sunState(12)).sun;
+    for (let h = 12.5; h <= 20; h += 0.5) {
+      const s = lookFor(0, sunState(h)).sun;
+      expect(s).toBeLessThanOrEqual(previous + 0.4); // no jump up while the sun sets
+      previous = s;
+    }
+  });
+
   it('clamps out-of-range states and reuses the output object', () => {
     const out = lookFor(0.3);
-    expect(lookFor(2, out)).toBe(out);
+    expect(lookFor(2, undefined, out)).toBe(out);
     expect(out.storm).toBe(1);
     expect(lookFor(-1).storm).toBe(0);
   });

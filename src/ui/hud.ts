@@ -1,5 +1,5 @@
 import { CONFIG, type GameView } from '../core';
-import { getNation, seaName } from '../world';
+import { formatHour, getNation, seaName } from '../world';
 import './hud.css';
 
 export interface Hud {
@@ -57,6 +57,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const speedEl = rowValue('Hız');
   const windEl = rowValue('Rüzgâr');
   const seaEl = rowValue('Deniz');
+  const clockEl = rowValue('Saat');
   const sailEl = rowValue('Yelken');
   const driveEl = rowValue('Verim');
   const portEl = rowValue('Liman');
@@ -122,6 +123,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
       headingEl.textContent = `${bearing(ship.heading).toFixed(0).padStart(3, '0')}°`;
       speedEl.textContent = `${ship.knots.toFixed(1)} / ${ship.maxKnots.toFixed(1)}`;
       windEl.textContent = `${bearing(wind.from).toFixed(0).padStart(3, '0')}° · ${wind.speed.toFixed(1)} m/s`;
+      clockEl.textContent = formatHour(view.hour);
       seaEl.textContent = seaName(view.seaState);
       seaEl.classList.toggle('alert', view.seaState > 0.75);
       const steps = ['Toplu', 'Yarım', 'Tam'];

@@ -85,6 +85,12 @@ export const CONTROLS: readonly Control[] = [
     set: (v) => ({ graphics: { exposure: v } }),
   },
   {
+    tab: 'graphics', kind: 'select', label: 'Işık kalitesi', hint: 'Geceleri gemi fenerlerinin yaydığı gerçek ışıklar: Düşük 0, Orta 2, Yüksek 6 gemi.',
+    options: [['low', 'Düşük'], ['medium', 'Orta'], ['high', 'Yüksek']],
+    get: (s) => s.graphics.lights,
+    set: (v) => ({ graphics: { lights: v as Settings['graphics']['lights'] } }),
+  },
+  {
     tab: 'graphics', kind: 'select', label: 'Küresel aydınlatma', hint: 'Gökyüzü: canlı gökyüzü ışığı (ortam haritası); Ekran uzayı: ek olarak yüzeyler arası bir ışık sıçraması (pahalı, deneysel).',
     options: [['off', 'Kapalı'], ['sky', 'Gökyüzü ışığı'], ['ssgi', 'Gökyüzü + ekran uzayı']],
     get: (s) => s.graphics.globalIllumination,
@@ -150,6 +156,8 @@ export const CONTROLS: readonly Control[] = [
   { tab: 'audio', kind: 'range', label: 'Ortam', hint: 'Rüzgâr, deniz, gövde, yangın.', min: 0, max: 1, step: 0.05, format: percent, get: (s) => s.audio.ambience, set: (v) => ({ audio: { ambience: v } }) },
   { tab: 'game', kind: 'range', label: 'Yelken arayüzü boyutu', min: 0.7, max: 1.5, step: 0.05, format: percent, get: (s) => s.game.hudScale, set: (v) => ({ game: { hudScale: v } }) },
   { tab: 'game', kind: 'toggle', label: 'İpucu çubuğu', get: (s) => s.game.showHints, set: (v) => ({ game: { showHints: v } }) },
+  { tab: 'game', kind: 'range', label: 'Gün uzunluğu', hint: 'Bir günün (24 saat) oyunda kaç dakika sürdüğü.', min: 1, max: 120, step: 1, format: (v) => `${Math.round(v)} dk`, get: (s) => s.game.dayMinutes, set: (v) => ({ game: { dayMinutes: Math.round(v) } }) },
+  { tab: 'game', kind: 'toggle', label: 'Zamanı dondur', get: (s) => s.game.freezeTime, set: (v) => ({ game: { freezeTime: v } }) },
   { tab: 'game', kind: 'range', label: 'Kamera hassasiyeti', min: 0.4, max: 2, step: 0.05, format: percent, get: (s) => s.game.cameraSensitivity, set: (v) => ({ game: { cameraSensitivity: v } }) },
   {
     tab: 'debug', kind: 'toggle', label: 'Hata ayıklama paneli (F3)', hint: 'FPS, %1 düşük, kare/güncelleme/çizim süreleri, GPU süresi, sayaçlar.',

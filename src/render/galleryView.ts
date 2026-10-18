@@ -2,17 +2,23 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createEnvironment } from './environment';
 import { createPipeline, type RenderStats } from './pipeline';
+import { LAMP_LIGHTS, createLamps } from './lamps';
 import { enableShadows } from './shadows';
 import { QUALITIES } from './quality';
 import type { GraphicsSettings } from '../settings';
 import { rideWaves } from './ride';
 import { shadowStamp, shipStamps, type Stamp } from './wakeStamps';
-import { WORLD_BOUNDS, seaAmp } from '../world';
+import { DEFAULT_CLOCK, WORLD_BOUNDS, hourAt, seaAmp, startHourFor, type ClockSettings } from '../world';
 
 export interface GalleryView {
   /** Show one object centred and framed; null clears the stage. */
   setSubject(subject: THREE.Object3D | null): void;
   setAutoRotate(on: boolean): void;
+  /** The gallery's day: how long it lasts and whether it stands still (it starts at mid-morning). */
+  setClock(dayMinutes: number, frozen: boolean): void;
+  /** The hour of the gallery's day now, and a way to set it. */
+  hour(): number;
+  setHour(hour: number): void;
   /** Camera orbit and zoom speed, 1 is the default. */
   setCameraSensitivity(factor: number): void;
   /** Apply the graphics settings: the same as at sea. */
@@ -85,8 +91,11 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
   let subject: THREE.Object3D | null = null;
   let dims = { length: 12, beam: 4 };
   let elapsed = 0;
+  let clock: ClockSettings = { ...DEFAULT_CLOCK, startHour: 10.5 };
   let lastRender = performance.now();
   const stamps: Stamp[] = [];
+  const lamps = createLamps();
+  lamps.setCount(LAMP_LIGHTS[graphics.lights]);
   const rest = { x: GALLERY_CENTER.x, z: GALLERY_CENTER.z, heading: 0, roll: 0 };
 
   return {
@@ -96,6 +105,7 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
       if (!next) return;
       pivot.add(next);
       enableShadows(next);
+      lamps.register(next);
       pivot.updateMatrixWorld(true); // the framing below measures the ship where it stands in the world
       resize(); // panels may have changed size since the last resize
       const box = new THREE.Box3().setFromObject(next);
@@ -124,9 +134,19 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
     setAutoRotate(on): void {
       controls.autoRotate = on;
     },
+    hour: () => hourAt(elapsed, clock),
+    setHour(hour): void {
+      clock.startHour = startHourFor(hour, elapsed, clock);
+    },
+    setClock(dayMinutes, frozen): void {
+      const now = hourAt(elapsed, clock);
+      clock = { dayMinutes, frozen, startHour: clock.startHour };
+      clock.startHour = startHourFor(now, elapsed, clock);
+    },
     setGraphics(next): void {
       pipeline.apply(next);
       env.apply(next);
+      lamps.setCount(LAMP_LIGHTS[next.lights]);
       if (QUALITIES[next.water] !== preset) {
         preset = QUALITIES[next.water];
         env.setQuality(preset);
@@ -150,7 +170,8 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
         const sun = env.sunShadow();
         if (sun) shadowStamp(m, sun, stamps);
       }
-      env.update({ camera, time: elapsed, dt, windFrom: GALLERY_WIND_FROM, seaState: GALLERY_SEA, stamps, focus: { position: pivot.position, length: dims.length } });
+      env.update({ camera, time: elapsed, dt, windFrom: GALLERY_WIND_FROM, seaState: GALLERY_SEA, hour: hourAt(elapsed, clock), stamps, focus: { position: pivot.position, length: dims.length } });
+      lamps.update(env.look.lamps, subject ? [{ root: subject, length: dims.length }] : [], camera);
       pipeline.render();
       pipeline.endFrame();
     },
@@ -158,6 +179,7 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
     dispose(): void {
       observer.disconnect();
       controls.dispose();
+      lamps.dispose();
       env.dispose();
       pipeline.dispose();
       renderer.dispose();

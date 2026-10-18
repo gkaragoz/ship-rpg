@@ -4,7 +4,7 @@ import { createGame } from '../gameplay';
 import { createAutoQuality, createSailingView, lowerQuality, nextQuality } from '../render';
 import { getSettings } from '../settings';
 import { createShip, getShipSpec, type Ship, type ShipLod, type ShipSpec } from '../ships';
-import { createHud, createMapUi, createPortPanel, createSettingsUI } from '../ui';
+import { createHud, createMapUi, createPortPanel, createSettingsUI, weatherTab } from '../ui';
 import { getNation } from '../world';
 import { gameLines, renderLines } from './debugLines';
 import { applyGameSettings } from './gameSettings';
@@ -49,6 +49,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   const settingsUI = createSettingsUI(host, store, {
     onExit: { label: 'Galeriye dön', run: onExit },
     onOpenChange: (open) => (paused = open),
+    extraTabs: [weatherTab({ hour: () => lastView?.hour ?? 9, setHour: (h) => game.setClock({ hour: h }) })],
   });
   // Settings reach the view, the sound and the page whenever they change (and once now).
   let water = store.get().graphics.water;
@@ -63,6 +64,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     view.setGraphics(s.graphics);
     audio.setVolumes(s.audio);
     view.setCameraSensitivity(s.game.cameraSensitivity);
+    game.setClock({ dayMinutes: s.game.dayMinutes, frozen: s.game.freezeTime });
     applyGameSettings(s.game);
   };
   applySettings();

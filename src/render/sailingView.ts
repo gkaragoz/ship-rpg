@@ -6,6 +6,7 @@ import type { Ship, ShipLod } from '../ships';
 import { createCrewRenderer } from './crew';
 import { createFleet } from './fleet';
 import { createEnvironment } from './environment';
+import { LAMP_LIGHTS, createLamps } from './lamps';
 import { createPipeline, excludeFromOcclusion, type RenderStats } from './pipeline';
 import { enableShadows } from './shadows';
 import { QUALITIES } from './quality';
@@ -74,6 +75,9 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
   const fleet = createFleet(scene);
   const crew = createCrewRenderer();
   const stamps: Stamp[] = [];
+  const lamps = createLamps();
+  lamps.setCount(LAMP_LIGHTS[graphics.lights]);
+  let fleetShips: readonly Ship[] = [];
   const scenery = createScenery();
   const effects = createEffects();
   const aim = createAimArcs();
@@ -139,6 +143,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       player = { model: next, dims: nextDims };
       scene.add(next);
       enableShadows(next);
+      lamps.register(next);
       crew?.attach(next);
       controls.minDistance = nextDims.length * 0.7;
       controls.maxDistance = nextDims.length * 14; // far enough out to survey the gun landing zones
@@ -147,7 +152,11 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
 
     setOthers(ships): void {
       fleet.setShips(ships);
-      for (const s of ships) enableShadows(s.root);
+      fleetShips = ships;
+      for (const s of ships) {
+        enableShadows(s.root);
+        lamps.register(s.root);
+      }
     },
     setLodOverride: (lod) => fleet.setOverride(lod),
 
@@ -166,6 +175,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       pipeline.apply(next);
       env.apply(next);
       effects.setDensity(next.particles);
+      lamps.setCount(LAMP_LIGHTS[next.lights]);
       if (QUALITIES[next.water] !== preset) {
         preset = QUALITIES[next.water];
         env.setQuality(preset);
@@ -178,6 +188,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       actors.set(id, { model, dims });
       scene.add(model);
       enableShadows(model);
+      lamps.register(model);
     },
 
     removeActor(id): void {
@@ -258,7 +269,13 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       // Ships and splashes paint foam and ripples into the wake map, which the sea then shows.
       collectStamps(view, dt, player?.dims ?? null, (id) => actors.get(id)?.dims ?? null, camera.position.x, camera.position.z, env.wake.size / 2, stamps, env.sunShadow());
       const focus = player ? { position: player.model.position, length: player.dims.length } : undefined;
-      env.update({ camera, time, dt, windFrom: wind.from, seaState: view.seaState, stamps, focus });
+      const hung = [
+        ...(player ? [{ root: player.model, length: player.dims.length }] : []),
+        ...[...actors.values()].map((a) => ({ root: a.model, length: a.dims.length })),
+        ...fleetShips.map((s) => ({ root: s.root, length: s.spec.length })),
+      ];
+      env.update({ camera, time, dt, windFrom: wind.from, seaState: view.seaState, hour: view.hour, stamps, focus });
+      lamps.update(env.look.lamps, hung, camera);
       fleet.update(view, camera, ampScale);
       crew?.update(view.crew, camera);
       shake = Math.max(0, shake - dt * 2.5);
@@ -277,6 +294,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       fleet.dispose();
       crew?.dispose();
       controls.dispose();
+      lamps.dispose();
       env.dispose();
       pipeline.dispose();
       scenery.dispose();

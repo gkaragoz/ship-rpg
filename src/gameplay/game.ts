@@ -1,7 +1,7 @@
 import { CONFIG, createRng } from '../core';
 import type { Controls, GameEvent, GameView } from '../core';
 import { getDeck, type ShipSpec } from '../ships';
-import { PORTS, getPort, seaStateAt, terrainHeight, windAt, type Port } from '../world';
+import { DEFAULT_CLOCK, PORTS, getPort, hourAt, seaStateAt, startHourFor, terrainHeight, windAt, type ClockSettings, type Port } from '../world';
 import { createExploration } from './exploration';
 import { COMBAT, ballHitZone, cannonsPerSide, fireBroadside, stepBall, type Ball, type Side } from './combat';
 import { stepAffliction, strike } from './damage';
@@ -16,6 +16,8 @@ import { createPlayerShip, stepPlayerShip, type PlayerShip } from './sailing';
 export interface Game {
   readonly spec: ShipSpec;
   update(dt: number, controls: Controls): void;
+  /** The day's clock: how long a day lasts, whether time stands still, and (`hour`) what time it is now. */
+  setClock(clock: Partial<Pick<ClockSettings, 'dayMinutes' | 'frozen'>> & { hour?: number }): void;
   /** Snapshot for render and UI. Drains `events`, so call it once per frame. */
   view(): GameView;
   /** Hooks for tests and for poking at the game from the browser console in dev; the game never calls them. */
@@ -73,6 +75,7 @@ export function createGame(spec: ShipSpec): Game {
   let time = 0;
   let wind = windAt(time);
   let seaOverride: number | null = null;
+  let clock: ClockSettings = { ...DEFAULT_CLOCK };
   let sea = seaOverride ?? seaStateAt(time, wind.speed); // how rough the sea is this step
   const deck = getDeck(spec.id); // only ships with a walkable GLB deck carry a visible crew
   const crew = deck ? createCrew(deck, crewCountFor(spec.length)) : null;
@@ -239,6 +242,11 @@ export function createGame(spec: ShipSpec): Game {
       setSea: (state) => (seaOverride = state),
       discover: () => explore.discover(),
     }),
+    setClock({ hour, ...rest }): void {
+      const now = hourAt(time, clock); // keep the time of day when only the speed changes
+      clock = { ...clock, ...rest };
+      clock.startHour = startHourFor(hour ?? now, time, clock);
+    },
     update(dt, controls): void {
       time += dt;
       wind = windAt(time);
@@ -285,6 +293,7 @@ export function createGame(spec: ShipSpec): Game {
       return {
         time,
         wind,
+        hour: hourAt(time, clock),
         seaState: sea,
         others: npcs.view(),
         crew: crew?.view() ?? [],

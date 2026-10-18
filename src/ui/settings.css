@@ -38,3 +38,8 @@ input[type='checkbox'].settings-input { width: 18px; height: 18px; justify-self:
   .settings-row { grid-template-columns: 1fr; gap: 2px; }
   .settings-value { text-align: left; }
 }
+
+.settings-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; grid-column: span 2; }
+.settings-inline input[type='range'] { flex: 1; min-width: 140px; }
+.settings-inline button { padding: 3px 8px; font: inherit; font-size: 13px; color: #f3ead2; background: #14303f; border: 1px solid #4b6a7a; border-radius: 4px; cursor: pointer; }
+.settings-inline button:hover { background: #1d4256; }

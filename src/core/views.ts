@@ -202,6 +202,8 @@ export interface GameView {
   time: number;
   ship: ShipView;
   wind: WindView;
+  /** The hour of the day, 0 ≤ h < 24: the light, the sky and the lamps follow it (see `world/clock.ts`). */
+  hour: number;
   /** How rough the sea is, 0 (glassy) … 1 (storm): drives the waves, the sky, the ships' motion and how they handle. */
   seaState: number;
   /** Ambient ships sailing their patrols (distinct from `enemies`, which fight). */
