@@ -42,11 +42,25 @@ export const WAVE_TERMS: readonly { k: number; omega: number }[] = WAVES.map((w)
   return { k, omega: Math.sqrt(GRAVITY * k) };
 });
 
+/**
+ * The weather simulator's handles on the waves, all 1 for the sea as designed: `amp` scales every wave's height, `length`
+ * its wavelength (longer waves also move faster and slower in time, as deep-water waves do), `chop` the sharpness of
+ * the crests, `speed` how fast they travel.
+ */
+export interface SeaTuning {
+  amp: number;
+  length: number;
+  chop: number;
+  speed: number;
+}
+
+export const NEUTRAL_TUNING: SeaTuning = { amp: 1, length: 1, chop: 1, speed: 1 };
+
 /** Crest sharpness for an amplitude scale: `CHOP`, lowered when a big sea would otherwise fold. */
-export function chop(ampScale: number): number {
+export function chop(ampScale: number, tuning: SeaTuning = NEUTRAL_TUNING): number {
   let slope = 0;
-  WAVES.forEach((w, i) => (slope += (WAVE_TERMS[i]?.k ?? 0) * w.amplitude * ampScale));
-  return slope > 0 ? Math.min(CHOP, MAX_FOLD / slope) : CHOP;
+  WAVES.forEach((w, i) => (slope += ((WAVE_TERMS[i]?.k ?? 0) / tuning.length) * w.amplitude * ampScale * tuning.amp));
+  return slope > 0 ? Math.min(CHOP * tuning.chop, MAX_FOLD / slope) : CHOP * tuning.chop;
 }
 
 /** Direction (unit vector in x, z) the wave `i` travels, for a wind from `windFrom`. */
@@ -63,17 +77,17 @@ interface Sample {
 const scratch: Sample = { h: 0, dx: 0, dz: 0 };
 
 /** Height and horizontal pull of the surface above the rest position (px, pz). */
-function surface(px: number, pz: number, time: number, windFrom: number, amp: number, g: number, minLength: number, out: Sample): Sample {
+function surface(px: number, pz: number, time: number, windFrom: number, amp: number, g: number, minLength: number, tune: SeaTuning, out: Sample): Sample {
   let h = 0;
   let dx = 0;
   let dz = 0;
   for (let i = 0; i < WAVES.length; i++) {
     const w = WAVES[i];
     const t = WAVE_TERMS[i];
-    if (!w || !t || w.length < minLength) continue;
+    if (!w || !t || w.length * tune.length < minLength) continue;
     const [ux, uz] = waveDirection(i, windFrom);
-    const theta = t.k * (ux * px + uz * pz) - t.omega * time;
-    const a = w.amplitude * amp;
+    const theta = (t.k / tune.length) * (ux * px + uz * pz) - (t.omega * tune.speed * time) / Math.sqrt(tune.length);
+    const a = w.amplitude * amp * tune.amp;
     h += a * Math.sin(theta);
     const pull = g * a * Math.cos(theta);
     dx += pull * ux;
@@ -90,25 +104,23 @@ function surface(px: number, pz: number, time: number, windFrom: number, amp: nu
  * rest position under the point is found by five fixed-point steps (the error is far below a centimetre). `minLength` leaves out waves
  * shorter than that: far-away overlays pass `SHORT_WAVE` to sit on the long swell they are sure to be above.
  */
-export function waveHeight(x: number, z: number, time: number, windFrom: number, ampScale = 1, minLength = 0): number {
-  const g = chop(ampScale);
+export function waveHeight(x: number, z: number, time: number, windFrom: number, ampScale = 1, minLength = 0, tuning: SeaTuning = NEUTRAL_TUNING): number {
+  const g = chop(ampScale, tuning);
   let px = x;
   let pz = z;
   for (let i = 0; i < 5; i++) {
-    surface(px, pz, time, windFrom, ampScale, g, minLength, scratch);
+    surface(px, pz, time, windFrom, ampScale, g, minLength, tuning, scratch);
     px = x - scratch.dx;
     pz = z - scratch.dz;
   }
-  return surface(px, pz, time, windFrom, ampScale, g, minLength, scratch).h;
+  return surface(px, pz, time, windFrom, ampScale, g, minLength, tuning, scratch).h;
 }
 
 /** Surface slope (∂h/∂x, ∂h/∂z), by central differences over `step` metres. */
-export function waveSlope(x: number, z: number, time: number, windFrom: number, ampScale = 1, step = 1): [number, number] {
+export function waveSlope(x: number, z: number, time: number, windFrom: number, ampScale = 1, step = 1, tuning: SeaTuning = NEUTRAL_TUNING): [number, number] {
   const e = step / 2;
-  return [
-    (waveHeight(x + e, z, time, windFrom, ampScale) - waveHeight(x - e, z, time, windFrom, ampScale)) / step,
-    (waveHeight(x, z + e, time, windFrom, ampScale) - waveHeight(x, z - e, time, windFrom, ampScale)) / step,
-  ];
+  const h = (px: number, pz: number): number => waveHeight(px, pz, time, windFrom, ampScale, 0, tuning);
+  return [(h(x + e, z) - h(x - e, z)) / step, (h(x, z + e) - h(x, z - e)) / step];
 }
 
 const smoothstep = (a: number, b: number, v: number): number => {

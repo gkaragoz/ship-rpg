@@ -5,7 +5,7 @@ import { createAutoQuality, createSailingView, lowerQuality, nextQuality } from 
 import { getSettings } from '../settings';
 import { createShip, getShipSpec, type Ship, type ShipLod, type ShipSpec } from '../ships';
 import { createHud, createMapUi, createPortPanel, createSettingsUI, weatherTab } from '../ui';
-import { getNation } from '../world';
+import { getNation, weatherAt, type Weather } from '../world';
 import { gameLines, renderLines } from './debugLines';
 import { applyGameSettings } from './gameSettings';
 import type { Mode } from './mode';
@@ -23,6 +23,18 @@ const AIM = 'KeyG';
 const MUTE = 'KeyN';
 const QUALITY = 'KeyK';
 const GAME_KEYS = [...PORT, ...STARBOARD, ...MORE_SAIL, ...LESS_SAIL];
+
+/** The weather in a view, as the weather simulator's panel reads it. */
+const weatherOf = (v: GameView): Weather => ({
+  windSpeed: v.wind.speed,
+  windFrom: v.wind.from,
+  seaState: v.seaState,
+  cloud: v.weather.cloud,
+  fog: v.weather.fog,
+  rain: v.weather.rain,
+  lightning: v.weather.lightning,
+  tuning: v.weather.tuning,
+});
 
 /** Free sailing on the open sea with the chosen ship. Esc opens the settings menu, which has the way back (`onExit`). */
 export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () => void): Mode {
@@ -46,10 +58,18 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   const audio = createAudio();
   let paused = false;
   let lastView: GameView | null = null;
+  let lastStrike = 0;
   const settingsUI = createSettingsUI(host, store, {
     onExit: { label: 'Galeriye dön', run: onExit },
     onOpenChange: (open) => (paused = open),
-    extraTabs: [weatherTab({ hour: () => lastView?.hour ?? 9, setHour: (h) => game.setClock({ hour: h }) })],
+    extraTabs: [
+      weatherTab({
+        hour: () => lastView?.hour ?? 9,
+        setHour: (h) => game.setClock({ hour: h }),
+        weather: () => (lastView ? weatherOf(lastView) : weatherAt(0)),
+        setWeather: (change) => game.setWeather(change),
+      }),
+    ],
   });
   // Settings reach the view, the sound and the page whenever they change (and once now).
   let water = store.get().graphics.water;
@@ -189,6 +209,10 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
       lastRender = now;
       const v = game.view();
       lastView = v;
+      if (v.weather.strike && v.weather.strike.id !== lastStrike) {
+        lastStrike = v.weather.strike.id;
+        audio.thunder(Math.hypot(v.weather.strike.x - v.ship.x, v.weather.strike.z - v.ship.z));
+      }
       syncOthers(v);
       ship.setSailTrim(angleDiff(v.wind.from, v.ship.heading), v.ship.sailLevel);
       ship.setCondition(v.ship, v.time);

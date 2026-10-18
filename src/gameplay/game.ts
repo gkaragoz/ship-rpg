@@ -1,7 +1,7 @@
 import { CONFIG, createRng } from '../core';
 import type { Controls, GameEvent, GameView } from '../core';
 import { getDeck, type ShipSpec } from '../ships';
-import { DEFAULT_CLOCK, PORTS, getPort, hourAt, seaStateAt, startHourFor, terrainHeight, windAt, type ClockSettings, type Port } from '../world';
+import { DEFAULT_CLOCK, PORTS, getPort, hourAt, startHourFor, terrainHeight, type ClockSettings, type Port, type Weather, type WeatherOverrides } from '../world';
 import { createExploration } from './exploration';
 import { COMBAT, ballHitZone, cannonsPerSide, fireBroadside, stepBall, type Ball, type Side } from './combat';
 import { stepAffliction, strike } from './damage';
@@ -11,12 +11,15 @@ import { gunScatter, seaEffects, stepBody } from './buoyancy';
 import { createCrew, crewCountFor } from './crew';
 import { createDevHooks } from './devHooks';
 import { createNpcFleet } from './npcShips';
+import { createWeatherState } from './weatherState';
 import { createPlayerShip, stepPlayerShip, type PlayerShip } from './sailing';
 
 export interface Game {
   readonly spec: ShipSpec;
   update(dt: number, controls: Controls): void;
   /** The day's clock: how long a day lasts, whether time stands still, and (`hour`) what time it is now. */
+  /** Take over parts of the weather (the weather simulator): see `WeatherOverrides`; `null` gives it all back to the game. */
+  setWeather(change: WeatherOverrides | null): void;
   setClock(clock: Partial<Pick<ClockSettings, 'dayMinutes' | 'frozen'>> & { hour?: number }): void;
   /** Snapshot for render and UI. Drains `events`, so call it once per frame. */
   view(): GameView;
@@ -73,10 +76,11 @@ export function createGame(spec: ShipSpec): Game {
   let restartAsked = false;
   let kills = 0;
   let time = 0;
-  let wind = windAt(time);
-  let seaOverride: number | null = null;
+  const weatherState = createWeatherState();
+  let weather: Weather = weatherState.update(time, 0, ship);
+  let wind = { from: weather.windFrom, speed: weather.windSpeed };
   let clock: ClockSettings = { ...DEFAULT_CLOCK };
-  let sea = seaOverride ?? seaStateAt(time, wind.speed); // how rough the sea is this step
+  let sea = weather.seaState; // how rough the sea is this step
   const deck = getDeck(spec.id); // only ships with a walkable GLB deck carry a visible crew
   const crew = deck ? createCrew(deck, crewCountFor(spec.length)) : null;
   const npcs = createNpcFleet({ x: ship.x, z: ship.z }); // patrols around the start, on open water
@@ -204,7 +208,7 @@ export function createGame(spec: ShipSpec): Game {
       }
       const ai = aiStep(e, ship, wind, enemies.filter((o) => o !== e && o.sinking < 0).map((o) => o.ship));
       stepPlayerShip(e.ship, e.spec, wind, ai.controls, dt, seaEffects(e.spec, e.ship.heading, wind.from, sea));
-      stepBody(e.ship.body, e.ship, e.spec, time, wind.from, sea, dt);
+      stepBody(e.ship.body, e.ship, e.spec, time, wind.from, sea, dt, false, weather.tuning);
       e.hp = Math.max(0, e.hp - stepAffliction(e.ship, e.maxHp, false, dt));
       checkEnemySunk(e);
       if (e.sinking >= 0) continue;
@@ -239,9 +243,10 @@ export function createGame(spec: ShipSpec): Game {
       ship: () => ship,
       enemies: () => enemies,
       setKills: (n) => (kills = n),
-      setSea: (state) => (seaOverride = state),
+      setSea: (state) => weatherState.patch({ seaState: state === null ? undefined : state }),
       discover: () => explore.discover(),
     }),
+    setWeather: (change) => weatherState.patch(change),
     setClock({ hour, ...rest }): void {
       const now = hourAt(time, clock); // keep the time of day when only the speed changes
       clock = { ...clock, ...rest };
@@ -249,12 +254,13 @@ export function createGame(spec: ShipSpec): Game {
     },
     update(dt, controls): void {
       time += dt;
-      wind = windAt(time);
-      sea = seaOverride ?? seaStateAt(time, wind.speed);
+      weather = weatherState.update(time, dt, ship);
+      wind = { from: weather.windFrom, speed: weather.windSpeed };
+      sea = weather.seaState;
       if (sunk) {
         sinkTime += dt;
         ship.speed *= 1 - 0.4 * dt;
-        stepBody(ship.body, ship, spec, time, wind.from, sea, dt);
+        stepBody(ship.body, ship, spec, time, wind.from, sea, dt, false, weather.tuning);
         stepBalls(dt);
         // A restart asked for during the first moments of sinking is honoured once the screen shows.
         if (controls.restart) restartAsked = true;
@@ -263,7 +269,7 @@ export function createGame(spec: ShipSpec): Game {
       }
       if (controls.interact) toggleDock();
       stepPlayerShip(ship, spec, wind, controls, dt, seaEffects(spec, ship.heading, wind.from, sea));
-      stepBody(ship.body, ship, spec, time, wind.from, sea, dt, !!dockedAt);
+      stepBody(ship.body, ship, spec, time, wind.from, sea, dt, !!dockedAt, weather.tuning);
       crew?.update(dt);
       npcs.update(dt);
 
@@ -294,6 +300,7 @@ export function createGame(spec: ShipSpec): Game {
         time,
         wind,
         hour: hourAt(time, clock),
+        weather: weatherState.view(weather),
         seaState: sea,
         others: npcs.view(),
         crew: crew?.view() ?? [],

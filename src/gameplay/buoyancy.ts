@@ -1,6 +1,6 @@
 import { clamp, type Attitude } from '../core';
 import type { ShipSpec } from '../ships';
-import { seaAmp, waveHeight } from '../world';
+import { NEUTRAL_TUNING, seaAmp, waveHeight, type SeaTuning } from '../world';
 
 /**
  * How a hull rides the sea: it heaves, pitches and rolls toward the surface sampled under its bow, stern and
@@ -52,13 +52,14 @@ export function stepBody(
   seaState: number,
   dt: number,
   docked = false,
+  tuning: SeaTuning = NEUTRAL_TUNING,
 ): void {
   const amp = seaAmp(seaState) * (docked ? HARBOUR_SHELTER : 1);
   const c = Math.cos(ship.heading);
   const s = Math.sin(ship.heading);
   const hl = spec.length * 0.4;
   const hb = spec.beam * 0.5;
-  const at = (dx: number, dz: number): number => waveHeight(ship.x + dx, ship.z + dz, time, windFrom, amp);
+  const at = (dx: number, dz: number): number => waveHeight(ship.x + dx, ship.z + dz, time, windFrom, amp, 0, tuning);
   // forward is (c, -s), starboard is (s, c)
   const bow = at(c * hl, -s * hl);
   const stern = at(-c * hl, s * hl);

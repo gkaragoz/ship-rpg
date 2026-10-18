@@ -13,7 +13,7 @@ export function waveDirections(windFrom: number): [number, number][] {
 export { chop };
 
 /**
- * GLSL for the Gerstner sum of `world/sea.ts`. Needs uniforms `uTime`, `uAmp`, `uChop` (see `chop`), `uFade`
+ * GLSL for the Gerstner sum of `world/sea.ts`. Needs uniforms `uTime`, `uAmp` (scale × tuning amp), `uChop` (see `chop`), `uLen` and `uSpeed` (the tuning), `uFade`
  * (sea grid / 64: finer meshes keep short waves further out) and `uDirs[WAVE_COUNT]` (see `waveDirections`).
  * `oceanWaves(p, dist, disp, nrm, jac)` gives, for the rest position `p` seen from `dist` metres away, the
  * displacement of the surface point, its unit normal and the Jacobian of the horizontal map (below ~0.7 the
@@ -25,14 +25,14 @@ export function waveGlsl(): string {
   const terms = WAVES.map((w, i) => {
     const t = WAVE_TERMS[i];
     if (!t) return '';
-    const fade = ` * (1.0 - smoothstep(${f(3.5 * w.length)} * uFade, ${f(8 * w.length)} * uFade, dist))`;
+    const fade = ` * (1.0 - smoothstep(${f(3.5 * w.length)} * uLen * uFade, ${f(8 * w.length)} * uLen * uFade, dist))`;
     return `  {
     vec2 d = uDirs[${i}];
-    float th = ${f(t.k)} * dot(p, d) - ${f(t.omega)} * uTime;
+    float th = ${f(t.k)} / uLen * dot(p, d) - ${f(t.omega)} * uSpeed * inversesqrt(uLen) * uTime;
     float s = sin(th);
     float c = cos(th);
     float a = ${f(w.amplitude)} * uAmp${fade};
-    float ka = ${f(t.k)} * a;
+    float ka = ${f(t.k)} / uLen * a;
     h += a * s;
     pull += uChop * a * c * d;
     slope += ka * c * d;

@@ -1,13 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { waveHeight } from '../src/render';
 import { WAVE_COUNT, chop, waveDirections, waveGlsl } from '../src/render/waves';
-import { WAVES, WAVE_TERMS } from '../src/world';
+import { NEUTRAL_TUNING, WAVES, WAVE_TERMS, type SeaTuning } from '../src/world';
 
 /** Evaluate the emitted GLSL in JS (displacement and height at a rest position), to tie shader and CPU together. */
-function evalGlsl(glsl: string, px: number, pz: number, time: number, wind: number, amp: number, dist: number): { dx: number; dz: number; h: number } {
-  const block = /vec2 d = uDirs\[(\d+)\];\s*float th = ([\d.]+) \* dot\(p, d\) - ([\d.]+) \* uTime;[\s\S]*?float a = ([\d.]+) \* uAmp \* \(1\.0 - smoothstep\(([\d.]+) \* uFade, ([\d.]+) \* uFade, dist\)\);/g;
+function evalGlsl(
+  glsl: string,
+  px: number,
+  pz: number,
+  time: number,
+  wind: number,
+  amp: number,
+  dist: number,
+  tuning: SeaTuning = NEUTRAL_TUNING,
+): { dx: number; dz: number; h: number } {
+  const block =
+    /vec2 d = uDirs\[(\d+)\];\s*float th = ([\d.]+) \/ uLen \* dot\(p, d\) - ([\d.]+) \* uSpeed \* inversesqrt\(uLen\) \* uTime;[\s\S]*?float a = ([\d.]+) \* uAmp \* \(1\.0 - smoothstep\(([\d.]+) \* uLen \* uFade, ([\d.]+) \* uLen \* uFade, dist\)\);/g;
   const dirs = waveDirections(wind);
-  const g = chop(amp);
+  const g = chop(amp, tuning);
   let h = 0;
   let dx = 0;
   let dz = 0;
@@ -15,11 +25,13 @@ function evalGlsl(glsl: string, px: number, pz: number, time: number, wind: numb
   for (const m of glsl.matchAll(block)) {
     terms++;
     const [i, k, omega, a0, e0, e1] = [m[1], m[2], m[3], m[4], m[5], m[6]].map(Number) as [number, number, number, number, number, number];
-    const x = Math.min(Math.max((dist - e0) / (e1 - e0), 0), 1);
+    const lo = e0 * tuning.length;
+    const hi = e1 * tuning.length;
+    const x = Math.min(Math.max((dist - lo) / (hi - lo), 0), 1);
     const fade = 1 - x * x * (3 - 2 * x); // uFade = 1
     const [ux, uz] = dirs[i] as [number, number];
-    const th = k * (px * ux + pz * uz) - omega * time;
-    const a = a0 * amp * fade;
+    const th = (k / tuning.length) * (px * ux + pz * uz) - (omega * tuning.speed * time) / Math.sqrt(tuning.length);
+    const a = a0 * amp * tuning.amp * fade; // uAmp is the scale times the tuning's amp
     h += a * Math.sin(th);
     dx += g * a * Math.cos(th) * ux;
     dz += g * a * Math.cos(th) * uz;
@@ -39,11 +51,21 @@ describe('waveGlsl', () => {
     }
   });
 
+  it('also agrees with the CPU surface for tuned waves (taller, longer, faster, softer crests)', () => {
+    const glsl = waveGlsl();
+    const tuning: SeaTuning = { amp: 1.7, length: 1.6, chop: 0.6, speed: 1.4 };
+    for (let i = 0; i < 40; i++) {
+      const [px, pz, t, wind, amp] = [i * 5.7 - 90, i * -3.3 + 40, i * 1.1, 0.5 + i * 0.07, 0.6 + (i % 4) * 0.5];
+      const s = evalGlsl(glsl, px, pz, t, wind, amp, 0, tuning);
+      expect(waveHeight(px + s.dx, pz + s.dz, t, wind, amp, 0, tuning)).toBeCloseTo(s.h, 2);
+    }
+  });
+
   it('fades every wave out with distance, the short ones first, and keeps near water at full strength', () => {
     const glsl = waveGlsl();
     expect(glsl.match(/smoothstep\(/g)).toHaveLength(WAVES.length);
     expect(glsl).toContain('oceanWaves(vec2 p, float dist');
-    for (const u of ['uTime', 'uAmp', 'uChop', 'uFade', 'uDirs']) expect(glsl).toContain(u);
+    for (const u of ['uTime', 'uAmp', 'uChop', 'uLen', 'uSpeed', 'uFade', 'uDirs']) expect(glsl).toContain(u);
     const near = evalGlsl(glsl, 3, 4, 2, 1, 1, 0);
     const far = evalGlsl(glsl, 3, 4, 2, 1, 1, 100000);
     expect(Math.abs(near.h)).toBeGreaterThan(0);

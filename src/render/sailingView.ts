@@ -78,6 +78,8 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
   const lamps = createLamps();
   lamps.setCount(LAMP_LIGHTS[graphics.lights]);
   let fleetShips: readonly Ship[] = [];
+  let lastStrike = 0;
+  let flash = 0;
   const scenery = createScenery();
   const effects = createEffects();
   const aim = createAimArcs();
@@ -274,7 +276,17 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
         ...[...actors.values()].map((a) => ({ root: a.model, length: a.dims.length })),
         ...fleetShips.map((s) => ({ root: s.root, length: s.spec.length })),
       ];
-      env.update({ camera, time, dt, windFrom: wind.from, seaState: view.seaState, hour: view.hour, stamps, focus });
+      // A new lightning strike flashes the sky for an instant (the thunder is the sound's business).
+      const w = view.weather;
+      if (w.strike && w.strike.id !== lastStrike) {
+        lastStrike = w.strike.id;
+        flash = 1;
+      }
+      flash = Math.max(0, flash - dt * 3.2);
+      env.update({
+        camera, time, dt, windFrom: wind.from, seaState: view.seaState, hour: view.hour, stamps, focus,
+        tuning: w.tuning, cloud: w.cloud, fog: w.fog, rain: w.rain, flash: flash * (0.65 + 0.35 * Math.sin(flash * 34)),
+      });
       lamps.update(env.look.lamps, hung, camera);
       fleet.update(view, camera, ampScale);
       crew?.update(view.crew, camera);

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Attitude } from '../core';
+import { NEUTRAL_TUNING, type SeaTuning } from '../world';
 import { waveHeight } from './waves';
 
 export interface RideState extends Partial<Attitude> {
@@ -28,6 +29,7 @@ export function rideWaves(
   detail = true,
   /** 0…1: a sinking ship pitches bow-up, lists and settles by this fraction of its length. */
   sink = 0,
+  tuning: SeaTuning = NEUTRAL_TUNING,
 ): void {
   if (s.heave !== undefined && s.pitch !== undefined && s.waveRoll !== undefined) {
     // the game's spring model (gameplay/buoyancy.ts): heave, pitch and the roll the waves give
@@ -36,7 +38,7 @@ export function rideWaves(
     model.setRotationFromEuler(euler);
     return;
   }
-  const sample = (dx: number, dz: number): number => waveHeight(s.x + dx, s.z + dz, time, windFrom, ampScale);
+  const sample = (dx: number, dz: number): number => waveHeight(s.x + dx, s.z + dz, time, windFrom, ampScale, 0, tuning);
   if (!detail) {
     model.position.set(s.x, sample(0, 0), s.z);
     euler.set(s.roll, s.heading, 0);

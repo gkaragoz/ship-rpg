@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { WORLD_BOUNDS, terrainHeight } from '../world';
+import { WORLD_BOUNDS, terrainHeight, type SeaTuning } from '../world';
 import { createSeaMesh, type SeaMesh } from './oceanMesh';
 import { bakeSeaNoise } from './seaNoise';
 import type { SeaLook } from './seaLook';
@@ -35,7 +35,7 @@ function bakeTerrainTexture(width: number, height: number): THREE.DataTexture {
 export interface Ocean {
   object: THREE.Object3D;
   /** Re-centre under the camera and advance the waves. */
-  update(camera: THREE.Camera, time: number, windFrom: number, ampScale: number, seaState: number, look: SeaLook): void;
+  update(camera: THREE.Camera, time: number, windFrom: number, ampScale: number, seaState: number, look: SeaLook, tuning: SeaTuning): void;
   /** Use this foam and ripple map for the wakes of ships. */
   setWake(wake: Wake, texels: number): void;
   /** Rebuild the sea's detail and depth textures for a texture quality, and set filtering. */
@@ -57,9 +57,9 @@ export function createOcean(quality: Quality): Ocean {
 
   return {
     object,
-    update(camera, time, windFrom, ampScale, seaState, look): void {
+    update(camera, time, windFrom, ampScale, seaState, look, tuning): void {
       mesh.follow(camera);
-      updateSeaMaterial(material, time, windFrom, ampScale, seaState, look);
+      updateSeaMaterial(material, time, windFrom, ampScale, seaState, look, tuning);
     },
     setTextures(level, maxAnisotropy): void {
       const q = TEXTURE_QUALITY[level];

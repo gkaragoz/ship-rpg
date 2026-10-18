@@ -101,6 +101,7 @@ export function createAimArcs(): AimArcs {
     inRange: boolean,
   ): void => {
     const { ship, wind, time } = view;
+    const tuning = view.weather.tuning;
     const { near, far, halfSpan, drift } = ship.aim;
     const c = Math.cos(ship.heading);
     const s = Math.sin(ship.heading);
@@ -118,7 +119,7 @@ export function createAimArcs(): AimArcs {
         const x = ship.x + c * lx + s * lz;
         const z = ship.z - s * lx + c * lz;
         arr[k++] = x;
-        arr[k++] = waveHeight(x, z, time, wind.from, ampScale, SWELL) + LIFT;
+        arr[k++] = waveHeight(x, z, time, wind.from, ampScale, SWELL, tuning) + LIFT;
         arr[k++] = z;
         rgba[c4++] = 1;
         rgba[c4++] = 1;
@@ -135,7 +136,7 @@ export function createAimArcs(): AimArcs {
       const x = ship.x + s * lz + c * drift;
       const z = ship.z + c * lz - s * drift;
       sp[e * 3] = x;
-      sp[e * 3 + 1] = waveHeight(x, z, time, wind.from, ampScale, SWELL) + LIFT;
+      sp[e * 3 + 1] = waveHeight(x, z, time, wind.from, ampScale, SWELL, tuning) + LIFT;
       sp[e * 3 + 2] = z;
     }
     side.spoke.needsUpdate = true;

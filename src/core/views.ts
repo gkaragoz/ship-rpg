@@ -198,10 +198,32 @@ export interface CrewView {
   look: CrewLook;
 }
 
+/** The sea's wave tuning (see `world/sea.ts`), as render needs it. */
+export interface TuningView {
+  amp: number;
+  length: number;
+  chop: number;
+  speed: number;
+}
+
+/** The weather beyond wind and sea state (those are `GameView.wind` and `seaState`). */
+export interface WeatherView {
+  /** Cloud cover and haze 0…1, or null: the sky's own for this sea state. */
+  cloud: number | null;
+  fog: number | null;
+  /** Rain 0…1 and how often lightning strikes 0…1. */
+  rain: number;
+  lightning: number;
+  tuning: TuningView;
+  /** The latest lightning strike (a new `id` is a new strike), in world metres. */
+  strike: { id: number; x: number; z: number; power: number } | null;
+}
+
 export interface GameView {
   time: number;
   ship: ShipView;
   wind: WindView;
+  weather: WeatherView;
   /** The hour of the day, 0 ≤ h < 24: the light, the sky and the lamps follow it (see `world/clock.ts`). */
   hour: number;
   /** How rough the sea is, 0 (glassy) … 1 (storm): drives the waves, the sky, the ships' motion and how they handle. */

@@ -1,7 +1,7 @@
 import type { Condition, GameEvent } from '../core';
 import { conditionLayers, pristine, type ConditionLayers } from './condition';
 import { AUDIBLE, spatialMix, type Listener } from './mix';
-import { cannon, hit, makeNoise, riggingHit, splash, sinking, waterlineHit, startAmbience, type Ambience, type Bus } from './synth';
+import { cannon, hit, makeNoise, riggingHit, splash, sinking, thunder, waterlineHit, startAmbience, type Ambience, type Bus } from './synth';
 
 /** Loudness of each group of sounds, 0…1 (the settings' audio group). */
 export interface Volumes {
@@ -19,6 +19,8 @@ export interface Audio {
   resume(): void;
   /** Play the sounds for this frame's events, positioned relative to `listener`. */
   play(events: readonly GameEvent[], listener: Listener): void;
+  /** A lightning strike `distance` metres away: the crack arrives after the time sound needs, fainter the farther it is. */
+  thunder(distance: number): void;
   /** Set the wind and hull-water loudness. */
   ambience(wind: number, speed: number): void;
   /** Set the damage ambience of the player's ship (creaks, sloshing water, fire crackle). Cheap to call every frame. */
@@ -131,6 +133,10 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
         else sinking(bus, out, when, mix.gain);
         started++;
       }
+    },
+    thunder(distance): void {
+      if (!ctx || !bus || !sfxBus || muted) return;
+      thunder(bus, sfxBus, ctx.currentTime + Math.min(distance / 340, 9), 0.9 / (1 + distance / 900));
     },
     ambience(w, s): void {
       // Only touch the audio params when the conditions have really changed: this runs every frame.

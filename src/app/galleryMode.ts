@@ -50,7 +50,7 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
     },
   });
   panel.ui = ui;
-  const settingsUI = createSettingsUI(host, store, { extraTabs: [weatherTab({ hour: () => view.hour(), setHour: (h) => view.setHour(h) })] });
+  const settingsUI = createSettingsUI(host, store, { extraTabs: [weatherTab({ hour: () => view.hour(), setHour: (h) => view.setHour(h), weather: () => view.weather(), setWeather: (c) => view.setWeather(c) })] });
   const applySettings = (): void => {
     view.setGraphics(store.get().graphics);
     view.setCameraSensitivity(store.get().game.cameraSensitivity);

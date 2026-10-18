@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createSkyLight } from './gi';
+import { createRain, type Rain } from './rain';
 import { excludeFromOcclusion } from './pipeline';
 import { createOcean } from './ocean';
 import type { Quality } from './quality';
@@ -10,7 +11,7 @@ import { createWake, type Wake } from './wake';
 import type { SunShadow, Stamp } from './wakeStamps';
 import type { GraphicsSettings, TextureQuality } from '../settings';
 import { clamp } from '../core';
-import { seaAmp, sunState } from '../world';
+import { seaAmp, sunState, type SeaTuning } from '../world';
 
 /** What the environment needs to know each frame. */
 export interface EnvironmentFrame {
@@ -23,6 +24,13 @@ export interface EnvironmentFrame {
   seaState: number;
   /** The hour of the day, 0 ≤ h < 24 (see `world/clock.ts`): the sun, the moon and the colours follow it. */
   hour: number;
+  /** The weather simulator's parts of the sky and the waves: the wave tuning, cloud cover and haze (null = the sky's own), and a lightning flash 0…1. */
+  tuning: SeaTuning;
+  cloud: number | null;
+  fog: number | null;
+  flash: number;
+  /** Rain, 0 … 1. */
+  rain: number;
   /** What ships and splashes leave on the water this frame. */
   stamps: readonly Stamp[];
   /** The ship the sun's shadow map follows, and its length (m); none keeps the map where it was. */
@@ -49,6 +57,8 @@ export interface Environment {
   dispose(): void;
 }
 
+const FLASH = new THREE.Color(0xdbe6ff);
+
 /** Adds the sea, sky, fog and lights to `scene`. */
 export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Scene, quality: Quality): Environment {
   scene.fog = new THREE.Fog(HORIZON_COLOR, FOG_NEAR, FOG_FAR);
@@ -61,6 +71,8 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
   const look = lookFor(0);
   const shadows = createShadows(renderer, scene, sun);
   const skyLight = createSkyLight(renderer, scene);
+  const rain: Rain = createRain();
+  let particles = 1;
   let skyGi = false;
   let texels = quality.wake;
   let viewDistance = 1;
@@ -69,7 +81,7 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
   const cast: SunShadow = { dirX: 1, dirZ: 0, elevation: 1, strength: 1 };
   excludeFromOcclusion(ocean.object);
   excludeFromOcclusion(sky.mesh);
-  scene.add(hemi, sun, ocean.object, sky.mesh);
+  scene.add(hemi, sun, ocean.object, sky.mesh, rain.object);
   const fog = scene.fog as THREE.Fog;
 
   const env: Environment = {
@@ -84,6 +96,7 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
       viewDistance = g.viewDistance;
       shadowScale = g.shadowDistance;
       skyGi = g.globalIllumination !== 'off';
+      particles = g.particles;
       if (!skyGi) skyLight.disable();
       if (g.textures !== textures) {
         textures = g.textures;
@@ -93,6 +106,17 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
     update(f): void {
       // The look follows the hour and the sea state: bright at noon, gold at dusk, dark blue by moonlight, grey in a storm.
       lookFor(f.seaState, sunState(f.hour), look);
+      if (f.cloud !== null) look.cover = f.cloud;
+      if (f.fog !== null) {
+        look.fogNear *= 1 - 0.9 * f.fog; // thick haze closes the view in
+        look.fogFar *= 1 - 0.85 * f.fog;
+      }
+      if (f.flash > 0) {
+        // a lightning flash: the whole sky and the fill light jump bright for an instant
+        look.horizon.lerp(FLASH, f.flash * 0.8);
+        look.zenith.lerp(FLASH, f.flash * 0.6);
+        look.hemi += f.flash * 3;
+      }
       look.fogNear *= viewDistance; // the view distance setting scales how far you see
       look.fogFar *= viewDistance;
       fog.color.copy(look.horizon);
@@ -114,8 +138,9 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
       if (skyGi) skyLight.update(look, f.time, f.windFrom, f.seaState, 0.9 * Math.max(look.hemi / 1.4, 0.5), f.hour);
       wake.update(renderer, f.dt, f.camera, f.stamps);
       ocean.setWake(wake, texels);
-      ocean.update(f.camera, f.time, f.windFrom, seaAmp(f.seaState), f.seaState, look);
+      ocean.update(f.camera, f.time, f.windFrom, seaAmp(f.seaState), f.seaState, look, f.tuning);
       sky.update(f.camera, look, f.time, f.windFrom);
+      rain.update(f.camera, f.time, f.windFrom, f.rain, particles, look.horizon);
       if (f.focus) shadows.update(f.focus.position, look.lightDir, shadowRadius(f.focus.length, shadowScale));
     },
     setQuality(q): void {
@@ -129,7 +154,8 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
       wake.dispose();
       shadows.dispose();
       skyLight.dispose();
-      scene.remove(hemi, sun, ocean.object, sky.mesh);
+      rain.dispose();
+      scene.remove(hemi, sun, ocean.object, sky.mesh, rain.object);
     },
   };
   // In dev the environment and renderer are on window, for poking at from the console.

@@ -94,6 +94,14 @@ export function sinking(bus: Bus, out: AudioNode, when: number, gain: number): v
   for (let i = 0; i < 6; i++) burst(bus, out, when + 0.6 + i * 0.45, 0.2, 'bandpass', 700 + i * 120, 300, gain * 0.25);
 }
 
+/** Thunder: a sharp crack, then a long low rumble that rolls away. */
+export function thunder(bus: Bus, out: AudioNode, when: number, gain: number): void {
+  burst(bus, out, when, 0.25, 'highpass', 1800, 900, gain * 0.5);
+  burst(bus, out, when + 0.05, 4.2, 'lowpass', 260, 60, gain * 1.1);
+  tone(bus, out, when + 0.1, 3.6, 'sawtooth', 60, 28, gain * 0.35);
+  for (let i = 0; i < 4; i++) burst(bus, out, when + 0.5 + i * 0.7, 1.2, 'lowpass', 180, 50, gain * 0.4);
+}
+
 export interface Ambience {
   /** Wind (m/s) and ship speed (m/s) set the loudness of wind and hull water. */
   set(wind: number, speed: number): void;

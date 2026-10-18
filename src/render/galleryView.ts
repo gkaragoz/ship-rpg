@@ -8,7 +8,7 @@ import { QUALITIES } from './quality';
 import type { GraphicsSettings } from '../settings';
 import { rideWaves } from './ride';
 import { shadowStamp, shipStamps, type Stamp } from './wakeStamps';
-import { DEFAULT_CLOCK, WORLD_BOUNDS, hourAt, seaAmp, startHourFor, type ClockSettings } from '../world';
+import { DEFAULT_CLOCK, WORLD_BOUNDS, hourAt, seaAmp, startHourFor, weatherAt, type ClockSettings, type Weather, type WeatherOverrides } from '../world';
 
 export interface GalleryView {
   /** Show one object centred and framed; null clears the stage. */
@@ -16,6 +16,9 @@ export interface GalleryView {
   setAutoRotate(on: boolean): void;
   /** The gallery's day: how long it lasts and whether it stands still (it starts at mid-morning). */
   setClock(dayMinutes: number, frozen: boolean): void;
+  /** The weather of the gallery, and the weather simulator's way into it (`null` goes back to the gallery's own breeze). */
+  weather(): Weather;
+  setWeather(change: WeatherOverrides | null): void;
   /** The hour of the gallery's day now, and a way to set it. */
   hour(): number;
   setHour(hour: number): void;
@@ -30,8 +33,7 @@ export interface GalleryView {
 }
 
 /** The gallery's weather: a fresh breeze from the north and a light sea, so the ship rides gentle waves. */
-const GALLERY_WIND_FROM = Math.PI / 2;
-const GALLERY_SEA = 0.18;
+const GALLERY_WEATHER: WeatherOverrides = { windFrom: Math.PI / 2, windSpeed: 7, seaState: 0.18, rain: 0, lightning: 0 };
 
 /**
  * Where the gallery's ship floats: open water beyond the archipelago's corner (the sea shader's depth map is clamped at the
@@ -91,6 +93,8 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
   let subject: THREE.Object3D | null = null;
   let dims = { length: 12, beam: 4 };
   let elapsed = 0;
+  let overrides: WeatherOverrides = { ...GALLERY_WEATHER };
+  let flash = 0;
   let clock: ClockSettings = { ...DEFAULT_CLOCK, startHour: 10.5 };
   let lastRender = performance.now();
   const stamps: Stamp[] = [];
@@ -134,6 +138,20 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
     setAutoRotate(on): void {
       controls.autoRotate = on;
     },
+    weather: () => weatherAt(elapsed, overrides),
+    setWeather(change): void {
+      if (change === null) {
+        overrides = { ...GALLERY_WEATHER };
+        return;
+      }
+      const next: Record<string, unknown> = { ...overrides };
+      for (const [key, value] of Object.entries(change)) {
+        if (value === undefined) delete next[key];
+        else if (key === 'tuning') next.tuning = { ...overrides.tuning, ...(value as object) };
+        else next[key] = value;
+      }
+      overrides = next as WeatherOverrides;
+    },
     hour: () => hourAt(elapsed, clock),
     setHour(hour): void {
       clock.startHour = startHourFor(hour, elapsed, clock);
@@ -155,7 +173,8 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
     update(dt): void {
       elapsed += dt;
       // The ship floats on the waves of the sea it stands in.
-      rideWaves(pivot, rest, dims, elapsed, GALLERY_WIND_FROM, seaAmp(GALLERY_SEA));
+      const w = weatherAt(elapsed, overrides);
+      rideWaves(pivot, rest, dims, elapsed, w.windFrom, seaAmp(w.seaState), true, 0, w.tuning);
       controls.update();
     },
     render(): void {
@@ -164,13 +183,20 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
       const dt = Math.min((now - lastRender) / 1000, 0.1);
       lastRender = now;
       stamps.length = 0;
+      const w = weatherAt(elapsed, overrides);
+      if (w.lightning > 0 && Math.random() < w.lightning * dt * 0.15) flash = 1; // an occasional flash for the simulator
+      flash = Math.max(0, flash - dt * 3.2);
       if (subject) {
         const m = { x: GALLERY_CENTER.x, z: GALLERY_CENTER.z, heading: 0, speed: 0, length: dims.length, beam: dims.beam, sinking: -1 };
-        shipStamps(m, dt, GALLERY_SEA, stamps);
+        shipStamps(m, dt, w.seaState, stamps);
         const sun = env.sunShadow();
         if (sun) shadowStamp(m, sun, stamps);
       }
-      env.update({ camera, time: elapsed, dt, windFrom: GALLERY_WIND_FROM, seaState: GALLERY_SEA, hour: hourAt(elapsed, clock), stamps, focus: { position: pivot.position, length: dims.length } });
+      env.update({
+        camera, time: elapsed, dt, windFrom: w.windFrom, seaState: w.seaState, hour: hourAt(elapsed, clock), stamps,
+        focus: { position: pivot.position, length: dims.length },
+        tuning: w.tuning, cloud: w.cloud, fog: w.fog, rain: w.rain, flash: flash * (0.65 + 0.35 * Math.sin(flash * 34)),
+      });
       lamps.update(env.look.lamps, subject ? [{ root: subject, length: dims.length }] : [], camera);
       pipeline.render();
       pipeline.endFrame();

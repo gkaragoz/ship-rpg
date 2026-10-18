@@ -62,7 +62,7 @@ export function createFleet(scene: THREE.Scene): Fleet {
           ship.setSailTrim(angleDiff(view.wind.from, o.heading), o.sailLevel);
         }
         counts[lod]++;
-        rideWaves(ship.root, o, dims, view.time, view.wind.from, ampScale, lod < 2);
+        rideWaves(ship.root, o, dims, view.time, view.wind.from, ampScale, lod < 2, 0, view.weather.tuning);
       }
     },
 

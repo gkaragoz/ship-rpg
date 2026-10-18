@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { clamp } from '../core';
 import type { Quality } from './quality';
-import { WORLD_BOUNDS } from '../world';
+import { WORLD_BOUNDS, type SeaTuning } from '../world';
 import { WAVE_COUNT, chop, waveDirections, waveGlsl } from './waves';
 import { fragmentShader } from './oceanFragment';
 import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR, type SeaLook } from './seaLook';
@@ -13,6 +13,8 @@ const vertexShader = /* glsl */ `
 uniform float uTime;
 uniform float uAmp;
 uniform float uChop;
+uniform float uLen;
+uniform float uSpeed;
 uniform float uFade;
 uniform float uCell0;
 uniform sampler2D uWake;
@@ -51,6 +53,8 @@ export function createSeaMaterial(terrain: THREE.Texture, noise: THREE.Texture):
       uTime: { value: 0 },
       uAmp: { value: 1 },
       uChop: { value: chop(1) },
+      uLen: { value: 1 },
+      uSpeed: { value: 1 },
       uFade: { value: 1 },
       uWake: { value: noise },
       uWakeOrigin: { value: new THREE.Vector2() },
@@ -101,6 +105,7 @@ export function updateSeaMaterial(
   ampScale: number,
   seaState: number,
   look: SeaLook,
+  tuning: SeaTuning,
 ): void {
   const u = material.uniforms;
   u.uSea!.value = seaState;
@@ -113,8 +118,10 @@ export function updateSeaMaterial(
   u.uFogNear!.value = look.fogNear;
   u.uFogFar!.value = look.fogFar;
   u.uTime!.value = time;
-  material.uniforms.uAmp!.value = ampScale;
-  material.uniforms.uChop!.value = chop(ampScale);
+  material.uniforms.uAmp!.value = ampScale * tuning.amp;
+  material.uniforms.uChop!.value = chop(ampScale, tuning);
+  material.uniforms.uLen!.value = tuning.length;
+  material.uniforms.uSpeed!.value = tuning.speed;
   const dirs = material.uniforms.uDirs!.value as THREE.Vector2[];
   waveDirections(windFrom).forEach(([x, z], k) => dirs[k]?.set(x, z));
 }
