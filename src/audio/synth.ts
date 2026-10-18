@@ -8,9 +8,12 @@ export interface Bus {
   noise: AudioBuffer;
 }
 
-/** Two seconds of brown-ish noise, looped or sliced by the effects. */
+/** Length of the shared noise buffer. */
+export const NOISE_SECONDS = 2;
+
+/** Brown-ish noise, looped or sliced by the effects. */
 export function makeNoise(ctx: AudioContext): AudioBuffer {
-  const buffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+  const buffer = ctx.createBuffer(1, ctx.sampleRate * NOISE_SECONDS, ctx.sampleRate);
   const data = buffer.getChannelData(0);
   let last = 0;
   for (let i = 0; i < data.length; i++) {
@@ -32,7 +35,10 @@ const burst = (bus: Bus, out: AudioNode, when: number, dur: number, type: Biquad
   env.gain.setValueAtTime(gain, when);
   env.gain.exponentialRampToValueAtTime(0.001, when + dur);
   src.connect(filter).connect(env).connect(out);
-  src.start(when, Math.random() * 1.5, dur + 0.05);
+  // The noise buffer is NOISE_SECONDS long: slice inside it, or loop it for longer sounds.
+  const span = bus.noise.duration;
+  src.loop = dur + 0.05 > span;
+  src.start(when, Math.random() * Math.max(0, src.loop ? span - 0.1 : span - dur - 0.05), dur + 0.05);
   src.stop(when + dur + 0.1);
 };
 

@@ -74,6 +74,8 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
       }
     },
     ambience(w, s): void {
+      // Only touch the audio params when the conditions have really changed: this runs every frame.
+      if (Math.abs(w - wind) < 0.2 && Math.abs(s - speed) < 0.2) return;
       wind = w;
       speed = s;
       ambient?.set(w, s);

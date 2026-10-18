@@ -1,6 +1,6 @@
 # render
 
-three.js scenes. Depends on `core` types, `ships`-free (it receives plain `THREE.Object3D` models) and reads static data from `world`; never reads `gameplay`.
+three.js scenes. Depends on `core` types and static `world` data. It may import `ships` per the architecture table but currently does not: the app hands it plain `THREE.Object3D` ship models. Never reads `gameplay`.
 
 - `galleryView.ts` orbit stage for browsing ships, frames the model in the area not covered by panels
 - `sailingView.ts` open-sea scene: ocean, sky, island scenery, chase camera; the player's ship and enemy actors (`addActor`/`removeActor`) ride the waves and sink; cannonballs are one instanced mesh

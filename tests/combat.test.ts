@@ -325,3 +325,29 @@ describe('targetInZone', () => {
     expect(v.ship.aim.side).toBeCloseTo(brig.beam / 2, 5);
   });
 });
+
+describe('targetInZone edges', () => {
+  const shooter = { x: 0, z: 0, heading: 0 };
+
+  it('moves the zone forward with the ship speed', () => {
+    const fast = aimZone(brig, 10);
+    const mid = (fast.near + fast.far) / 2;
+    // A target just ahead of the beam is inside only because the ship's speed carries the shot forward.
+    const ahead = fast.drift + fast.halfSpan * 0.5;
+    expect(targetInZone(fast, shooter, 'starboard', { x: ahead, z: mid }, 25)).toBe(true);
+    const still = aimZone(brig, 0);
+    expect(targetInZone(still, shooter, 'starboard', { x: fast.drift + still.halfSpan + 40, z: mid }, 25)).toBe(false);
+  });
+
+  it('gives an unarmed ship a zone too (callers decide whether it can fire)', () => {
+    const z = aimZone(spec('tartane'), 0);
+    expect(z.far).toBeGreaterThan(z.near);
+    expect(cannonsPerSide(spec('tartane'))).toBe(0);
+  });
+
+  it('is false for a target directly astern or ahead on the centreline', () => {
+    const z = aimZone(brig, 0);
+    expect(targetInZone(z, shooter, 'starboard', { x: -150, z: 0 }, 25)).toBe(false);
+    expect(targetInZone(z, shooter, 'port', { x: 150, z: 0 }, 25)).toBe(false);
+  });
+});

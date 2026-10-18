@@ -210,8 +210,11 @@ export function createSailingView(host: HTMLElement): SailingView {
       shake = Math.max(0, shake - dt * 2.5);
       shakeOffset.set((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)).multiplyScalar(shake * 1.6);
       camera.position.add(shakeOffset);
-      renderer.render(scene, camera);
-      camera.position.sub(shakeOffset);
+      try {
+        renderer.render(scene, camera);
+      } finally {
+        camera.position.sub(shakeOffset); // never leave the shake on the camera, even if drawing throws
+      }
     },
 
     dispose(): void {

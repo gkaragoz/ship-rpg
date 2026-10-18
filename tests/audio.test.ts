@@ -39,20 +39,33 @@ describe('spatialMix', () => {
 });
 
 /** A minimal Web Audio stand-in that counts the sound sources started. */
-function fakeContext(): { ctx: AudioContext; sources: () => number; closed: () => boolean } {
+interface Started {
+  when: number;
+  offset?: number;
+  duration?: number;
+  loop: boolean;
+}
+
+function fakeContext(): { ctx: AudioContext; sources: () => number; closed: () => boolean; started: Started[]; targets: () => number } {
   let sources = 0;
+  let targets = 0;
+  const started: Started[] = [];
   let closed = false;
   const param = (): object => ({
     value: 0,
     setValueAtTime(): void {},
     exponentialRampToValueAtTime(): void {},
-    setTargetAtTime(): void {},
+    setTargetAtTime(): void {
+      targets++;
+    },
   });
   const node = (extra: object = {}): object => {
     const n: Record<string, unknown> = {
       connect: (to: unknown) => to,
-      start: () => {
+      loop: false,
+      start(this: { loop: boolean }, when: number, offset?: number, duration?: number): void {
         sources++;
+        started.push({ when, offset, duration, loop: this.loop });
       },
       stop: () => {},
       frequency: param(),
@@ -73,14 +86,14 @@ function fakeContext(): { ctx: AudioContext; sources: () => number; closed: () =
     createStereoPanner: () => node(),
     createBufferSource: () => node(),
     createOscillator: () => node(),
-    createBuffer: (_c: number, length: number) => ({ getChannelData: () => new Float32Array(length) }),
+    createBuffer: (_c: number, length: number) => ({ duration: 2, getChannelData: () => new Float32Array(length) }),
     resume: () => Promise.resolve(),
     close: () => {
       closed = true;
       return Promise.resolve();
     },
   };
-  return { ctx: ctx as unknown as AudioContext, sources: () => sources, closed: () => closed };
+  return { ctx: ctx as unknown as AudioContext, sources: () => sources, closed: () => closed, started, targets: () => targets };
 }
 
 const fire = (x: number, z: number): GameEvent => ({ type: 'fire', owner: 'player', x, y: 2, z });
@@ -153,5 +166,39 @@ describe('createAudio', () => {
     const n = f.sources();
     a.play([fire(40, 0)], ear);
     expect(f.sources()).toBe(n);
+  });
+});
+
+describe('createAudio details', () => {
+  it('slices every noise burst inside the 2 s buffer, and loops the longer ones', () => {
+    const f = fakeContext();
+    const a = createAudio(() => f.ctx);
+    a.resume();
+    const ambient = f.started.length;
+    const events: GameEvent[] = [
+      { type: 'sunk', owner: 'enemy', x: 40, y: 0, z: 0 },
+      { type: 'splash', owner: 'player', x: 40, y: 0, z: 0 },
+      { type: 'hit', owner: 'player', x: 40, y: 0, z: 0 },
+      fire(40, 0),
+    ];
+    for (let i = 0; i < 40; i++) a.play(events, ear); // random offsets: many draws
+    for (const s of f.started.slice(ambient)) {
+      if (s.offset === undefined || s.duration === undefined) continue; // oscillators have no slice
+      if (!s.loop) expect(s.offset + s.duration).toBeLessThanOrEqual(2 + 1e-9);
+      else expect(s.offset).toBeLessThan(2);
+    }
+    expect(f.started.slice(ambient).some((s) => s.loop)).toBe(true); // the 3.5 s sinking rumble loops
+  });
+
+  it('only retunes the ambience when wind or speed really change', () => {
+    const f = fakeContext();
+    const a = createAudio(() => f.ctx);
+    a.resume();
+    a.ambience(8, 5);
+    const n = f.targets();
+    for (let i = 0; i < 100; i++) a.ambience(8.05, 5.02); // a frame loop with tiny jitter
+    expect(f.targets()).toBe(n);
+    a.ambience(11, 5);
+    expect(f.targets()).toBeGreaterThan(n);
   });
 });

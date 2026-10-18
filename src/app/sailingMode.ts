@@ -43,6 +43,8 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     else if (GAME_KEYS.includes(e.code)) e.preventDefault(); // keep arrows from scrolling the page
   };
   window.addEventListener('keydown', onKey);
+  const onPointer = (): void => audio.resume(); // a click or drag also counts as a user gesture
+  window.addEventListener('pointerdown', onPointer);
 
   const any = (codes: string[], test: (code: string) => boolean): boolean => codes.some(test);
   // A key press is one sail step, even when a frame runs several fixed updates.
@@ -116,6 +118,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     },
     dispose(): void {
       window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', onPointer);
       input.dispose();
       hud.dispose();
       map.dispose();

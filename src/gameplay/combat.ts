@@ -40,7 +40,7 @@ export const COMBAT = {
   /** Seconds to reload a broadside. */
   playerReload: 6,
   enemyReload: 10,
-  /** The enemy's sideways spread is this many times the player's, until the player has an aim aid. */
+  /** The enemy's sideways spread is this many times the player's (a handicap kept until the balance table, see ROADMAP 5a.4). */
   enemySpread: 1.6,
   /** Balls older than this are dropped. */
   maxAge: 6,

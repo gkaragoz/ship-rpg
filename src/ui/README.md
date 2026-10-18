@@ -3,7 +3,7 @@
 DOM overlays (plain TypeScript + CSS, no framework). Depends on `core` types and static `world` data.
 
 - `gallery.ts` / `gallery.css` ship list, details card, "Yelken aç" button; arrow keys switch ships; `insets()` reports covered screen area so the 3D view can frame around it
-- `hud.ts` / `hud.css` sailing HUD (heading, speed, sails, wind compass, nearest port, hull and reload bars, target, kill toast, sunk screen, hit marker, hurt flash, prompts)
+- `hud.ts` / `hud.css` sailing HUD (heading, speed, sails, wind compass, nearest port, hull and reload bars, target, kill toast, sunk screen, hit marker, hurt flash, gun bars that glow green when a target is in the landing zone, prompts)
 - `map.ts` / `map.css` minimap + full chart (`M`), fog of war from `GameView.discoveredIslands/Ports`; island images are drawn lazily from `terrainHeight`
 - `portPanel.ts` / `portPanel.css` harbour panel while docked
 
