@@ -24,8 +24,6 @@ export const QUALITIES: Readonly<Record<QualityName, Quality>> = {
 
 export const QUALITY_ORDER: readonly QualityName[] = ['low', 'medium', 'high'];
 
-export const isQuality = (v: unknown): v is QualityName => typeof v === 'string' && v in QUALITIES;
-
 /** The next preset, wrapping from the highest to the lowest (the quality key). */
 export function nextQuality(q: QualityName): QualityName {
   const i = QUALITY_ORDER.indexOf(q);
@@ -35,13 +33,6 @@ export function nextQuality(q: QualityName): QualityName {
 /** One preset lower, or the same when already the lowest. */
 export function lowerQuality(q: QualityName): QualityName {
   return QUALITY_ORDER[Math.max(0, QUALITY_ORDER.indexOf(q) - 1)] ?? 'low';
-}
-
-/** Quality for a start-up: an explicit `?quality=` wins, then the saved choice, then medium. */
-export function initialQuality(search: string, saved: string | null): { quality: QualityName; fixed: boolean } {
-  const asked = new URLSearchParams(search).get('quality');
-  if (isQuality(asked)) return { quality: asked, fixed: true };
-  return { quality: isQuality(saved) ? saved : 'medium', fixed: false };
 }
 
 /** Frame-time window length (s) and the frame time (ms) above which the quality steps down. */

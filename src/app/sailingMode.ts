@@ -1,10 +1,12 @@
 import { createAudio } from '../audio';
 import { angleDiff, createInput, type Controls, type GameView } from '../core';
 import { createGame } from '../gameplay';
-import { createAutoQuality, createSailingView, initialQuality, lowerQuality, nextQuality, type QualityName } from '../render';
+import { createAutoQuality, createSailingView, lowerQuality, nextQuality } from '../render';
+import { getSettings } from '../settings';
 import { createShip, getShipSpec, type Ship, type ShipLod, type ShipSpec } from '../ships';
-import { createHud, createMapUi, createPortPanel } from '../ui';
+import { createHud, createMapUi, createPortPanel, createSettingsUI } from '../ui';
 import { getNation } from '../world';
+import { applyGameSettings } from './gameSettings';
 import type { Mode } from './mode';
 
 const PORT = ['KeyA', 'ArrowLeft'];
@@ -19,23 +21,6 @@ const MAP = 'KeyM';
 const AIM = 'KeyG';
 const MUTE = 'KeyN';
 const QUALITY = 'KeyK';
-const QUALITY_KEY = 'ship-rpg.quality';
-
-function savedQuality(): string | null {
-  try {
-    return window.localStorage.getItem(QUALITY_KEY);
-  } catch {
-    return null; // private window or blocked storage
-  }
-}
-
-function saveQuality(q: QualityName): void {
-  try {
-    window.localStorage.setItem(QUALITY_KEY, q);
-  } catch {
-    /* the choice just does not persist */
-  }
-}
 const GAME_KEYS = [...PORT, ...STARBOARD, ...MORE_SAIL, ...LESS_SAIL];
 
 /** Free sailing on the open sea with the chosen ship. Esc returns via `onExit`. */
@@ -45,10 +30,12 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   // In dev, expose the game on window so it can be poked from the browser console (e.g. __game.dev.setKills(4)).
   if (import.meta.env.DEV) (window as unknown as { __game?: typeof game }).__game = game;
   const ship = createShip(spec, { flag: getNation('free').flag }); // the player is a free captain
-  let { quality, fixed } = initialQuality(window.location.search, savedQuality());
+  const store = getSettings();
+  // A quality asked for in the URL is kept as it is; otherwise the game may lower the water quality when frames run slow.
+  const urlQuality = new URLSearchParams(window.location.search).has('quality');
   const autoQuality = createAutoQuality();
   let lastRender = performance.now();
-  const view = createSailingView(host, quality);
+  const view = createSailingView(host, store.get().graphics.water);
   view.setPlayer(ship.root, { length: spec.length, beam: spec.beam });
   const hud = createHud(host, spec.name);
   // Enemy ships: a model per id the game reports, created on first sight and dropped when gone.
@@ -56,6 +43,25 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   const map = createMapUi(host);
   const portPanel = createPortPanel(host);
   const audio = createAudio();
+  let paused = false;
+  const settingsUI = createSettingsUI(host, store, {
+    onExit: { label: 'Galeriye dön', run: onExit },
+    onOpenChange: (open) => (paused = open),
+  });
+  // Settings reach the view, the sound and the page whenever they change (and once now).
+  let water = store.get().graphics.water;
+  const applySettings = (): void => {
+    const s = store.get();
+    if (s.graphics.water !== water) {
+      water = s.graphics.water;
+      view.setQuality(water);
+    }
+    audio.setVolumes(s.audio);
+    view.setCameraSensitivity(s.game.cameraSensitivity);
+    applyGameSettings(s.game);
+  };
+  applySettings();
+  const unsubscribe = store.subscribe(applySettings);
 
   let aimOn = true;
   // Ambient ships come from the game view; build their models the first time they appear.
@@ -82,15 +88,17 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
 
   const onKey = (e: KeyboardEvent): void => {
     audio.resume(); // browsers only start audio after a user gesture
-    if (e.code === 'Escape') onExit();
+    if (e.code === 'Escape') settingsUI.toggle();
+    else if (paused) return; // the menu is open: the game keys wait
     else if (e.code === MAP && !e.repeat) map.toggle();
     else if (e.code === QUALITY && !e.repeat) {
-      quality = nextQuality(quality);
-      fixed = true; // a chosen quality is not lowered behind the player's back
-      view.setQuality(quality);
-      saveQuality(quality);
-      hud.notice(`Grafik: ${quality}`);
-    } else if (e.code === MUTE && !e.repeat) hud.notice(audio.toggleMute() ? 'Ses kapalı' : 'Ses açık');
+      store.patch({ graphics: { water: nextQuality(store.get().graphics.water) } });
+      hud.notice(`Grafik: ${store.get().graphics.water}`);
+    } else if (e.code === MUTE && !e.repeat) {
+      const muted = !store.get().audio.muted;
+      store.patch({ audio: { muted } });
+      hud.notice(muted ? 'Ses kapalı' : 'Ses açık');
+    }
     else if (e.code === AIM && !e.repeat) {
       view.setAimVisible((aimOn = !aimOn));
       hud.notice(aimOn ? 'Nişan bölgeleri açık' : 'Nişan bölgeleri kapalı');
@@ -151,15 +159,17 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
 
   return {
     update(dt): void {
+      if (paused) return; // the settings menu stops the game
       game.update(dt, controls());
       updated = true;
     },
     render(): void {
       const now = performance.now();
-      if (!fixed && autoQuality.frame((now - lastRender) / 1000) && quality !== 'low') {
-        quality = lowerQuality(quality);
-        view.setQuality(quality);
-        hud.notice(`Grafik düşürüldü: ${quality}`);
+      const slow = autoQuality.frame((now - lastRender) / 1000);
+      if (slow && store.get().graphics.autoQuality && !urlQuality && store.get().graphics.water !== 'low') {
+        const lower = lowerQuality(store.get().graphics.water);
+        store.patch({ graphics: { water: lower } }, false); // not saved: the next start tries the chosen quality again
+        hud.notice(`Grafik düşürüldü: ${lower}`);
       }
       lastRender = now;
       const v = game.view();
@@ -182,7 +192,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
           frames = 0;
           last = now;
         }
-        Object.assign(window, { __perf: { fps, quality, frameMs: Math.round(autoQuality.frameMs * 10) / 10, ...view.stats(), crew: v.crew.length, others: v.others.length } });
+        Object.assign(window, { __perf: { fps, quality: store.get().graphics.water, frameMs: Math.round(autoQuality.frameMs * 10) / 10, ...view.stats(), crew: v.crew.length, others: v.others.length } });
       }
       if (updated) {
         input.endFrame(); // keep unconsumed presses if no update ran this frame
@@ -193,6 +203,8 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
       }
     },
     dispose(): void {
+      unsubscribe();
+      settingsUI.dispose();
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('pointerdown', onPointer);
       if (import.meta.env.DEV) delete (window as unknown as { __game?: typeof game }).__game;

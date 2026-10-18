@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SEA_REACH, gridGeometry, holeCells, levelCell, levelCount, seaTriangles, snap } from '../src/render/oceanMesh';
-import { QUALITIES, QUALITY_ORDER, createAutoQuality, initialQuality, lowerQuality, nextQuality } from '../src/render/quality';
+import { QUALITIES, QUALITY_ORDER, createAutoQuality, lowerQuality, nextQuality } from '../src/render/quality';
 
 describe('sea clip-map', () => {
   it('reaches past the fog on every preset with well under the old 462k sea triangles', () => {
@@ -65,12 +65,6 @@ describe('quality presets', () => {
     expect(nextQuality('high')).toBe('low');
     expect(lowerQuality('high')).toBe('medium');
     expect(lowerQuality('low')).toBe('low');
-  });
-
-  it('prefers ?quality=, then the saved choice, then medium', () => {
-    expect(initialQuality('?quality=high', 'low')).toEqual({ quality: 'high', fixed: true });
-    expect(initialQuality('?perf', 'low')).toEqual({ quality: 'low', fixed: false });
-    expect(initialQuality('?quality=bogus', 'nonsense')).toEqual({ quality: 'medium', fixed: false });
   });
 
   it('steps down only after a slow window and then waits', () => {

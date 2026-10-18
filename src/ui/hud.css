@@ -1,4 +1,4 @@
-.hud { position: fixed; inset: 0; pointer-events: none; font-family: Georgia, 'Times New Roman', serif; color: #f3ead2; }
+.hud { zoom: var(--hud-scale, 1); position: fixed; inset: 0; pointer-events: none; font-family: Georgia, 'Times New Roman', serif; color: #f3ead2; }
 .hud-panel {
   position: absolute; left: 12px; bottom: 12px; width: 220px; padding: 10px 14px;
   background: rgba(11, 26, 36, 0.82); border: 1px solid #c9a227; border-radius: 6px;
@@ -102,3 +102,5 @@
 .hud-target > div:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .hud-panel dd.alert { color: #e8643c; }
+
+.no-hints .hud-help { display: none; }

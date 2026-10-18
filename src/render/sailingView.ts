@@ -51,6 +51,8 @@ export interface SailingView {
   setAimVisible(on: boolean): void;
   /** Switch graphics quality (sea mesh resolution, pixel ratio). */
   setQuality(quality: QualityName): void;
+  /** Camera orbit and zoom speed, 1 is the default. */
+  setCameraSensitivity(factor: number): void;
   /** Show another ship (an enemy) under `id`; the ids come from `GameView.enemies`. */
   addActor(id: string, model: THREE.Object3D, dims: ShipDims): void;
   removeActor(id: string): void;
@@ -161,6 +163,11 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
 
     setAimVisible(on): void {
       aim.setVisible(on);
+    },
+
+    setCameraSensitivity(factor): void {
+      controls.rotateSpeed = factor;
+      controls.zoomSpeed = factor;
     },
 
     setQuality(next): void {

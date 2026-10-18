@@ -1,4 +1,5 @@
 import { startLoop } from './core';
+import { getSettings } from './settings';
 import { loadCrewAssets } from './render';
 import { loadShipAssets, type ShipSpec } from './ships';
 import { startGalleryMode } from './app/galleryMode';
@@ -26,8 +27,17 @@ root.textContent = 'Yükleniyor…';
 void Promise.all([loadShipAssets(), loadCrewAssets()]).then(() => {
   root.replaceChildren();
   showGallery();
+  const settings = getSettings();
+  let lastRender = 0;
   startLoop({
     update: (dt) => mode?.update(dt),
-    render: () => mode?.render(),
+    render: () => {
+      // The frame limit skips drawing (the simulation keeps its fixed step).
+      const limit = settings.get().graphics.fpsLimit;
+      const now = performance.now();
+      if (limit > 0 && now - lastRender < 1000 / limit - 1.5) return;
+      lastRender = now;
+      mode?.render();
+    },
   });
 });

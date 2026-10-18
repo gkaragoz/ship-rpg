@@ -5,6 +5,8 @@ export interface GalleryView {
   /** Show one object centred and framed; null clears the stage. */
   setSubject(subject: THREE.Object3D | null): void;
   setAutoRotate(on: boolean): void;
+  /** Camera orbit and zoom speed, 1 is the default. */
+  setCameraSensitivity(factor: number): void;
   update(dt: number): void;
   render(): void;
   dispose(): void;
@@ -99,6 +101,10 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets = (
       controls.target.copy(center);
       camera.position.copy(center).add(new THREE.Vector3(0.55, 0.28, 0.9).normalize().multiplyScalar(distance));
       controls.update();
+    },
+    setCameraSensitivity(factor): void {
+      controls.rotateSpeed = factor;
+      controls.zoomSpeed = factor;
     },
     setAutoRotate(on): void {
       controls.autoRotate = on;

@@ -1,0 +1,9 @@
+# Settings
+
+`src/settings` (imports `core` only; `render`, `audio` and `ui` may import it) holds every option the player can change. The values are plain data (`schema.ts`: `Settings` = `graphics`, `audio`, `game`, `debug`), validated on load (`sanitize`: unknown keys dropped, bad types and out-of-range numbers fixed, never throws), saved as JSON under `localStorage['ship-rpg.settings']` (every access in try/catch; blocked storage just means nothing persists) and changed through the store (`getSettings()`: `get`, `patch(change, persist?)`, `preset(name)`, `reset`, `subscribe`).
+
+- **Presets.** `PRESETS.low|medium|high` set the whole graphics group but `autoQuality` and `fpsLimit`; changing any single value away from every preset labels the group `custom` (`matchPreset`).
+- **URL overrides** apply to the page load only and are never saved: `?quality=low|medium|high` (water quality, also stops the automatic step-down), `?aa=off|fxaa|msaa2|msaa4|msaa8`, `?debug` (overlay on). The old `K` key (cycles water quality) and the old `ship-rpg.quality` key still work.
+- **Menu.** `ui/settings.ts` builds the menu from the declarative list in `ui/settingsControls.ts` (one entry per setting: select, range or toggle), so adding a setting is one entry there plus the code that reads it. The gear button (top right, both modes) and **Esc** open it; while it is open the sailing game is paused; the sailing menu has a "Galeriye dön" button. Controls take effect at once.
+- **What reads what.** `app/sailingMode.ts` and `app/galleryMode.ts` subscribe to the store: water quality → `SailingView.setQuality`, audio group → `Audio.setVolumes` (master, effects, ambience; `muted` is the `N` key), game group → camera sensitivity and the page (`--hud-scale` zoom of the HUD, `.no-hints`), FPS limit → `main.ts` (skips drawing, the simulation keeps its fixed step). Automatic water step-down changes the value without saving it.
+- Tests: `tests/settings.test.ts`.

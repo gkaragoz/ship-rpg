@@ -4,5 +4,7 @@ export { createHud } from './hud';
 export type { Hud } from './hud';
 export { createMapUi } from './map';
 export type { MapUi } from './map';
+export { createSettingsUI } from './settings';
+export type { SettingsHandlers, SettingsUI } from './settings';
 export { createPortPanel } from './portPanel';
 export type { PortPanel } from './portPanel';

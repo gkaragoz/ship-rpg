@@ -8,6 +8,7 @@
 | `world` | wind, polar diagram, sea (waves, sea state), archipelago terrain (height function), ports, nations (flags) | `core` |
 | `render` | three.js scene, camera, ocean (clip-map mesh, quality presets), sky, scenery, effects, other ships (`fleet`), animated crew (`crew`) | `core`, `ships`, `world` |
 | `gameplay` | combat, trade, quests, game state, deck crew (`crew`), NPC patrols (`npcShips`) | `core`, `ships`, `world` |
+| `settings` | player options (graphics, audio, game, debug): schema, presets, store with saved JSON | `core` |
 | `audio` | procedural sound (Web Audio), spatial mix | `core` |
 | `ui` | DOM HUD, map, port panel, menus | `core`, `gameplay`, `world` (static map data only) |
 | `app` | composition layer: one `Mode` per screen (gallery, sailing) wiring modules together | all |

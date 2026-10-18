@@ -1,0 +1,40 @@
+.settings-gear {
+  position: fixed; top: 10px; right: 12px; z-index: 30; width: 34px; height: 34px; padding: 0; cursor: pointer;
+  font-size: 20px; line-height: 30px; color: #f3ead2; background: rgba(11, 26, 36, 0.82); border: 1px solid #c9a227; border-radius: 6px;
+  pointer-events: auto;
+}
+.settings-gear:hover { background: rgba(32, 58, 74, 0.92); }
+.settings {
+  position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; pointer-events: auto;
+  background: rgba(4, 12, 18, 0.55); font-family: Georgia, 'Times New Roman', serif; color: #f3ead2;
+}
+.settings[hidden] { display: none; }
+.settings-panel {
+  width: min(560px, 94vw); max-height: 88vh; display: flex; flex-direction: column; background: rgba(11, 26, 36, 0.96);
+  border: 1px solid #c9a227; border-radius: 8px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+.settings-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 6px; }
+.settings-header h2 { margin: 0; font-size: 20px; color: #e0b840; }
+.settings-close { font-size: 24px; line-height: 24px; color: #f3ead2; background: none; border: 0; cursor: pointer; }
+.settings-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px; border-bottom: 1px solid rgba(201, 162, 39, 0.4); }
+.settings-tabs button {
+  padding: 6px 12px; color: #9fb7c4; background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer; font: inherit;
+}
+.settings-tabs button.on { color: #e0b840; border-bottom-color: #e0b840; }
+.settings-body { padding: 10px 16px; overflow-y: auto; min-height: 160px; }
+.settings-row { display: grid; grid-template-columns: 1fr 1.3fr auto; align-items: center; gap: 10px; padding: 6px 0; }
+.settings-label { font-size: 14px; color: #dfe8ec; }
+.settings-input { width: 100%; font: inherit; color: #f3ead2; accent-color: #e0b840; }
+select.settings-input { padding: 3px 6px; background: #14303f; border: 1px solid #4b6a7a; border-radius: 4px; }
+input[type='checkbox'].settings-input { width: 18px; height: 18px; justify-self: start; }
+.settings-value { min-width: 48px; text-align: right; font-size: 13px; color: #9fb7c4; }
+.settings-footer { display: flex; gap: 8px; justify-content: flex-end; padding: 10px 16px 14px; border-top: 1px solid rgba(201, 162, 39, 0.4); }
+.settings-footer button {
+  padding: 6px 14px; font: inherit; color: #f3ead2; background: #14303f; border: 1px solid #4b6a7a; border-radius: 4px; cursor: pointer;
+}
+.settings-footer button:hover { background: #1d4256; }
+.settings-footer .settings-exit { border-color: #c9a227; color: #e0b840; }
+@media (max-width: 520px) {
+  .settings-row { grid-template-columns: 1fr; gap: 2px; }
+  .settings-value { text-align: left; }
+}

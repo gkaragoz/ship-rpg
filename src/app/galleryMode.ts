@@ -1,6 +1,8 @@
 import { SHIP_SPECS, createShip, type Ship, type ShipSpec } from '../ships';
 import { createGalleryView } from '../render';
-import { createGalleryUI, type GalleryItem, type GalleryUI } from '../ui';
+import { getSettings } from '../settings';
+import { createGalleryUI, createSettingsUI, type GalleryItem, type GalleryUI } from '../ui';
+import { applyGameSettings } from './gameSettings';
 import type { Mode } from './mode';
 
 const toItem = (s: ShipSpec): GalleryItem => ({
@@ -46,6 +48,18 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
     },
   });
   panel.ui = ui;
+  const store = getSettings();
+  const settingsUI = createSettingsUI(host, store);
+  const applySettings = (): void => {
+    view.setCameraSensitivity(store.get().game.cameraSensitivity);
+    applyGameSettings(store.get().game);
+  };
+  applySettings();
+  const unsubscribe = store.subscribe(applySettings);
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.code === 'Escape') settingsUI.toggle();
+  };
+  window.addEventListener('keydown', onKey);
 
   const first = ORDERED.find((s) => s.id === selectedId) ?? ORDERED[0];
   if (first) ui.select(first.id);
@@ -54,6 +68,9 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
     update: (dt) => view.update(dt),
     render: () => view.render(),
     dispose(): void {
+      window.removeEventListener('keydown', onKey);
+      unsubscribe();
+      settingsUI.dispose();
       ui.dispose();
       view.setSubject(null);
       current?.dispose();

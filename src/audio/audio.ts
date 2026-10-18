@@ -3,6 +3,17 @@ import { conditionLayers, pristine, type ConditionLayers } from './condition';
 import { AUDIBLE, spatialMix, type Listener } from './mix';
 import { cannon, hit, makeNoise, riggingHit, splash, sinking, waterlineHit, startAmbience, type Ambience, type Bus } from './synth';
 
+/** Loudness of each group of sounds, 0…1 (the settings' audio group). */
+export interface Volumes {
+  master: number;
+  sfx: number;
+  ambience: number;
+  music: number;
+  muted: boolean;
+}
+
+export const FULL_VOLUMES: Volumes = { master: 1, sfx: 1, ambience: 1, music: 1, muted: false };
+
 export interface Audio {
   /** Start the audio engine; browsers only allow it after a key press or click, so call it from one. */
   resume(): void;
@@ -12,6 +23,8 @@ export interface Audio {
   ambience(wind: number, speed: number): void;
   /** Set the damage ambience of the player's ship (creaks, sloshing water, fire crackle). Cheap to call every frame. */
   condition(c: Condition): void;
+  /** Set the loudness of the groups and the mute state; may be called before `resume()`. */
+  setVolumes(volumes: Volumes): void;
   /** Toggle mute; returns the new state. */
   toggleMute(): boolean;
   readonly muted: boolean;
@@ -34,6 +47,9 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
   let ctx: AudioContext | null = null;
   let bus: Bus | null = null;
   let master: GainNode | null = null;
+  let sfxBus: GainNode | null = null;
+  let ambBus: GainNode | null = null;
+  let volumes: Volumes = { ...FULL_VOLUMES };
   let panner: (() => StereoPannerNode) | null = null;
   let ambient: Ambience | null = null;
   let muted = false;
@@ -52,26 +68,39 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
     if (!ctx) return;
     const compressor = ctx.createDynamicsCompressor();
     master = ctx.createGain();
-    master.gain.value = muted ? 0 : MASTER;
     master.connect(compressor).connect(ctx.destination);
+    sfxBus = ctx.createGain();
+    sfxBus.connect(master);
+    ambBus = ctx.createGain();
+    ambBus.connect(master);
+    applyVolumes();
     bus = { ctx, noise: makeNoise(ctx) };
     const c = ctx;
     panner = () => c.createStereoPanner();
-    ambient = startAmbience(bus, master);
+    ambient = startAmbience(bus, ambBus);
     ambient.set(wind, speed);
     applyCondition();
   };
 
+  /** Push the loudness settings to the gain nodes. */
+  function applyVolumes(): void {
+    if (!master || !sfxBus || !ambBus) return;
+    const t = ctx?.currentTime ?? 0;
+    master.gain.setTargetAtTime(muted ? 0 : MASTER * volumes.master, t, 0.05);
+    sfxBus.gain.setTargetAtTime(volumes.sfx, t, 0.05);
+    ambBus.gain.setTargetAtTime(volumes.ambience, t, 0.05);
+  }
+
   /** Starts the damage layers when something is damaged, retunes them on real change, stops them when pristine. */
   function applyCondition(): void {
-    if (!bus || !master) return;
+    if (!bus || !ambBus) return;
     if (pristine(cond)) {
       layers?.stop();
       layers = null;
       layerCond = null;
       return;
     }
-    layers ??= conditionLayers(bus, master);
+    layers ??= conditionLayers(bus, ambBus);
     if (layerCond && !changed(layerCond, cond)) return;
     layerCond = { ...cond };
     layers.set(cond);
@@ -80,7 +109,7 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
   return {
     resume: start,
     play(events, listener): void {
-      if (!ctx || !bus || !master || !panner || muted) return;
+      if (!ctx || !bus || !sfxBus || !panner || muted) return;
       let started = 0;
       for (const e of events) {
         if (started >= MAX_PER_FRAME) break;
@@ -90,7 +119,7 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
         if (mix.gain < AUDIBLE) continue;
         const out = panner();
         out.pan.value = mix.pan;
-        out.connect(master);
+        out.connect(sfxBus);
         // Muzzle events of one broadside arrive in a rolling spread, not on one tick.
         const when = ctx.currentTime + mix.delay + (e.type === 'fire' ? Math.random() * 0.18 : 0);
         if (e.type === 'fire') cannon(bus, out, when, mix.gain);
@@ -111,9 +140,14 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
       cond = c;
       applyCondition();
     },
+    setVolumes(v): void {
+      volumes = { ...v };
+      muted = v.muted;
+      applyVolumes();
+    },
     toggleMute(): boolean {
       muted = !muted;
-      master?.gain.setTargetAtTime(muted ? 0 : MASTER, ctx?.currentTime ?? 0, 0.05);
+      applyVolumes();
       return muted;
     },
     get muted(): boolean {
@@ -129,6 +163,8 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
       ctx = null;
       bus = null;
       master = null;
+      sfxBus = null;
+      ambBus = null;
       panner = null;
       if (closing) void closing.close();
     },
