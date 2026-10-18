@@ -14,11 +14,12 @@ import type { GraphicsSettings } from '../settings';
 import { createAimArcs } from './aimArcs';
 import { createDamageNumbers } from './damageNumbers';
 import { createEffects } from './effects';
+import { createImpacts } from './impacts';
 import { rideWaves } from './ride';
 import { emitShipEffects } from './shipEffects';
 import { createScenery } from './scenery';
 import { collectStamps, type Stamp } from './wakeStamps';
-import { seaAmp } from '../world';
+import { seaAmp, waveHeight } from '../world';
 
 export interface ShipDims {
   length: number;
@@ -83,10 +84,15 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
   let flash = 0;
   const scenery = createScenery();
   const effects = createEffects();
+  const impacts = createImpacts(effects);
+  // In dev, impacts can be poked from the console: __impacts.spawn([{ type: 'hit', owner: 'player', x, y, z, zone: 'hull', amount: 80, nx: 1, nz: 0 }]).
+  if (import.meta.env.DEV) (window as unknown as { __impacts?: typeof impacts }).__impacts = impacts;
+  effects.setDensity(graphics.particles);
+  impacts.setDensity(graphics.particles);
   const aim = createAimArcs();
   const numbers = createDamageNumbers();
-  scene.add(scenery.group, aim.object, effects.group, numbers.group);
-  for (const layer of [effects.group, aim.object, numbers.group]) excludeFromOcclusion(layer);
+  scene.add(scenery.group, aim.object, effects.group, impacts.group, numbers.group);
+  for (const layer of [effects.group, impacts.group, aim.object, numbers.group]) excludeFromOcclusion(layer);
   enableShadows(scenery.group, false); // the terrain only receives: ships cast onto it in port
 
   const ballMesh = new THREE.InstancedMesh(
@@ -178,6 +184,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       pipeline.apply(next);
       env.apply(next);
       effects.setDensity(next.particles);
+      impacts.setDensity(next.particles);
       lamps.setCount(LAMP_LIGHTS[next.lights]);
       if (QUALITIES[next.water] !== preset) {
         preset = QUALITIES[next.water];
@@ -227,13 +234,15 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       ballMesh.count = n;
       ballMesh.instanceMatrix.needsUpdate = true;
       aim.update(view, ampScale);
-      effects.spawn(view.events);
+      impacts.spawn(view.events);
       effects.update(dt);
+      impacts.update(dt, (x, z) => waveHeight(x, z, time, wind.from, ampScale, 0, view.weather.tuning), -Math.cos(wind.from) * wind.speed, Math.sin(wind.from) * wind.speed);
       numbers.spawn(view.events);
       numbers.update(dt, camera);
       // Being hit shakes the camera; the offset is undone after drawing so it never drifts.
       for (const e of view.events) {
         if (e.type === 'hit' && e.owner === 'enemy') shake = Math.min(1.2, shake + 0.25 + (e.amount ?? 0) / 600);
+        if (e.type === 'collision' && e.owner === 'player') shake = Math.min(1.5, shake + 0.3 + (e.speed ?? 0) / 8);
       }
 
       // Chase camera: carry the camera with the ship and swing it with the turns.
@@ -296,6 +305,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       pipeline.dispose();
       scenery.dispose();
       effects.dispose();
+      impacts.dispose();
       aim.dispose();
       numbers.dispose();
       ballMesh.geometry.dispose();

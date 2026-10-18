@@ -65,6 +65,9 @@ export function cannon(bus: Bus, out: AudioNode, when: number, gain: number): vo
 export function hit(bus: Bus, out: AudioNode, when: number, gain: number): void {
   burst(bus, out, when, 0.14, 'bandpass', 2200, 900, gain);
   tone(bus, out, when, 0.22, 'triangle', 150, 55, gain * 0.8);
+  // the planks give way, and the splinters patter down after
+  burst(bus, out, when + 0.02, 0.09, 'highpass', 3200, 1600, gain * 0.45);
+  for (let i = 0; i < 4; i++) burst(bus, out, when + 0.12 + i * 0.07 + Math.random() * 0.05, 0.05, 'bandpass', 1800 + Math.random() * 1600, 900, gain * (0.22 - i * 0.04));
 }
 
 /** Sails and cordage shot through: a cloth rip with a quick pitch-down, a rope snap, a faint wood creak. */
@@ -84,7 +87,17 @@ export function waterlineHit(bus: Bus, out: AudioNode, when: number, gain: numbe
 
 /** A column of water coming down. */
 export function splash(bus: Bus, out: AudioNode, when: number, gain: number): void {
+  tone(bus, out, when, 0.16, 'sine', 330, 90, gain * 0.5); // the plunk of the ball going in
   burst(bus, out, when, 0.5, 'highpass', 1400, 500, gain * 0.7);
+  burst(bus, out, when + 0.12, 0.6, 'lowpass', 900, 250, gain * 0.35);
+}
+
+/** Two hulls meeting: a deep boom, timbers groaning and cracking, a patter of broken wood. */
+export function crunch(bus: Bus, out: AudioNode, when: number, gain: number): void {
+  tone(bus, out, when, 0.5, 'sine', 70, 28, gain);
+  burst(bus, out, when, 0.35, 'lowpass', 900, 150, gain * 0.9);
+  tone(bus, out, when + 0.03, 0.9, 'sawtooth', 140, 55, gain * 0.28); // the groan of strained timbers
+  for (let i = 0; i < 7; i++) burst(bus, out, when + 0.02 + i * 0.06 + Math.random() * 0.05, 0.07, 'bandpass', 1200 + Math.random() * 2400, 700, gain * (0.5 - i * 0.05));
 }
 
 /** A hull going under: a long groan, then bubbling. */

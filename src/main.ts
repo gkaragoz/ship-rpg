@@ -1,7 +1,7 @@
 import { createProfiler, startLoop } from './core';
 import { getSettings } from './settings';
 import { loadCrewAssets } from './render';
-import { loadShipAssets, type ShipSpec } from './ships';
+import { loadShipAssets, requestShipAsset, type ShipSpec } from './ships';
 import { startGalleryMode } from './app/galleryMode';
 import { startSailingMode } from './app/sailingMode';
 import type { Mode } from './app/mode';
@@ -19,8 +19,11 @@ function showGallery(selectedId?: string): void {
 }
 
 function showSailing(spec: ShipSpec): void {
-  mode?.dispose();
-  mode = startSailingMode(root, spec, () => showGallery(spec.id));
+  // The crew walks the model's deck, which the game reads once at the start: have the model loaded first.
+  void requestShipAsset(spec.id).finally(() => {
+    mode?.dispose();
+    mode = startSailingMode(root, spec, () => showGallery(spec.id));
+  });
 }
 
 // Blender models load first; if one fails the game falls back to procedural ships / no crew.

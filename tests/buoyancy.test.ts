@@ -109,6 +109,7 @@ describe('game in a rough sea', () => {
     const run = (sea: number): { flooding: number; moved: number } => {
       const g = createGame(spec('tartane'));
       g.dev.setSea(sea);
+      g.dev.teleportPlayer(-3500, 3500); // clear of the patrols that sail around the start
       let moved = 0;
       for (let i = 0; i < 60 * 60; i++) {
         g.update(1 / 60, { rudder: 0, sailStep: i === 0 ? 1 : 0 });

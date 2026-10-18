@@ -3,7 +3,7 @@ import { conditionLayers, pristine, type ConditionLayers } from './condition';
 import { startMusic, type Music } from './music';
 import type { MusicMood } from './musicPlan';
 import { AUDIBLE, spatialMix, type Listener } from './mix';
-import { cannon, hit, makeNoise, riggingHit, splash, sinking, thunder, waterlineHit, startAmbience, type Ambience, type Bus } from './synth';
+import { cannon, crunch, hit, makeNoise, riggingHit, splash, sinking, thunder, waterlineHit, startAmbience, type Ambience, type Bus } from './synth';
 
 /** Loudness of each group of sounds, 0…1 (the settings' audio group). */
 export interface Volumes {
@@ -133,7 +133,7 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
       for (const e of events) {
         if (started >= MAX_PER_FRAME) break;
         if (e.type === 'escaped') continue; // nothing to hear: it simply sailed away
-        const loud = e.type === 'sunk' ? 1 : e.type === 'fire' ? 1 : e.type === 'hit' ? 0.9 : 0.6;
+        const loud = e.type === 'sunk' || e.type === 'collision' ? 1 : e.type === 'fire' ? 1 : e.type === 'hit' ? 0.9 : 0.6;
         const mix = spatialMix(listener, e.x, e.z, loud);
         if (mix.gain < AUDIBLE) continue;
         const out = panner();
@@ -143,7 +143,8 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
         const when = ctx.currentTime + mix.delay + (e.type === 'fire' ? Math.random() * 0.18 : 0);
         if (e.type === 'fire') cannon(bus, out, when, mix.gain);
         else if (e.type === 'hit') (e.zone === 'rigging' ? riggingHit : e.zone === 'waterline' ? waterlineHit : hit)(bus, out, when, mix.gain);
-        else if (e.type === 'splash') splash(bus, out, when, mix.gain);
+        else if (e.type === 'splash') splash(bus, out, when, mix.gain * ((e.y ?? 0) > 0.4 ? 0.6 : e.amount === 0 ? 0.5 : 1));
+        else if (e.type === 'collision') crunch(bus, out, when, mix.gain * Math.min(1, 0.4 + (e.speed ?? 3) / 6));
         else sinking(bus, out, when, mix.gain);
         started++;
       }

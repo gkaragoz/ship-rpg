@@ -134,11 +134,15 @@ export interface BallView {
 
 /** One-off things that happened since the previous `view()`: drives smoke, splashes and sound. */
 export interface GameEvent {
-  type: 'fire' | 'splash' | 'hit' | 'sunk' | 'escaped';
+  type: 'fire' | 'splash' | 'hit' | 'sunk' | 'escaped' | 'collision';
   /** Hull points the hit took off (`hit` events only). */
   amount?: number;
   /** Where the ball struck (`hit` events only). */
   zone?: HitZone;
+  /** `collision` events: the unit normal of the contact (from the first ship to the second) and the closing speed (m/s). */
+  nx?: number;
+  nz?: number;
+  speed?: number;
   owner: Owner;
   x: number;
   y: number;

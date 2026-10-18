@@ -223,7 +223,9 @@ describe('createGame combat', () => {
         if (e.type === 'hit' && e.owner === 'enemy') {
           sawHit = e.amount ?? 0;
           expect(e.zone).toBeDefined();
-          expect(e.amount).toBeCloseTo(e.zone === 'rigging' ? 9 : 30, 5);
+          // A ball that skipped off the sea first hits with 0.6 (once) or 0.36 (twice) of its damage.
+          const full = e.zone === 'rigging' ? 9 : 30;
+          expect([1, 0.6, 0.36].some((f) => Math.abs((e.amount ?? 0) - full * f) < 1e-5)).toBe(true);
         }
       }
       if (view.sunk) sunkAt = i / 60;

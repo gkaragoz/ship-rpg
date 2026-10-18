@@ -1,7 +1,6 @@
 import * as THREE from 'three';
-import type { GameEvent } from '../core';
 
-type Kind = 'smoke' | 'flash' | 'splash' | 'debris' | 'cloth' | 'flame';
+export type Kind = 'smoke' | 'flash' | 'splash' | 'debris' | 'cloth' | 'flame' | 'spark' | 'dust';
 
 interface Particle {
   sprite: THREE.Sprite;
@@ -18,7 +17,7 @@ interface Particle {
 }
 
 /** A ring: when full, the oldest particle is recycled (heavy volleys may cut short some smoke). */
-const POOL = 320;
+const POOL = 520;
 
 /** Flame sprites per second at full fire intensity (smoke is emitted at a fraction of it). */
 const MAX_FLAME_RATE = 36;
@@ -64,10 +63,23 @@ function softTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(canvas);
 }
 
+/** How one sprite particle looks and moves. */
+export interface EmitOptions {
+  color: number;
+  life: number;
+  start: number;
+  end: number;
+  vx?: number;
+  vy?: number;
+  vz?: number;
+  gravity?: number;
+  opacity?: number;
+}
+
 export interface Effects {
   group: THREE.Group;
-  /** Turn game events (muzzle fire, splashes, hits, sinking) into particles. */
-  spawn(events: readonly GameEvent[]): void;
+  /** One sprite particle (the impact effects in `impacts.ts` are made of these). */
+  emit(kind: Kind, x: number, y: number, z: number, o: EmitOptions): void;
   /** Call every frame for each burning ship: `intensity` 0..1 at a point on its deck. Emits flames and smoke at a dt-independent rate. */
   burn(x: number, y: number, z: number, intensity: number, dt: number): void;
   /** Call every frame for a ship ploughing through the sea: spray flung up and aside at its bow, `intensity` 0..1, heading along (dirX, dirZ). */
@@ -96,13 +108,7 @@ export function createEffects(): Effects {
   const smokeAcc: EmitAccumulator = { carry: 0 };
   const sprayAcc: EmitAccumulator = { carry: 0 };
 
-  const emit = (
-    kind: Kind,
-    x: number,
-    y: number,
-    z: number,
-    o: { color: number; life: number; start: number; end: number; vx?: number; vy?: number; vz?: number; gravity?: number; opacity?: number },
-  ): void => {
+  const emit = (kind: Kind, x: number, y: number, z: number, o: EmitOptions): void => {
     if (density < 1 && kind !== 'flash' && Math.random() > density) return; // thin the particles out; muzzle flashes always show
     const p = pool[next]!;
     next = (next + 1) % POOL;
@@ -119,7 +125,7 @@ export function createEffects(): Effects {
     p.sprite.position.set(x, y, z);
     (p.sprite.material as THREE.SpriteMaterial).color.setHex(o.color);
     p.sprite.scale.set(o.start, o.start, 1);
-    (p.sprite.material as THREE.SpriteMaterial).blending = kind === 'flame' ? THREE.AdditiveBlending : THREE.NormalBlending;
+    (p.sprite.material as THREE.SpriteMaterial).blending = kind === 'flame' || kind === 'spark' ? THREE.AdditiveBlending : THREE.NormalBlending;
     p.sprite.visible = true;
   };
 
@@ -130,58 +136,7 @@ export function createEffects(): Effects {
     setDensity(share): void {
       density = Math.min(Math.max(share, 0.25), 1);
     },
-    spawn(events): void {
-      for (const e of events) {
-        if (e.type === 'fire') {
-          emit('flash', e.x, e.y, e.z, { color: 0xffc766, life: 0.12, start: 3, end: 5 });
-          for (let i = 0; i < 3; i++) {
-            emit('smoke', e.x + jitter(1), e.y + 0.5, e.z + jitter(1), {
-              color: 0xdedede, life: 2.2, start: 2, end: 9, vx: jitter(2), vy: 1 + Math.random(), vz: jitter(2), opacity: 0.7,
-            });
-          }
-        } else if (e.type === 'splash') {
-          for (let i = 0; i < 4; i++) {
-            emit('splash', e.x + jitter(1.5), 0.3, e.z + jitter(1.5), {
-              color: 0xf4fbff, life: 1.1, start: 1.6, end: 3.2, vx: jitter(2), vy: 5 + Math.random() * 3, vz: jitter(2), gravity: 11, opacity: 0.85,
-            });
-          }
-        } else if (e.type === 'hit') {
-          if (e.zone === 'rigging') {
-            emit('smoke', e.x, e.y, e.z, { color: 0xe8e2d0, life: 0.9, start: 1.5, end: 3.5, vy: 0.5, opacity: 0.6 });
-            for (let i = 0; i < 6; i++) {
-              emit('cloth', e.x + jitter(1.5), e.y + jitter(1.5), e.z + jitter(1.5), {
-                color: 0xf1ead4, life: 2.6, start: 0.9, end: 0.6, vx: jitter(3) + 1.2, vy: jitter(2), vz: jitter(3), gravity: 1.2, opacity: 0.9,
-              });
-            }
-          } else if (e.zone === 'waterline') {
-            emit('flash', e.x, e.y, e.z, { color: 0x9a7a55, life: 0.25, start: 2.5, end: 4 });
-            for (let i = 0; i < 4; i++) {
-              emit('debris', e.x, e.y, e.z, {
-                color: 0x8a6a42, life: 0.8, start: 0.6, end: 0.45, vx: jitter(7), vy: 2 + Math.random() * 4, vz: jitter(7), gravity: 14,
-              });
-            }
-            for (let i = 0; i < 4; i++) {
-              emit('splash', e.x + jitter(1.5), 0.3, e.z + jitter(1.5), {
-                color: 0xf4fbff, life: 0.8, start: 1.2, end: 2.4, vx: jitter(3), vy: 2 + Math.random() * 2, vz: jitter(3), gravity: 9, opacity: 0.8,
-              });
-            }
-          } else {
-            emit('flash', e.x, e.y, e.z, { color: 0xff8a3c, life: 0.3, start: 3, end: 6 });
-            for (let i = 0; i < 5; i++) {
-              emit('debris', e.x, e.y, e.z, {
-                color: 0x6b4a2b, life: 0.9, start: 0.7, end: 0.5, vx: jitter(9), vy: 3 + Math.random() * 6, vz: jitter(9), gravity: 14,
-              });
-            }
-          }
-        } else if (e.type === 'sunk') {
-          for (let i = 0; i < 10; i++) {
-            emit('smoke', e.x + jitter(8), 3 + i * 1.5, e.z + jitter(8), {
-              color: 0x555555, life: 4.5, start: 6, end: 22, vx: jitter(2), vy: 2 + Math.random() * 2, vz: jitter(2), opacity: 0.8,
-            });
-          }
-        }
-      }
-    },
+    emit,
     burn(x, y, z, intensity, dt): void {
       const rate = burnRate(intensity);
       if (rate === 0) return;
@@ -221,7 +176,7 @@ export function createEffects(): Effects {
         p.sprite.position.z += p.vz * dt;
         const size = p.start + (p.end - p.start) * t;
         p.sprite.scale.set(size, size, 1);
-        (p.sprite.material as THREE.SpriteMaterial).opacity = p.opacity * (1 - t) ** (p.kind === 'flash' || p.kind === 'flame' ? 1 : 1.5);
+        (p.sprite.material as THREE.SpriteMaterial).opacity = p.opacity * (1 - t) ** (p.kind === 'flash' || p.kind === 'flame' || p.kind === 'spark' ? 1 : 1.5);
       }
     },
     dispose(): void {

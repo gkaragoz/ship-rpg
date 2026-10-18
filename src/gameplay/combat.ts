@@ -17,6 +17,8 @@ export interface Ball {
   vz: number;
   damage: number;
   age: number;
+  /** Times it has skipped off the sea (see `ricochet`). */
+  skips?: number;
 }
 
 /** What a ship needs to fire or be hit: position, heading, speed. */
@@ -28,10 +30,12 @@ export interface Hull {
 }
 
 /** Tuning constants. Plain numbers (not `as const`) so `scripts/sweep.ts` can try values; the game never changes them. */
-export const COMBAT: Record<'ballSpeed' | 'gravity' | 'yawJitter' | 'elevationMin' | 'elevationMax' | 'maxPerVolley' | 'damagePerLb' | 'playerReload' | 'enemyReload' | 'enemySpread' | 'maxAge', number> = {
-  /** Muzzle speed, m/s. With the elevation range below shots land about 115–150 m out. */
-  ballSpeed: 90,
+export const COMBAT: Record<'ballSpeed' | 'gravity' | 'drag' | 'yawJitter' | 'elevationMin' | 'elevationMax' | 'maxPerVolley' | 'damagePerLb' | 'playerReload' | 'enemyReload' | 'enemySpread' | 'maxAge', number> = {
+  /** Muzzle speed, m/s. With the elevation range below and the drag, shots land about 115–150 m out. */
+  ballSpeed: 92,
   gravity: 9.81,
+  /** Quadratic air drag: deceleration is `drag × speed²` (1/m), relative to the air, so a wind pushes the ball. */
+  drag: 0.00035,
   /** Random sideways spread and elevation range, radians. */
   yawJitter: 0.035,
   elevationMin: 0.07,
@@ -68,10 +72,39 @@ export interface AimZone {
   spread: number;
 }
 
-/** Height (m) of a ball fired at `elev` after it has travelled `d` metres horizontally. */
+/** A flight over still air: the height (m) at each metre travelled out, and the time (s) it lands. */
+interface Trajectory {
+  heights: number[];
+  landsAt: number;
+}
+
+const trajectories = new Map<string, Trajectory>();
+
+/** Fly a ball fired at `elev` from `y0` with the same step the game uses, and tabulate it (cached per muzzle height and elevation). */
+function trajectoryOf(y0: number, elev: number): Trajectory {
+  const key = `${y0}|${elev}|${COMBAT.ballSpeed}|${COMBAT.drag}`;
+  const known = trajectories.get(key);
+  if (known) return known;
+  const b: Ball = { id: 0, owner: 'player', x: 0, y: y0, z: 0, vx: COMBAT.ballSpeed * Math.cos(elev), vy: COMBAT.ballSpeed * Math.sin(elev), vz: 0, damage: 0, age: 0 };
+  const heights = [y0];
+  const dt = 1 / 120;
+  while (b.y > -1 && b.age < COMBAT.maxAge) {
+    stepBall(b, dt);
+    const index = Math.floor(b.x);
+    for (let i = heights.length; i <= index; i++) heights.push(b.y);
+  }
+  const t: Trajectory = { heights, landsAt: b.age };
+  trajectories.set(key, t);
+  return t;
+}
+
+/** Height (m) of a ball fired at `elev` after it has travelled `d` metres horizontally (beyond the landing it is under water). */
 const ballHeight = (spec: ShipSpec, elev: number, d: number): number => {
-  const cos = Math.cos(elev);
-  return muzzleHeight(spec) + Math.tan(elev) * d - (COMBAT.gravity * d * d) / (2 * (COMBAT.ballSpeed * cos) ** 2);
+  const h = trajectoryOf(muzzleHeight(spec), elev).heights;
+  const i = Math.floor(d);
+  if (i >= h.length - 1) return -1;
+  const f = d - i;
+  return (h[i] ?? -1) * (1 - f) + (h[i + 1] ?? -1) * f;
 };
 
 /** Elevations tried when working out the chance of a hit: an even spread over the firing range. */
@@ -95,10 +128,7 @@ export function hitChanceAt(spec: ShipSpec, d: number): number {
 }
 
 /** Seconds a ball fired at `elev` takes to come down to the sea from the muzzle. */
-const flightTime = (elev: number, y: number): number => {
-  const vy = COMBAT.ballSpeed * Math.sin(elev);
-  return (vy + Math.sqrt(vy * vy + 2 * COMBAT.gravity * y)) / COMBAT.gravity;
-};
+const flightTime = (elev: number, y: number): number => trajectoryOf(y, elev).landsAt;
 
 /**
  * Where a broadside can hit, from the same ballistics `fireBroadside` uses (see tests): the stretch
@@ -184,17 +214,63 @@ export function fireBroadside(
       damage,
       age: 0,
     });
-    if (i % Math.max(1, Math.floor(n / 4)) === 0) events.push({ type: 'fire', owner, x: px, y, z: pz });
+    if (i % Math.max(1, Math.floor(n / 4)) === 0) events.push({ type: 'fire', owner, x: px, y, z: pz, nx: dirX, nz: dirZ });
   }
   return { balls, events };
 }
 
-export function stepBall(b: Ball, dt: number): void {
+/** The air's velocity (m/s, x and z) for a wind blowing from `from` at `speed`: it blows towards the opposite direction. */
+export const windVelocity = (wind: { from: number; speed: number }): { x: number; z: number } => ({
+  x: Math.cos(wind.from + Math.PI) * wind.speed,
+  z: -Math.sin(wind.from + Math.PI) * wind.speed,
+});
+
+/** One step of flight: gravity and quadratic drag against the air (still unless `air` is given). */
+export function stepBall(b: Ball, dt: number, air?: { x: number; z: number }): void {
   b.x += b.vx * dt;
   b.y += b.vy * dt;
   b.z += b.vz * dt;
-  b.vy -= COMBAT.gravity * dt;
+  const rx = b.vx - (air?.x ?? 0);
+  const rz = b.vz - (air?.z ?? 0);
+  const k = COMBAT.drag * Math.hypot(rx, b.vy, rz) * dt;
+  b.vx -= rx * k;
+  b.vz -= rz * k;
+  b.vy -= b.vy * k + COMBAT.gravity * dt;
   b.age += dt;
+}
+
+/** The ball's speed (m/s). */
+export const ballSpeed = (b: Ball): number => Math.hypot(b.vx, b.vy, b.vz);
+
+/** Balls that strike the sea at a shallower angle than this (rad) and faster than `RICOCHET_SPEED` skip off it. */
+const RICOCHET_ANGLE = 0.14;
+const RICOCHET_SPEED = 55;
+const MAX_SKIPS = 2;
+
+/**
+ * A ball that has gone under the surface at a glancing angle skips: it bounces up with less speed and a little damage
+ * less. Returns true if it skipped (the caller reports a splash and keeps the ball), false if it sinks.
+ */
+export function ricochet(b: Ball, surface: number): boolean {
+  const speed = ballSpeed(b);
+  if ((b.skips ?? 0) >= MAX_SKIPS || speed < RICOCHET_SPEED || b.vy >= 0) return false;
+  if (-b.vy / speed > Math.sin(RICOCHET_ANGLE)) return false;
+  b.skips = (b.skips ?? 0) + 1;
+  b.y = surface + 0.05;
+  b.vy = -b.vy * 0.55;
+  b.vx *= 0.7;
+  b.vz *= 0.7;
+  b.damage *= 0.6;
+  return true;
+}
+
+/** Unit normal (x, z) of the hull side a ball struck: outwards from the keel line on the side it came from. */
+export function hitNormal(b: Ball, target: Pick<Hull, 'x' | 'z' | 'heading'>): { x: number; z: number } {
+  const c = Math.cos(target.heading);
+  const s = Math.sin(target.heading);
+  const across = (b.x - target.x) * s + (b.z - target.z) * c;
+  const side = across >= 0 ? 1 : -1;
+  return { x: s * side, z: c * side };
 }
 
 /**

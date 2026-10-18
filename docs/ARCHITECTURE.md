@@ -7,7 +7,7 @@
 | `ships` | ship specs (data), procedural factory, GLB ships (`assets`, `glbShip`), LOD selection (`lod`), walkable deck (`deck`), sail trim, battle condition | `core` |
 | `world` | wind, polar diagram, sea (waves, sea state), archipelago terrain (height function), ports, nations (flags) | `core` |
 | `render` | three.js scene, camera, ocean (clip-map mesh, quality presets), shared environment, render pipeline, shadows, GI, sky, scenery, effects, other ships (`fleet`), animated crew (`crew`) | `core`, `ships`, `world` |
-| `gameplay` | combat, trade, quests, game state, deck crew (`crew`), NPC patrols (`npcShips`) | `core`, `ships`, `world` |
+| `gameplay` | combat (ballistics with drag and wind), ship collisions (`collision`, `crashes`), trade, quests, game state, deck crew (`crew`), NPC patrols (`npcShips`) | `core`, `ships`, `world` |
 | `settings` | player options (graphics, audio, game, debug): schema, presets, store with saved JSON | `core` |
 | `audio` | procedural sound (Web Audio), spatial mix | `core` |
 | `ui` | DOM HUD, map, port panel, menus | `core`, `gameplay`, `world` (static map data only) |
