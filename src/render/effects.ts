@@ -72,6 +72,8 @@ export interface Effects {
   burn(x: number, y: number, z: number, intensity: number, dt: number): void;
   /** Call every frame for a ship ploughing through the sea: spray flung up and aside at its bow, `intensity` 0..1, heading along (dirX, dirZ). */
   spray(x: number, y: number, z: number, dirX: number, dirZ: number, intensity: number, dt: number): void;
+  /** Share of the smoke, spray, debris and flame particles drawn (0.25 … 1): the particles setting. */
+  setDensity(share: number): void;
   update(dt: number): void;
   dispose(): void;
 }
@@ -89,6 +91,7 @@ export function createEffects(): Effects {
     pool.push({ sprite, kind: 'smoke', age: 1, life: 1, vx: 0, vy: 0, vz: 0, start: 1, end: 1, gravity: 0, opacity: 1 });
   }
   let next = 0;
+  let density = 1;
   const flameAcc: EmitAccumulator = { carry: 0 };
   const smokeAcc: EmitAccumulator = { carry: 0 };
   const sprayAcc: EmitAccumulator = { carry: 0 };
@@ -100,6 +103,7 @@ export function createEffects(): Effects {
     z: number,
     o: { color: number; life: number; start: number; end: number; vx?: number; vy?: number; vz?: number; gravity?: number; opacity?: number },
   ): void => {
+    if (density < 1 && kind !== 'flash' && Math.random() > density) return; // thin the particles out; muzzle flashes always show
     const p = pool[next]!;
     next = (next + 1) % POOL;
     p.kind = kind;
@@ -123,6 +127,9 @@ export function createEffects(): Effects {
 
   return {
     group,
+    setDensity(share): void {
+      density = Math.min(Math.max(share, 0.25), 1);
+    },
     spawn(events): void {
       for (const e of events) {
         if (e.type === 'fire') {

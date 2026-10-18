@@ -20,6 +20,13 @@ export const QUALITIES: Readonly<Record<QualityName, Quality>> = {
   high: { name: 'high', grid: 96, cell: 1, wake: 1024 },
 };
 
+/** What the texture quality setting means: filtering, the sea's detail texture and its depth map. */
+export const TEXTURE_QUALITY = {
+  low: { anisotropy: 1, noise: 128, terrain: { width: 512, height: 320 } },
+  medium: { anisotropy: 4, noise: 256, terrain: { width: 1024, height: 640 } },
+  high: { anisotropy: 16, noise: 512, terrain: { width: 2048, height: 1280 } },
+} as const;
+
 export const QUALITY_ORDER: readonly QualityName[] = ['low', 'medium', 'high'];
 
 /** The next preset, wrapping from the highest to the lowest (the quality key). */

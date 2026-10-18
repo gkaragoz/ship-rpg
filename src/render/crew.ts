@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { enableShadows } from './shadows';
 import type { CrewAnim, CrewLook, CrewView } from '../core';
 
 /** Body types in asset order: 0-2 male, 3-5 female (docs/CREW.md). */
@@ -82,6 +83,7 @@ function spawn(view: CrewView, k: CrewKit): Actor | null {
   const clips = k.clips[view.look.variant];
   if (!source || !clips) return null;
   const root = SkeletonUtils.clone(source);
+  enableShadows(root);
   const cloned = new Map<string, THREE.Material>();
   root.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;

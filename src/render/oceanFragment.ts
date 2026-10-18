@@ -91,13 +91,15 @@ void main() {
   float streak = smoothstep(0.62, 0.92, texture2D(uNoise, sp - vec2(uTime * 0.01, 0.0)).r) * smoothstep(0.55, 0.9, uSea) * smoothstep(0.3, 0.7, h01) * 0.4;
   float pulse = 0.5 + 0.5 * sin(depth * 3.0 - uTime * 1.3 + breakup * 4.0);
   float shore = (1.0 - smoothstep(0.2 + 0.5 * breakup, 1.8, depth)) * (0.55 + 0.45 * pulse);
+  float shade = clamp(wk.b, 0.0, 1.0); // a ship's shadow on the water
+  col *= 1.0 - 0.5 * shade;
   float trail = clamp(wk.r * 1.15 - (1.0 - breakup) * 0.4, 0.0, 1.0);
   float white = clamp(max(max(max(caps, streak), shore), trail), 0.0, 1.0);
   col = mix(col, mix(vec3(0.78, 0.88, 0.91), vec3(1.0), diff), white * 0.9);
 
   // Sun glitter on the facets that face it, broader and weaker as the sea gets rough.
   float spec = pow(clamp(dot(n, normalize(uSun + v)), 0.0, 1.0), mix(220.0, 70.0, uSea));
-  col += uSunColor * spec * (0.6 + 0.8 * n2.r) * mix(1.2, 0.5, uSea) * (1.0 - white);
+  col += uSunColor * spec * (0.6 + 0.8 * n2.r) * mix(1.2, 0.5, uSea) * (1.0 - white) * (1.0 - shade);
 
   col = mix(col, uHorizon, smoothstep(uFogNear, uFogFar, dist));
   gl_FragColor = vec4(col, 1.0);

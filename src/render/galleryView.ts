@@ -2,10 +2,11 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createEnvironment } from './environment';
 import { createPipeline } from './pipeline';
+import { enableShadows } from './shadows';
 import { QUALITIES } from './quality';
 import type { GraphicsSettings } from '../settings';
 import { rideWaves } from './ride';
-import { shipStamps, type Stamp } from './wakeStamps';
+import { shadowStamp, shipStamps, type Stamp } from './wakeStamps';
 import { WORLD_BOUNDS, seaAmp } from '../world';
 
 export interface GalleryView {
@@ -46,6 +47,7 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
 
   const scene = new THREE.Scene();
   const env = createEnvironment(renderer, scene, preset);
+  env.apply(graphics);
 
   const pivot = new THREE.Group();
   pivot.position.set(GALLERY_CENTER.x, 0, GALLERY_CENTER.z);
@@ -92,6 +94,7 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
       subject = next;
       if (!next) return;
       pivot.add(next);
+      enableShadows(next);
       pivot.updateMatrixWorld(true); // the framing below measures the ship where it stands in the world
       resize(); // panels may have changed size since the last resize
       const box = new THREE.Box3().setFromObject(next);
@@ -122,6 +125,7 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
     },
     setGraphics(next): void {
       pipeline.apply(next);
+      env.apply(next);
       if (QUALITIES[next.water] !== preset) {
         preset = QUALITIES[next.water];
         env.setQuality(preset);
@@ -139,8 +143,13 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
       const dt = Math.min((now - lastRender) / 1000, 0.1);
       lastRender = now;
       stamps.length = 0;
-      if (subject) shipStamps({ x: GALLERY_CENTER.x, z: GALLERY_CENTER.z, heading: 0, speed: 0, length: dims.length, beam: dims.beam, sinking: -1 }, dt, GALLERY_SEA, stamps);
-      env.update({ camera, time: elapsed, dt, windFrom: GALLERY_WIND_FROM, seaState: GALLERY_SEA, stamps });
+      if (subject) {
+        const m = { x: GALLERY_CENTER.x, z: GALLERY_CENTER.z, heading: 0, speed: 0, length: dims.length, beam: dims.beam, sinking: -1 };
+        shipStamps(m, dt, GALLERY_SEA, stamps);
+        const sun = env.sunShadow();
+        if (sun) shadowStamp(m, sun, stamps);
+      }
+      env.update({ camera, time: elapsed, dt, windFrom: GALLERY_WIND_FROM, seaState: GALLERY_SEA, stamps, focus: { position: pivot.position, length: dims.length } });
       pipeline.render();
     },
     dispose(): void {

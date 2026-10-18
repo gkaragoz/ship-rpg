@@ -5,8 +5,8 @@ import { WAVE_COUNT, chop, waveDirections, waveGlsl } from './waves';
 import { fragmentShader } from './oceanFragment';
 import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR, type SeaLook } from './seaLook';
 
-/** Sea-floor depth texture: R8 holding height −25…+5 m over the world bounds. */
-export const TERRAIN_TEX = { width: 1024, height: 640, min: -25, range: 30 };
+/** Sea-floor depth texture: R8 holding height −25…+5 m over the world bounds (its size comes from the texture quality). */
+export const TERRAIN_TEX = { min: -25, range: 30 };
 
 const vertexShader = /* glsl */ `
 uniform float uTime;

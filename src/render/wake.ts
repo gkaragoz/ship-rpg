@@ -35,7 +35,7 @@ void main() {
   vec4 c = prev(uv);
   vec4 b = 0.25 * (prev(uv + vec2(uTexel, 0.0)) + prev(uv - vec2(uTexel, 0.0)) + prev(uv + vec2(0.0, uTexel)) + prev(uv - vec2(0.0, uTexel)));
   vec4 m = mix(c, b, uSpread);
-  gl_FragColor = vec4(m.r * uFoamKeep, m.g * uHeightKeep, 0.0, 0.0);
+  gl_FragColor = vec4(m.r * uFoamKeep, m.g * uHeightKeep, 0.0, 0.0); // blue (shadows) starts empty every frame
 }`;
 
 const stampVertex = /* glsl */ `
@@ -65,13 +65,18 @@ void main() {
   float r = length(vLocal);
   float blob = 1.0 - smoothstep(0.35, 1.0, r);
   float ring = smoothstep(0.55, 0.9, r) * (1.0 - smoothstep(0.95, 1.3, r));
-  float shape = vKind < 0.5 ? blob : ring;
-  gl_FragColor = vec4(vAmount.x * shape, vAmount.y * shape, 0.0, 0.0);
+  float soft = 1.0 - smoothstep(0.45, 1.0, r); // (cast is a reserved word in GLSL)
+  if (vKind > 1.5) {
+    gl_FragColor = vec4(0.0, 0.0, vAmount.x * soft, 0.0); // a shadow: darkness in the blue channel
+  } else {
+    float shape = vKind < 0.5 ? blob : ring;
+    gl_FragColor = vec4(vAmount.x * shape, vAmount.y * shape, 0.0, 0.0);
+  }
 }`;
 
-/** The foam and ripple map the sea shader reads: ships and splashes paint into it, time fades it. */
+/** The foam, ripple and shadow map the sea shader reads: ships and splashes paint into it, time fades it. */
 export interface Wake {
-  /** R: foam, G: ripple height (m). A black dummy when the GPU cannot render to half floats. */
+  /** R: foam, G: ripple height (m), B: ship shadows (redrawn every frame). A black dummy when the GPU cannot render to half floats. */
   readonly texture: THREE.Texture;
   /** World position of the map's corner, and its side (m). */
   readonly origin: THREE.Vector2;
@@ -79,6 +84,8 @@ export interface Wake {
   readonly enabled: boolean;
   update(renderer: THREE.WebGLRenderer, dt: number, camera: THREE.Camera, stamps: readonly Stamp[]): void;
   setQuality(quality: Quality): void;
+  /** Debugging: the largest foam, ripple and shadow values in the map (reads the GPU buffer back: slow). */
+  peaks(renderer: THREE.WebGLRenderer): [number, number, number];
   dispose(): void;
 }
 
@@ -198,6 +205,16 @@ export function createWake(renderer: THREE.WebGLRenderer, quality: Quality): Wak
       r.setRenderTarget(previous);
       r.autoClear = auto;
       current = next;
+    },
+    peaks(r): [number, number, number] {
+      const out: [number, number, number] = [0, 0, 0];
+      if (!targets) return out;
+      const buffer = new Uint16Array(px * px * 4);
+      r.readRenderTargetPixels(targets[current]!, 0, 0, px, px, buffer);
+      for (let i = 0; i < buffer.length; i += 4) {
+        for (let c = 0; c < 3; c++) out[c] = Math.max(out[c]!, Math.abs(THREE.DataUtils.fromHalfFloat(buffer[i + c]!)));
+      }
+      return out;
     },
     setQuality(q): void {
       if (!targets || q.wake === px) return;

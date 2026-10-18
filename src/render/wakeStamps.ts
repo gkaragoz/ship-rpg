@@ -16,8 +16,8 @@ export interface Stamp {
   width: number;
   foam: number;
   height: number;
-  /** 0 a soft blob; 1 a ring (foam along the hull's waterline). */
-  kind: 0 | 1;
+  /** 0 a soft blob; 1 a ring (foam along the hull's waterline); 2 a ship's shadow (written to the map's blue channel, `foam` is its darkness). */
+  kind: 0 | 1 | 2;
 }
 
 export interface ShipMotion {
@@ -30,6 +30,14 @@ export interface ShipMotion {
   beam: number;
   /** Seconds since it began to sink, or -1 while afloat. */
   sinking: number;
+}
+
+/** Which way the sun throws shadows (horizontal unit vector, away from the sun) and how high it stands. */
+export interface SunShadow {
+  dirX: number;
+  dirZ: number;
+  /** Elevation above the horizon, radians. */
+  elevation: number;
 }
 
 /** Stamps allowed per frame; more are dropped. */
@@ -70,6 +78,32 @@ export function shipStamps(m: ShipMotion, dt: number, seaState: number, out: Sta
   for (const side of [-1, 1]) push(-dir * L * 0.34, side * B * 0.68, L * 0.34, B * 0.3, 1.1 * s, 0);
 }
 
+/**
+ * The shadow a ship casts on the sea: a soft ellipse along the sun's direction, as long as the ship's silhouette
+ * seen from the sun plus the reach of its masts at this sun height; a low sun throws long shadows.
+ */
+export function shadowStamp(m: ShipMotion, sun: SunShadow, out: Stamp[]): void {
+  if (m.sinking >= 0 || sun.elevation <= 0.05) return;
+  const height = m.length * 0.75;
+  const reach = Math.min(height / Math.tan(sun.elevation), m.length * 3);
+  // the ship's footprint along and across the sun's direction
+  const rel = Math.atan2(-sun.dirZ, sun.dirX) - m.heading;
+  const along = Math.abs(Math.cos(rel)) * m.length + Math.abs(Math.sin(rel)) * m.beam;
+  const across = Math.abs(Math.sin(rel)) * m.length * 0.6 + Math.abs(Math.cos(rel)) * m.beam;
+  const length = along + reach;
+  const shift = reach / 2;
+  out.push({
+    x: m.x + sun.dirX * shift,
+    z: m.z + sun.dirZ * shift,
+    heading: Math.atan2(-sun.dirZ, sun.dirX),
+    length,
+    width: across * 1.1,
+    foam: Math.min(0.55, 0.2 + sun.elevation * 0.8),
+    height: 0,
+    kind: 2,
+  });
+}
+
 /** A splash or a hit: a quick burst of foam where a ball falls or strikes. */
 export function impactStamp(x: number, z: number, radius: number, foam: number): Stamp {
   return { x, z, heading: 0, length: radius * 2, width: radius * 2, foam, height: 0, kind: 0 };
@@ -92,11 +126,15 @@ export function collectStamps(
   cz: number,
   reach: number,
   out: Stamp[],
+  sun: SunShadow | null = null,
 ): void {
   out.length = 0;
   const near = (x: number, z: number): boolean => Math.abs(x - cx) < reach && Math.abs(z - cz) < reach;
   const ship = (x: number, z: number, heading: number, speed: number, d: { length: number; beam: number }, sinking: number): void => {
-    if (near(x, z)) shipStamps({ x, z, heading, speed, length: d.length, beam: d.beam, sinking }, dt, view.seaState, out);
+    if (!near(x, z)) return;
+    const m = { x, z, heading, speed, length: d.length, beam: d.beam, sinking };
+    shipStamps(m, dt, view.seaState, out);
+    if (sun) shadowStamp(m, sun, out);
   };
   if (player && !view.docked) ship(view.ship.x, view.ship.z, view.ship.heading, view.ship.speed, player, view.sunk ? 0 : -1);
   for (const e of view.enemies) {

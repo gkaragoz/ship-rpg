@@ -3,8 +3,10 @@ import { createOcean } from './ocean';
 import type { Quality } from './quality';
 import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR, lookFor, type SeaLook } from './seaLook';
 import { createSky } from './sky';
+import { createShadows, shadowRadius, type Shadows } from './shadows';
 import { createWake, type Wake } from './wake';
-import type { Stamp } from './wakeStamps';
+import type { SunShadow, Stamp } from './wakeStamps';
+import type { GraphicsSettings, TextureQuality } from '../settings';
 import { seaAmp } from '../world';
 
 /** What the environment needs to know each frame. */
@@ -18,6 +20,8 @@ export interface EnvironmentFrame {
   seaState: number;
   /** What ships and splashes leave on the water this frame. */
   stamps: readonly Stamp[];
+  /** The ship the sun's shadow map follows, and its length (m); none keeps the map where it was. */
+  focus?: { position: THREE.Vector3; length: number };
 }
 
 /**
@@ -30,8 +34,13 @@ export interface Environment {
   readonly hemi: THREE.HemisphereLight;
   readonly look: SeaLook;
   readonly wake: Wake;
+  readonly shadows: Shadows;
+  /** Where the sun's shadows fall on the sea, for the wake stamps (null while shadows are off). */
+  sunShadow(): SunShadow | null;
   update(frame: EnvironmentFrame): void;
   setQuality(quality: Quality): void;
+  /** Apply the graphics settings that concern the environment: shadows, view distance, texture quality. */
+  apply(graphics: GraphicsSettings): void;
   dispose(): void;
 }
 
@@ -45,18 +54,40 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
   const wake = createWake(renderer, quality);
   const sky = createSky();
   const look = lookFor(0);
+  const shadows = createShadows(renderer, scene, sun);
   let texels = quality.wake;
+  let viewDistance = 1;
+  let shadowScale = 1;
+  let textures: TextureQuality | null = null;
+  const towardSun = SUN_DIR.clone();
+  const cast: SunShadow = { dirX: -towardSun.x, dirZ: -towardSun.z, elevation: Math.asin(towardSun.y) };
+  const horizontal = Math.hypot(cast.dirX, cast.dirZ) || 1;
+  cast.dirX /= horizontal;
+  cast.dirZ /= horizontal;
   scene.add(hemi, sun, ocean.object, sky.mesh);
   const fog = scene.fog as THREE.Fog;
 
-  return {
+  const env: Environment = {
     sun,
     hemi,
     look,
     wake,
+    shadows,
+    sunShadow: () => (shadows.enabled ? cast : null),
+    apply(g): void {
+      shadows.apply(g);
+      viewDistance = g.viewDistance;
+      shadowScale = g.shadowDistance;
+      if (g.textures !== textures) {
+        textures = g.textures;
+        ocean.setTextures(textures, renderer.capabilities.getMaxAnisotropy());
+      }
+    },
     update(f): void {
       // The day's look follows the sea state: bright and clear when calm, grey, dark and close in a storm.
       lookFor(f.seaState, look);
+      look.fogNear *= viewDistance; // the view distance setting scales how far you see
+      look.fogFar *= viewDistance;
       fog.color.copy(look.horizon);
       fog.near = look.fogNear;
       fog.far = look.fogFar;
@@ -66,6 +97,7 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
       ocean.setWake(wake, texels);
       ocean.update(f.camera, f.time, f.windFrom, seaAmp(f.seaState), f.seaState, look);
       sky.update(f.camera, look, f.time, f.windFrom);
+      if (f.focus) shadows.update(f.focus.position, towardSun, shadowRadius(f.focus.length, shadowScale));
     },
     setQuality(q): void {
       texels = q.wake;
@@ -76,7 +108,11 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
       ocean.dispose();
       sky.dispose();
       wake.dispose();
+      shadows.dispose();
       scene.remove(hemi, sun, ocean.object, sky.mesh);
     },
   };
+  // In dev the environment and renderer are on window, for poking at from the console.
+  if (import.meta.env.DEV) Object.assign(window, { __env: env, __renderer: renderer, __scene: scene });
+  return env;
 }

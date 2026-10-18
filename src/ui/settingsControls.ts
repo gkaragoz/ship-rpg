@@ -85,6 +85,33 @@ export const CONTROLS: readonly Control[] = [
     set: (v) => ({ graphics: { exposure: v } }),
   },
   {
+    tab: 'graphics', kind: 'select', label: 'Gölgeler', hint: 'Gemilerin ve adaların gölgesi; denizde gemi gölgesi de buna bağlı.',
+    options: [['off', 'Kapalı'], ['low', 'Düşük'], ['medium', 'Orta'], ['high', 'Yüksek']],
+    get: (s) => s.graphics.shadows,
+    set: (v) => ({ graphics: { shadows: v as Settings['graphics']['shadows'] } }),
+  },
+  {
+    tab: 'graphics', kind: 'range', label: 'Gölge mesafesi', min: 0.5, max: 1.5, step: 0.05, format: percent,
+    get: (s) => s.graphics.shadowDistance,
+    set: (v) => ({ graphics: { shadowDistance: v } }),
+  },
+  {
+    tab: 'graphics', kind: 'range', label: 'Görüş mesafesi', hint: 'Sis ve ufuk ne kadar uzakta.', min: 0.5, max: 1.5, step: 0.05, format: percent,
+    get: (s) => s.graphics.viewDistance,
+    set: (v) => ({ graphics: { viewDistance: v } }),
+  },
+  {
+    tab: 'graphics', kind: 'select', label: 'Doku kalitesi', hint: 'Doku filtreleme (anizotropik) ile denizin detay ve derinlik dokularının boyutu.',
+    options: [['low', 'Düşük'], ['medium', 'Orta'], ['high', 'Yüksek']],
+    get: (s) => s.graphics.textures,
+    set: (v) => ({ graphics: { textures: v as Settings['graphics']['textures'] } }),
+  },
+  {
+    tab: 'graphics', kind: 'range', label: 'Parçacık yoğunluğu', hint: 'Duman, sıçrama, kıymık ve alev parçacıkları.', min: 0.25, max: 1, step: 0.05, format: percent,
+    get: (s) => s.graphics.particles,
+    set: (v) => ({ graphics: { particles: v } }),
+  },
+  {
     tab: 'graphics', kind: 'select', label: 'Su kalitesi', hint: 'Deniz ağı çözünürlüğü ve gemi izi haritası.',
     options: [['low', 'Düşük'], ['medium', 'Orta'], ['high', 'Yüksek']],
     get: (s) => s.graphics.water,
