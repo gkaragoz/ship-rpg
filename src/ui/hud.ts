@@ -91,7 +91,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const targetRig = bar('hud-rig');
   target.append(targetName, targetBar.root, targetRig.root);
 
-  const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · Q/E top · G nişan · N ses · F liman · M harita · Fare: kamera · Esc: galeri');
+  const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · Q/E top · G nişan · N ses · K grafik · F liman · M harita · Fare: kamera · Esc: galeri');
   const prompt = el('div', 'hud-prompt');
   prompt.hidden = true;
   const toast = el('div', 'hud-toast');

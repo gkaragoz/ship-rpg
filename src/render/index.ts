@@ -4,3 +4,5 @@ export { createSailingView } from './sailingView';
 export type { SailingView, ShipDims, ViewStats } from './sailingView';
 export { loadCrewAssets } from './crew';
 export { waveHeight } from './waves';
+export { QUALITIES, createAutoQuality, initialQuality, lowerQuality, nextQuality } from './quality';
+export type { Quality, QualityName } from './quality';

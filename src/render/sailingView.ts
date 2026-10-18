@@ -5,7 +5,9 @@ import { CONFIG } from '../core';
 import type { Ship, ShipLod } from '../ships';
 import { createCrewRenderer } from './crew';
 import { createFleet } from './fleet';
-import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR, createOcean } from './ocean';
+import { createOcean } from './ocean';
+import { QUALITIES, type QualityName } from './quality';
+import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR } from './seaLook';
 import { createAimArcs } from './aimArcs';
 import { createDamageNumbers } from './damageNumbers';
 import { createEffects } from './effects';
@@ -45,6 +47,8 @@ export interface SailingView {
   setLodOverride(lod: ShipLod | null): void;
   /** Show or hide the gun landing zones. */
   setAimVisible(on: boolean): void;
+  /** Switch graphics quality (sea mesh resolution, pixel ratio). */
+  setQuality(quality: QualityName): void;
   /** Show another ship (an enemy) under `id`; the ids come from `GameView.enemies`. */
   addActor(id: string, model: THREE.Object3D, dims: ShipDims): void;
   removeActor(id: string): void;
@@ -56,9 +60,10 @@ export interface SailingView {
 const UP = new THREE.Vector3(0, 1, 0);
 
 /** Open-sea scene: waves, sky and a chase camera that follows the player's ship. */
-export function createSailingView(host: HTMLElement): SailingView {
+export function createSailingView(host: HTMLElement, quality: QualityName = 'medium'): SailingView {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  let preset = QUALITIES[quality];
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
@@ -70,7 +75,7 @@ export function createSailingView(host: HTMLElement): SailingView {
 
   const fleet = createFleet(scene);
   const crew = createCrewRenderer();
-  const ocean = createOcean();
+  const ocean = createOcean(preset);
   const sky = createSky();
   const scenery = createScenery();
   const effects = createEffects();
@@ -150,6 +155,13 @@ export function createSailingView(host: HTMLElement): SailingView {
 
     setAimVisible(on): void {
       aim.setVisible(on);
+    },
+
+    setQuality(next): void {
+      preset = QUALITIES[next];
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatio));
+      resize();
+      ocean.setQuality(preset);
     },
 
     addActor(id, model, dims): void {

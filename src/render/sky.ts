@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { HORIZON_COLOR, SUN_DIR } from './ocean';
+import { HORIZON_COLOR, SUN_DIR } from './seaLook';
 
 const vertexShader = /* glsl */ `
 varying vec3 vDir;

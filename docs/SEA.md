@@ -8,3 +8,16 @@
 
 ## Performance baseline (before the rework)
 Measured with `?perf` on the sailing view (small embedded pane): **539,370 triangles, 62 draw calls**; about 462k of those triangles are the two flat sea grids (900 m × 360² near + 7 km × 320² far). Frame rate in the embedded pane is not a reliable absolute number (82–165 fps); compare like with like.
+
+## Sea mesh (`render/oceanMesh.ts`, `render/quality.ts`)
+A **clip-map**: concentric square levels around the camera, each twice as coarse as the one inside it (`grid × grid` cells, hole in the middle of every outer level). Every level snaps to its own cell size so its vertices never slide against the waves; each outer level's hole is two cells smaller than the finer level it surrounds, so the levels overlap instead of leaving a gap and the finer one (drawn later, `LessEqualDepth`) wins. The mesh reaches 3 km, past the fog.
+
+| Quality | grid | finest cell | pixel ratio cap | sea triangles |
+|---|---|---|---|---|
+| low | 48 | 2 m | 1 | see `seaTriangles` |
+| medium (default) | 64 | 1.5 m | 1.5 | ~47k |
+| high | 96 | 1 m | 2 | ~100k |
+
+Choose with `?quality=low|medium|high` (fixed), the `K` key (cycles, remembered in `localStorage`), or let the game lower it: if a 2 s window averages slower than 40 fps it steps down one preset (never up by itself, never when the quality was chosen explicitly). `?perf` shows `quality` and `frameMs`.
+
+Measured with `?perf` (same pane as the baseline): total triangles **539k → 124k** at medium (181k high, 104k low; the rest is ships and islands); draw calls 62 → 67.

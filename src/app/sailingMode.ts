@@ -1,7 +1,7 @@
 import { createAudio } from '../audio';
 import { angleDiff, createInput, type Controls, type GameView } from '../core';
 import { createGame } from '../gameplay';
-import { createSailingView } from '../render';
+import { createAutoQuality, createSailingView, initialQuality, lowerQuality, nextQuality, type QualityName } from '../render';
 import { createShip, getShipSpec, type Ship, type ShipLod, type ShipSpec } from '../ships';
 import { createHud, createMapUi, createPortPanel } from '../ui';
 import { getNation } from '../world';
@@ -18,6 +18,24 @@ const RESTART = 'KeyR';
 const MAP = 'KeyM';
 const AIM = 'KeyG';
 const MUTE = 'KeyN';
+const QUALITY = 'KeyK';
+const QUALITY_KEY = 'ship-rpg.quality';
+
+function savedQuality(): string | null {
+  try {
+    return window.localStorage.getItem(QUALITY_KEY);
+  } catch {
+    return null; // private window or blocked storage
+  }
+}
+
+function saveQuality(q: QualityName): void {
+  try {
+    window.localStorage.setItem(QUALITY_KEY, q);
+  } catch {
+    /* the choice just does not persist */
+  }
+}
 const GAME_KEYS = [...PORT, ...STARBOARD, ...MORE_SAIL, ...LESS_SAIL];
 
 /** Free sailing on the open sea with the chosen ship. Esc returns via `onExit`. */
@@ -27,7 +45,10 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   // In dev, expose the game on window so it can be poked from the browser console (e.g. __game.dev.setKills(4)).
   if (import.meta.env.DEV) (window as unknown as { __game?: typeof game }).__game = game;
   const ship = createShip(spec, { flag: getNation('free').flag }); // the player is a free captain
-  const view = createSailingView(host);
+  let { quality, fixed } = initialQuality(window.location.search, savedQuality());
+  const autoQuality = createAutoQuality();
+  let lastRender = performance.now();
+  const view = createSailingView(host, quality);
   view.setPlayer(ship.root, { length: spec.length, beam: spec.beam });
   const hud = createHud(host, spec.name);
   // Enemy ships: a model per id the game reports, created on first sight and dropped when gone.
@@ -61,7 +82,13 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     audio.resume(); // browsers only start audio after a user gesture
     if (e.code === 'Escape') onExit();
     else if (e.code === MAP && !e.repeat) map.toggle();
-    else if (e.code === MUTE && !e.repeat) hud.notice(audio.toggleMute() ? 'Ses kapalı' : 'Ses açık');
+    else if (e.code === QUALITY && !e.repeat) {
+      quality = nextQuality(quality);
+      fixed = true; // a chosen quality is not lowered behind the player's back
+      view.setQuality(quality);
+      saveQuality(quality);
+      hud.notice(`Grafik: ${quality}`);
+    } else if (e.code === MUTE && !e.repeat) hud.notice(audio.toggleMute() ? 'Ses kapalı' : 'Ses açık');
     else if (e.code === AIM && !e.repeat) {
       view.setAimVisible((aimOn = !aimOn));
       hud.notice(aimOn ? 'Nişan bölgeleri açık' : 'Nişan bölgeleri kapalı');
@@ -126,6 +153,13 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
       updated = true;
     },
     render(): void {
+      const now = performance.now();
+      if (!fixed && autoQuality.frame((now - lastRender) / 1000) && quality !== 'low') {
+        quality = lowerQuality(quality);
+        view.setQuality(quality);
+        hud.notice(`Grafik düşürüldü: ${quality}`);
+      }
+      lastRender = now;
       const v = game.view();
       syncOthers(v);
       ship.setSailTrim(angleDiff(v.wind.from, v.ship.heading), v.ship.sailLevel);
@@ -146,7 +180,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
           frames = 0;
           last = now;
         }
-        Object.assign(window, { __perf: { fps, ...view.stats(), crew: v.crew.length, others: v.others.length } });
+        Object.assign(window, { __perf: { fps, quality, frameMs: Math.round(autoQuality.frameMs * 10) / 10, ...view.stats(), crew: v.crew.length, others: v.others.length } });
       }
       if (updated) {
         input.endFrame(); // keep unconsumed presses if no update ran this frame
