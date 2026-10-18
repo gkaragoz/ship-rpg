@@ -16,11 +16,11 @@ export interface Exploration {
 }
 
 /** Fog of war and nearest-port lookup for whatever position `at()` returns. */
-export function createExploration(at: () => { x: number; z: number }): Exploration {
-  const islands = new Set<string>();
-  const ports = new Set<string>();
-  let islandList: string[] = [];
-  let portList: string[] = [];
+export function createExploration(at: () => { x: number; z: number }, seen: { islands: readonly string[]; ports: readonly string[] } = { islands: [], ports: [] }): Exploration {
+  const islands = new Set<string>(seen.islands);
+  const ports = new Set<string>(seen.ports);
+  let islandList: string[] = [...islands];
+  let portList: string[] = [...ports];
 
   return {
     nearest(): { port: Port; distance: number } | null {

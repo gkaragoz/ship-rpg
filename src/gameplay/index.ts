@@ -1,4 +1,6 @@
 export { createGame } from './game';
+export { cloneState, newGameState } from './state';
+export type { GameState } from './state';
 export type { Game } from './game';
 export { crewCountFor } from './crew';
 export { enemySide, playerSide, runDuel } from './duel';

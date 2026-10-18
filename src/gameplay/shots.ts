@@ -1,7 +1,7 @@
 import type { GameEvent } from '../core';
 import type { ShipSpec } from '../ships';
 import { terrainHeight } from '../world';
-import { ballHitZone, ballSpeed, hitNormal, type Ball } from './combat';
+import { COMBAT, ballHitZone, ballSpeed, hitNormal, stepBall, type Ball } from './combat';
 import { strike } from './damage';
 import type { Enemy } from './enemy';
 import type { PlayerShip } from './sailing';
@@ -54,4 +54,21 @@ export function resolveBall(b: Ball, w: ShotWorld): boolean {
   if (b.y > surface) return false;
   w.emit({ type: 'splash', owner: b.owner, x: b.x, y: surface, z: b.z, speed: ballSpeed(b) });
   return true;
+}
+
+/** Sub-steps per frame for the cannonballs: a ball moves ~1.5 m a step, so narrow targets are not skipped. */
+const BALL_STEPS = 3;
+
+/** Fly every ball one frame (drag and wind included) and return those still in the air. */
+export function flyBalls(balls: readonly Ball[], dt: number, air: { x: number; z: number }, world: ShotWorld): Ball[] {
+  const alive: Ball[] = [];
+  for (const b of balls) {
+    let spent = false;
+    for (let k = 0; k < BALL_STEPS && !spent; k++) {
+      stepBall(b, dt / BALL_STEPS, air);
+      spent = resolveBall(b, world);
+    }
+    if (!spent && b.age < COMBAT.maxAge) alive.push(b);
+  }
+  return alive;
 }

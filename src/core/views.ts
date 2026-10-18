@@ -89,6 +89,11 @@ export interface Attitude {
 }
 
 export interface ShipView extends Condition, Attitude {
+  /** Which ship spec the player sails now (it changes when a ship is bought). */
+  specId: string;
+  name: string;
+  /** Seconds one broadside takes to reload now (grows when the crew is short). */
+  reloadSeconds: number;
   x: number;
   z: number;
   heading: number;
@@ -249,6 +254,34 @@ export interface WeatherView {
   strike: { id: number; x: number; z: number; power: number } | null;
 }
 
+/** The captain's purse and standing. */
+export interface CaptainView {
+  gold: number;
+  xp: number;
+  /** 1 … max level. */
+  level: number;
+  /** Experience earned inside this level and the amount this level spans (for a progress bar). */
+  xpIntoLevel: number;
+  xpForNext: number;
+  /** Ships sunk or taken over the whole career (`GameView.kills` is this run's count). */
+  kills: number;
+}
+
+/** What is in the hold. */
+export interface CargoView {
+  used: number;
+  capacity: number;
+  items: readonly { id: string; qty: number }[];
+}
+
+/** The ship's company (not the sailors on deck, see `CrewView`). */
+export interface CompanyView {
+  count: number;
+  max: number;
+  /** 0…1: how fully manned the ship is; below 1 the guns reload slower. */
+  factor: number;
+}
+
 export interface GameView {
   time: number;
   ship: ShipView;
@@ -261,6 +294,9 @@ export interface GameView {
   /** Ambient ships sailing their patrols (distinct from `enemies`, which fight). */
   others: OtherShipView[];
   crew: CrewView[];
+  captain: CaptainView;
+  cargo: CargoView;
+  company: CompanyView;
   /** Closest port (discovered or not), or null if none is within 1.5 km. */
   nearestPort: PortView | null;
   /** Id of the port the ship is docked at, if any. */

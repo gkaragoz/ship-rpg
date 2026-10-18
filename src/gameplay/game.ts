@@ -1,13 +1,13 @@
 import { stepCrashes } from './crashes';
 import { CONFIG, createRng } from '../core';
 import type { Controls, GameEvent, GameView, WindView } from '../core';
-import { getDeck, type ShipSpec } from '../ships';
-import { DEFAULT_CLOCK, PORTS, getPort, gustAt, hourAt, seaAmp, startHourFor, waveHeight, type ClockSettings, type Port, type Weather, type WeatherOverrides } from '../world';
+import { getDeck, getShipSpec, type ShipSpec } from '../ships';
+import { DEFAULT_CLOCK, getPort, gustAt, hourAt, seaAmp, startHourFor, waveHeight, type ClockSettings, type Port, type Weather, type WeatherOverrides } from '../world';
 import { createExploration } from './exploration';
-import { COMBAT, ELEVATION, cannonsPerSide, stepBall, windVelocity, type Ball, type Side } from './combat';
+import { COMBAT, ELEVATION, cannonsPerSide, windVelocity, type Ball, type Side } from './combat';
 import { planBroadside } from './gunnery';
 import { createSalvo } from './salvo';
-import { resolveBall, type ShotWorld } from './shots';
+import { flyBalls, type ShotWorld } from './shots';
 import { stepAffliction } from './damage';
 import { ballViews, enemyView, playerView, portView } from './enemyView';
 import { MAX_ENEMIES, aiStep, createEnemy, desiredEnemies, findSpawn, lostTrack, pickEnemySpec, type Enemy } from './enemy';
@@ -17,9 +17,15 @@ import { createDevHooks } from './devHooks';
 import { createNpcFleet } from './npcShips';
 import { createWeatherState } from './weatherState';
 import { createPlayerShip, stepPlayerShip, type PlayerShip } from './sailing';
+import { cloneState, newGameState, startPose, type GameState } from './state';
+import { DOCK, ELEVATE_RATE, ENEMY_NATIONS, REPAIR_RATE, RESPAWN, STAGGER } from './tuning';
+import { captainView, cargoView, companyView, snapshot } from './stateView';
 
 export interface Game {
+  /** The ship the player sails now. */
   readonly spec: ShipSpec;
+  /** A copy of everything a save needs (see `GameState`). */
+  state(): GameState;
   update(dt: number, controls: Controls): void;
   /** Take over parts of the weather (the weather simulator): see `WeatherOverrides`; `null` gives it all back to the game. */
   setWeather(change: WeatherOverrides | null): void;
@@ -44,48 +50,25 @@ export interface Game {
   };
 }
 
-/** Docking needs the ship this close to the anchorage and this slow. */
-export const DOCK = { range: 80, maxSpeed: 2.5 } as const;
-const START_PORT = 'douwesen';
-/** Start this far off the anchorage, facing open water. */
-const START_OFFSET = 70;
-/** A replacement comes this many seconds after a kill or an escape. */
-const RESPAWN = 25;
-/** Seconds between one enemy arriving and the next of a group. */
-const STAGGER = 12;
-/** Nations the enemies sail for, in turn: until factions arrive (5e) everyone is hostile. */
-const ENEMY_NATIONS = ['pirate', 'spanish', 'french', 'english', 'dutch'] as const;
-/** Fraction of hull strength a moored ship repairs per second. */
-const REPAIR_RATE = 0.02;
-/** Sub-steps per frame for the cannonballs. */
-const BALL_STEPS = 3;
-/** How fast the player lays the guns up or down (rad/s). */
-const ELEVATE_RATE = 0.06;
-
 /** Open-sea sandbox: one player ship, an archipelago with ports, and an enemy hunting you. */
-export function createGame(spec: ShipSpec): Game {
-  const start = getPort(START_PORT) ?? PORTS[0];
-  if (!start) throw new Error('no ports defined');
+export function createGame(init: ShipSpec | GameState): Game {
+  const st: GameState = cloneState('ship' in init ? init : newGameState(init));
+  const spec: ShipSpec = 'ship' in init ? (getShipSpec(init.ship.specId) ?? fail(`unknown ship ${init.ship.specId}`)) : init;
   const rng = createRng(0x5eed);
   const maxHp = spec.stats.hp;
 
-  const makeShip = (): ReturnType<typeof createPlayerShip> =>
-    createPlayerShip(
-      start.anchor.x + Math.cos(start.outward) * START_OFFSET,
-      start.anchor.z + Math.sin(start.outward) * START_OFFSET,
-      -start.outward, // forward (cos ψ, -sin ψ) along the outward direction
-    );
+  const makeShip = (pose: GameState['pose']): PlayerShip => createPlayerShip(pose.x, pose.z, pose.heading);
 
-  let ship = makeShip();
-  let hp = maxHp;
+  let ship = makeShip(st.pose);
+  let hp = Math.min(maxHp, Math.max(1, st.ship.hp));
   const reload = { port: 0, starboard: 0 };
   const salvo = createSalvo();
   let elevation: number = ELEVATION.rest; // how high the player's guns are laid (rad)
   let sunk = false;
   let sinkTime = 0;
   let restartAsked = false;
-  let kills = 0;
-  let time = 0;
+  let threat = 0; // ships sunk this run: how many enemies attack at once (the career count is `st.captain.kills`)
+  let time = st.time;
   const weatherState = createWeatherState();
   let weather: Weather = weatherState.update(time, 0, ship);
   let wind = { from: weather.windFrom, speed: weather.windSpeed };
@@ -105,7 +88,7 @@ export function createGame(spec: ShipSpec): Game {
   let ballCounter = 0;
   let events: GameEvent[] = [];
 
-  const explore = createExploration(() => ship);
+  const explore = createExploration(() => ship, st.discovered);
   const nearest = explore.nearest;
   const canDock = (distance: number): boolean => distance <= DOCK.range && Math.abs(ship.speed) <= DOCK.maxSpeed;
 
@@ -132,8 +115,8 @@ export function createGame(spec: ShipSpec): Game {
     enemies.push(createEnemy(`e${++enemyCounter}`, enemySpec, at.x, at.z, at.angle + Math.PI, nation));
   };
 
-  const reset = (): void => {
-    ship = makeShip();
+  const reset = (pose: GameState['pose'] = startPose()): void => {
+    ship = makeShip(pose);
     hp = maxHp;
     reload.port = 0;
     reload.starboard = 0;
@@ -142,7 +125,7 @@ export function createGame(spec: ShipSpec): Game {
     sunk = false;
     sinkTime = 0;
     restartAsked = false;
-    kills = 0;
+    threat = 0;
     dockedAt = null;
     enemies = [];
     enemyCounter = 0; // a fresh run starts with the closest match and the first nation again
@@ -176,7 +159,8 @@ export function createGame(spec: ShipSpec): Game {
   const checkEnemySunk = (e: Enemy): void => {
     if (e.hp > 0 || e.sinking >= 0) return;
     e.sinking = 0;
-    kills++;
+    threat++;
+    st.captain.kills++;
     respawnIn = RESPAWN;
     events.push({ type: 'sunk', owner: 'enemy', x: e.ship.x, y: 0, z: e.ship.z });
   };
@@ -199,16 +183,7 @@ export function createGame(spec: ShipSpec): Game {
         checkEnemySunk(e);
       },
     };
-    const alive: Ball[] = [];
-    for (const b of balls) {
-      let spent = false;
-      for (let k = 0; k < BALL_STEPS && !spent; k++) {
-        stepBall(b, dt / BALL_STEPS, air);
-        spent = resolveBall(b, world);
-      }
-      if (!spent && b.age < COMBAT.maxAge) alive.push(b);
-    }
-    balls = alive;
+    balls = flyBalls(balls, dt, air, world);
   };
 
   const stepEnemies = (dt: number): void => {
@@ -240,21 +215,36 @@ export function createGame(spec: ShipSpec): Game {
     }
     enemies = enemies.filter((e) => !e.gone && e.sinking < CONFIG.sinkSeconds);
     if (!sunk && respawnIn > 0) respawnIn -= dt;
-    if (!sunk && respawnIn <= 0 && enemies.filter((e) => e.sinking < 0).length < desiredEnemies(kills)) {
+    if (!sunk && respawnIn <= 0 && enemies.filter((e) => e.sinking < 0).length < desiredEnemies(threat)) {
       spawnEnemy();
       respawnIn = STAGGER;
     }
   };
 
-  reset();
+  reset(st.pose);
+  // A loaded run keeps the state its ship was in and may begin moored.
+  hp = Math.min(maxHp, Math.max(1, st.ship.hp));
+  ship.rigging = st.ship.rigging;
+  ship.flooding = st.ship.flooding;
+  ship.fire = st.ship.fire;
+  const moored = st.pose.dockedAt ? getPort(st.pose.dockedAt) : undefined;
+  if (moored) {
+    dockedAt = moored;
+    ship.docked = true;
+  }
   explore.discover();
 
   return {
-    spec,
+    get spec(): ShipSpec {
+      return spec;
+    },
+    state(): GameState {
+      return snapshot(st, { spec, hp, ship, dockedAt: dockedAt?.id ?? null, islands: explore.islands(), ports: explore.ports(), time });
+    },
     dev: createDevHooks({
       ship: () => ship,
       enemies: () => enemies,
-      setKills: (n) => (kills = n),
+      setKills: (n) => (threat = n),
       setSea: (state) => weatherState.patch({ seaState: state === null ? undefined : state }),
       discover: () => explore.discover(),
     }),
@@ -326,7 +316,10 @@ export function createGame(spec: ShipSpec): Game {
         seaState: sea,
         others: npcs.view(wind),
         crew: crew?.view() ?? [],
-        ship: playerView(ship, spec, { hp, maxHp, reload, elevation, air: windVelocity(wind), wind: feel(ship), gust: gustAt(ship.x, ship.z, time, wind), armed: !dockedAt && !sunk }, afloat),
+        captain: captainView(st),
+        cargo: cargoView(st, spec),
+        company: companyView(st, spec),
+        ship: playerView(ship, spec, { hp, maxHp, reloadSeconds: COMBAT.playerReload, reload, elevation, air: windVelocity(wind), wind: feel(ship), gust: gustAt(ship.x, ship.z, time, wind), armed: !dockedAt && !sunk }, afloat),
         nearestPort,
         docked: dockedAt?.id ?? null,
         grounded: ship.grounded > 0,
@@ -337,8 +330,12 @@ export function createGame(spec: ShipSpec): Game {
         events: drained,
         sunk,
         sinkTime,
-        kills,
+        kills: threat,
       };
     },
   };
+}
+
+function fail(message: string): never {
+  throw new Error(message);
 }

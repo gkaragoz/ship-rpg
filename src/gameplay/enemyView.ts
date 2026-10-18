@@ -3,7 +3,7 @@ import type { ApparentWindView, BallView, EnemyView, PortView, ShipView, WindVie
 import { apparentWind, type Port } from '../world';
 import type { Ball } from './combat';
 import type { ShipSpec } from '../ships';
-import { COMBAT, aimZone, cannonsPerSide, targetInZone } from './combat';
+import { aimZone, cannonsPerSide, targetInZone } from './combat';
 import { arcFor } from './gunnery';
 import type { Enemy } from './enemy';
 import { SAILING, maxSpeed, type PlayerShip } from './sailing';
@@ -47,12 +47,15 @@ export function enemyView(e: Enemy, from: PlayerShip, wind: WindView): EnemyView
 export function playerView(
   ship: PlayerShip,
   spec: ShipSpec,
-  state: { hp: number; maxHp: number; reload: { port: number; starboard: number }; elevation: number; air: { x: number; z: number }; wind: WindView; gust: number; armed: boolean },
+  state: { hp: number; maxHp: number; reloadSeconds: number; reload: { port: number; starboard: number }; elevation: number; air: { x: number; z: number }; wind: WindView; gust: number; armed: boolean },
   afloat: readonly Enemy[],
 ): ShipView {
   const zone = aimZone(spec, ship.speed, state.elevation);
   const armed = state.armed && cannonsPerSide(spec) > 0; // the arcs are only drawn for a ship that can fire
   return {
+    specId: spec.id,
+    name: spec.name,
+    reloadSeconds: state.reloadSeconds,
     x: ship.x,
     z: ship.z,
     heading: ship.heading,
@@ -82,7 +85,7 @@ export function playerView(
       port: afloat.some((e) => targetInZone(zone, ship, 'port', e.ship, e.spec.length)),
       starboard: afloat.some((e) => targetInZone(zone, ship, 'starboard', e.ship, e.spec.length)),
     },
-    reload: { port: state.reload.port / COMBAT.playerReload, starboard: state.reload.starboard / COMBAT.playerReload },
+    reload: { port: state.reload.port / state.reloadSeconds, starboard: state.reload.starboard / state.reloadSeconds },
   };
 }
 
