@@ -28,6 +28,8 @@
   - [x] port entry zones: a gold rectangle with posts and an anchor sign marks where a ship may dock; the HUD says when you are inside and must slow down (`PORT_ZONE`, `render/portZones.ts`, `tests/portZone.test.ts`)
   - [x] nation ensigns on every ship (Union Jack red ensign, Bourbon white, Cross of Burgundy, Prinsenvlag, Jolly Roger, free captain), 1.6x larger flags; ambient patrol ships fly a nation too (`flagArt.ts`, `tests/ensign.test.ts`)
   - [x] game speed `+`/`-` (1, 2, 3, 5, 10x): extra fixed steps per update, held at 1x near enemies, shots, boarding, grounding and sinking (`app/timeScale.ts`, `tests/timeScale.test.ts`)
+  - [x] sails in folded states: fold field below the grid's sampling limit, bounded fold normals, jibs offset in z (`docs/SHIPS.md`)
+  - [x] sea chart redone as an old parchment chart (zoom/pan, fog, grid, rose, route, tinted islands) in `ui/chart/`
   - [ ] polish: harbour town detail (forts, docks, ships at anchor), beach waves
   - [ ] polish: coast sounding/depth warning on the HUD
   - [x] save/load of discovered map and position (5f)

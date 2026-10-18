@@ -3,13 +3,19 @@
   position: absolute; right: 12px; bottom: 12px; width: 180px; height: 180px; border-radius: 50%;
   border: 2px solid #c9a227; box-shadow: 0 0 0 3px rgba(11, 26, 36, 0.6);
 }
-.map-chart {
-  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: rgba(8, 20, 30, 0.72); pointer-events: auto;
+.chart {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: auto;
+  background: rgba(8, 20, 30, 0.78);
 }
-.map-chart[hidden] { display: none; }
-.map-chart canvas { border: 3px solid #c9a227; border-radius: 4px; max-width: 100%; }
-.map-hint { margin-top: 8px; color: #f3ead2; font-size: 13px; }
+.chart[hidden] { display: none; }
+.chart canvas { max-width: 100%; border-radius: 4px; box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6); cursor: grab; touch-action: none; }
+.chart canvas:active { cursor: grabbing; }
+.chart-tools { position: absolute; right: 22px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; }
+.chart-tools button {
+  width: 36px; height: 36px; font: bold 18px Georgia, serif; color: #3a2a12; cursor: pointer;
+  background: rgba(236, 222, 176, 0.94); border: 2px solid #3a2a12; border-radius: 6px;
+}
+.chart-tools button:hover { background: #f4e8c0; }
 @media (max-width: 700px) {
   .map-mini { width: 110px; height: 110px; right: 8px; bottom: auto; top: 64px; }
 }

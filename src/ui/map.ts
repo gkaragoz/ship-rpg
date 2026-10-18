@@ -1,6 +1,7 @@
 import type { GameView } from '../core';
 import { ISLANDS, PORTS, WORLD_BOUNDS, getNation, terrainHeight, type Island } from '../world';
 import { drawAnchor } from './anchorIcon';
+import { createChart } from './chart/chartView';
 import './map.css';
 
 export interface MapUi {
@@ -67,13 +68,8 @@ export function createMapUi(host: HTMLElement): MapUi {
   const mini = el('canvas', 'map-mini');
   mini.width = MINI_SIZE;
   mini.height = MINI_SIZE;
-  const chart = el('div', 'map-chart');
-  const chartCanvas = el('canvas');
-  const hint = el('div', 'map-hint');
-  hint.textContent = 'M: haritayı kapat';
-  chart.append(chartCanvas, hint);
-  chart.hidden = true;
-  root.append(mini, chart);
+  const chart = createChart(root);
+  root.prepend(mini);
   host.appendChild(root);
 
   const sprites = new Map<string, HTMLCanvasElement>();
@@ -190,38 +186,14 @@ export function createMapUi(host: HTMLElement): MapUi {
     ctx.fillText('K', w / 2, 16); // north (Kuzey) is up
   };
 
-  let open = false;
-  const resizeChart = (): void => {
-    const maxW = Math.min(window.innerWidth - 40, 1100);
-    const maxH = window.innerHeight - 90;
-    const worldW = WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX;
-    const worldH = WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ;
-    const scale = Math.min(maxW / worldW, maxH / worldH);
-    chartCanvas.width = Math.max(240, Math.floor(worldW * scale));
-    chartCanvas.height = Math.max(160, Math.floor(worldH * scale));
-  };
-
   return {
     update(view): void {
-      // Minimap: circular, centred on the ship.
       draw(mini, view, view.ship, (MINI_RANGE * 2) / MINI_SIZE, false);
-      if (open) {
-        const worldW = WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX;
-        draw(
-          chartCanvas,
-          view,
-          { x: (WORLD_BOUNDS.minX + WORLD_BOUNDS.maxX) / 2, z: (WORLD_BOUNDS.minZ + WORLD_BOUNDS.maxZ) / 2 },
-          worldW / chartCanvas.width,
-          true,
-        );
-      }
+      chart.update(view);
     },
-    toggle(): void {
-      open = !open;
-      chart.hidden = !open;
-      if (open) resizeChart();
-    },
+    toggle: () => chart.toggle(),
     dispose(): void {
+      chart.dispose();
       root.remove();
       sprites.clear();
     },

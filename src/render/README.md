@@ -16,6 +16,7 @@ three.js scenes. Depends on `core` types and static `world` data. It may import 
 - `rain.ts` rain streaks around the camera; `lamps.ts` night lamps (glowing windows and lanterns, a few real point lights); `gpuTimer.ts` GPU time of a frame
 - `wake.ts` + `wakeStamps.ts` foam and ripple map (half-float render targets) that ships and splashes paint into; the sea shader reads it
 - `ride.ts` floats patrol ships on the waves (and draws simulated ships with their own motion)
+- `portZones.ts` the gold entry rectangle, corner posts and anchor sign of every port near the ship (`world`'s `PORT_ZONE`)
 - `scenery.ts` per-island terrain mesh, cone trees, port towns (houses, pier, flag, name sprite)
 
 Dispose every renderer, geometry, texture and control you create (see each `dispose()`).
