@@ -65,7 +65,7 @@ A human (aim zones, hit feedback, reading the wind by hand); more than one enemy
 
 - **win** is the bot player winning: the enemy sinks or breaks off (hull below 25%). **loss** is the reverse. **got away** / **enemy got away**: one side lost from sight for 20 s beyond 1 km. **draw**: ran out the 420 s. **hit** is the share of the player's balls that hit.
 - Ranks 1 and 2 only appear after 2 and 4 kills. A short pool repeats a type (Barque and Caravel meet the same ship at every rank; Battleship alternates Battleship and Frigate; Galleon meets Galleon and Caravel), so those rows carry no extra information.
-- **Tartane has no guns** and cannot win: it must run (its hunter is no faster than it is) or dock, where it is safe. Its enemy is always the weakest armed ship that cannot outrun it.
+- **Tartane has no guns** and cannot win a duel (it can board a crippled ship in the game, but cannot cripple one itself): it must run (its hunter is no faster than it is) or dock, where it is safe. Its enemy is always the weakest armed ship that cannot outrun it.
 - Slow, heavy ships still have the harder job (turn rate and speed decide who gets the broadside); the speed rule only stops them meeting hunters they cannot match.
 
 ## Tools

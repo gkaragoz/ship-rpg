@@ -1,5 +1,5 @@
 import { getShipSpec } from '../ships';
-import { GOODS, ISLANDS, PORTS, TRADE, getPort } from '../world';
+import { GOODS, ISLANDS, PORTS, TRADE, WORLD_BOUNDS, getPort } from '../world';
 import { holdUsed, type GameState } from './state';
 
 /** The bit of `Storage` the save needs (injectable for tests). */
@@ -27,6 +27,8 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {};
 
 export const SAVE_KEY = 'ship-rpg.save';
 
+/** How far beyond the islands a saved position may lie (m). */
+const FAR = 3000;
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const num = (v: unknown, fallback: number, min = -Infinity, max = Infinity): number =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
@@ -88,7 +90,13 @@ export function sanitizeState(raw: unknown): GameState | null {
     },
     crew: Math.floor(num(raw.crew, spec.stats.crew, 0, spec.stats.crew)),
     hold,
-    pose: { x: num(pose.x, 0), z: num(pose.z, 0), heading: num(pose.heading, 0), dockedAt: docked },
+    // A hand-edited position stays within sight of the archipelago.
+    pose: {
+      x: num(pose.x, 0, WORLD_BOUNDS.minX - FAR, WORLD_BOUNDS.maxX + FAR),
+      z: num(pose.z, 0, WORLD_BOUNDS.minZ - FAR, WORLD_BOUNDS.maxZ + FAR),
+      heading: num(pose.heading, 0, -1e4, 1e4),
+      dockedAt: docked,
+    },
     discovered: { islands: ids(seen.islands, ISLANDS.map((i) => i.id)), ports: ids(seen.ports, PORTS.map((p) => p.id)) },
     market,
     time: num(raw.time, 0, 0, 1e9),
@@ -112,11 +120,18 @@ export function parseSave(text: string | null, migrations: Readonly<Record<numbe
   for (let v = raw.version; v < current; v++) {
     const step = migrations[v];
     if (!step) return { ok: false, reason: 'damaged' };
-    data = step(data);
+    try {
+      const next: unknown = step(data);
+      if (!isRecord(next)) return { ok: false, reason: 'damaged' };
+      data = next;
+    } catch {
+      return { ok: false, reason: 'damaged' }; // a migration that cannot read the file: report it, do not lose the message
+    }
   }
   const state = sanitizeState(data.state);
   if (!state) return { ok: false, reason: 'damaged' };
-  return { ok: true, state, savedAt: typeof data.savedAt === 'string' ? data.savedAt : '', version: raw.version };
+  const when = typeof data.savedAt === 'string' && data.savedAt.length <= 40 && Number.isFinite(Date.parse(data.savedAt)) ? data.savedAt : '';
+  return { ok: true, state, savedAt: when, version: raw.version };
 }
 
 export const serializeSave = (state: GameState, savedAt: string): string => JSON.stringify({ version: SAVE_VERSION, savedAt, state } satisfies SaveData);
@@ -136,12 +151,15 @@ export function createSaveStore(storage: StorageLike | null, key = SAVE_KEY): Sa
       try {
         return parseSave(storage?.getItem(key) ?? null);
       } catch {
-        return { ok: false, reason: 'empty' };
+        return { ok: false, reason: 'empty' }; // storage refused to answer
       }
     },
     save(state, savedAt): boolean {
       if (!storage) return false;
       try {
+        // A save from a later version of the game is not ours to overwrite.
+        const existing = parseSave(storage.getItem(key));
+        if (!existing.ok && existing.reason === 'newer') return false;
         // A state that is already in the hold bounds is what the game wrote; refuse to write nonsense over a good save.
         if (!sanitizeState(state) || holdUsed(state.hold) < 0) return false;
         storage.setItem(key, serializeSave(state, savedAt));

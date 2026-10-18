@@ -74,6 +74,38 @@ describe('reading a save', () => {
   });
 });
 
+describe('hostile files', () => {
+  it('a migration that throws or returns rubbish makes the file damaged, not a crash', () => {
+    const boom: Migration = () => {
+      throw new Error('cannot read');
+    };
+    expect(parseSave(V1, { 1: boom }, 2)).toEqual({ ok: false, reason: 'damaged' });
+    expect(parseSave(V1, { 1: (() => 5) as unknown as Migration }, 2)).toEqual({ ok: false, reason: 'damaged' });
+    expect(parseSave(V1, { 1: (() => null) as unknown as Migration }, 2)).toEqual({ ok: false, reason: 'damaged' });
+  });
+
+  it('a made-up date is dropped and a position is kept near the islands', () => {
+    const raw = JSON.parse(V1);
+    raw.savedAt = 'x'.repeat(5000);
+    raw.state.pose = { x: 1e300, z: -1e300, heading: 1e300, dockedAt: null };
+    const r = parseSave(JSON.stringify(raw));
+    expect(r.ok && r.savedAt).toBe('');
+    expect(r.ok && Math.abs(r.state.pose.x)).toBeLessThan(1e5);
+    expect(r.ok && Math.abs(r.state.pose.z)).toBeLessThan(1e5);
+    raw.savedAt = 'yesterday-ish';
+    const r2 = parseSave(JSON.stringify(raw));
+    expect(r2.ok && r2.savedAt).toBe('');
+  });
+
+  it('never overwrites a save from a newer game', () => {
+    const storage = memory();
+    storage.setItem('ship-rpg.save', JSON.stringify({ version: SAVE_VERSION + 1, state: {} }));
+    const store = createSaveStore(storage);
+    expect(store.save(newGameState(brig), 'now')).toBe(false);
+    expect(JSON.parse(storage.getItem('ship-rpg.save')!).version).toBe(SAVE_VERSION + 1);
+  });
+});
+
 describe('sanitising a state', () => {
   const edit = (change: (s: ReturnType<typeof newGameState>) => void) => {
     const s = newGameState(brig);
@@ -171,6 +203,17 @@ describe('the save slot', () => {
 });
 
 describe('a run through a save', () => {
+  it('a ship loaded moored with no crew finds volunteers and can hire', () => {
+    const state = newGameState(brig);
+    state.pose.dockedAt = 'douwesen';
+    state.crew = 0;
+    state.captain.gold = 1000;
+    const game = createGame(state);
+    expect(game.view().docked).toBe('douwesen');
+    expect(game.view().company.count).toBe(Math.ceil(brig.stats.crew * 0.25));
+    expect(game.command({ type: 'hire', qty: 10 })).toEqual({ ok: true });
+  });
+
   it('state → file → game → state keeps the run: ship, purse, hold, place, discoveries, market, time', () => {
     const first = createGame(brig);
     first.dev.setGold(5000);

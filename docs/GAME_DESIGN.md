@@ -3,9 +3,9 @@
 Pirates of the Caribbean (2003) feel: free sailing on an open sea map, islands with ports, ship-to-ship combat, trading, RPG progression.
 
 - **Sailing:** wind direction/strength drives speed; sail trim changes with point of sail; ships turn at a rate set by class.
-- **Combat:** broadside cannons (left/right arcs, implemented in slice 5a), hull damage; boarding and crew later.
+- **Combat:** broadside cannons (left/right arcs, implemented in slice 5a), hull damage, boarding and crew (5b).
 - **Economy:** ports buy/sell goods with price differences (implemented, see `ECONOMY.md`); ship purchase from the 16 types.
-- **RPG:** captain skills, crew, reputation, quests.
+- **RPG:** captain levels and crew (implemented, below); skills, reputation and quests later.
 - **Camera:** third-person orbit around the ship; tactical zoom out.
 
 Planned in phases, see `ROADMAP.md`.
@@ -37,7 +37,7 @@ Planned in phases, see `ROADMAP.md`.
 - **Docking:** within 80 m of a port's anchorage and under 2.5 m/s, `F` moors the ship (it cannot move, sails come down) and opens the harbour panel; `F` again casts off. The harbour panel has a market and a tavern (`ECONOMY.md`); the shipyard sells and repairs ships (below).
 - **Navigation:** HUD shows the nearest port's name, distance and bearing plus a marker on the compass ring; the minimap (always on) and the chart (`M`) show only discovered islands and ports (fog of war): an island is discovered within its radius × 1.3 + 350 m, a port town within 500 m. Start: just off Douwesen, facing open water.
 - **Looks:** low-poly terrain with sand/grass/rock colouring, cone trees, houses, a pier, flag and a floating name label per port; the sea tints to lagoon green and foams in the shallows (depth texture baked from the same height function) and extends to a hazy horizon (a clip-map mesh, fine near the camera and coarser in each ring outward; each wave fades out where the mesh is too coarse to hold it).
-- **Not yet:** landing on shore, discovery persistence (saves).
+- **Not yet:** landing on shore. Discovery persists in the saved game (5f).
 
 ## Implemented: broadsides and one enemy (phase 5a)
 - **Guns:** half of the `cannons` stat per side (max 24 balls a volley; a bigger broadside makes each ball hit harder so total firepower is kept); `Q` fires the port side, `E` starboard. A broadside reloads in 6 s (player) / 8 s (enemy) and cannot be fired while moored. An unarmed ship (Tartane) simply cannot shoot.

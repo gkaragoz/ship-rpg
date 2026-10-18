@@ -261,6 +261,7 @@ export function createGame(init: ShipSpec | GameState): Game {
   // A loaded run keeps the state its ship was in and may begin moored.
   hp = Math.min(maxHp, Math.max(1, st.ship.hp));
   dockedAt = restoreShip(ship, st);
+  if (dockedAt) st.crew = Math.max(st.crew, Math.ceil(spec.stats.crew * COMPANY.volunteers)); // a port finds crew for a ship loaded moored, too
   explore.discover();
 
   return {

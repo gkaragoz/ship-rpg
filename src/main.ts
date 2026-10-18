@@ -23,7 +23,10 @@ function showGallery(selectedId?: string): void {
 }
 
 /** Start sailing: a new run with a ship, or a saved run's state. */
+let starting = false;
 function showSailing(init: ShipSpec | GameState): void {
+  if (starting) return; // a second press while the model loads
+  starting = true;
   const spec = 'ship' in init ? getShipSpec(init.ship.specId) : init;
   if (!spec) {
     showGallery();
@@ -31,6 +34,7 @@ function showSailing(init: ShipSpec | GameState): void {
   }
   // The crew walks the model's deck, which the game reads once at the start: have the model loaded first.
   void requestShipAsset(spec.id).finally(() => {
+    starting = false;
     mode?.dispose();
     mode = startSailingMode(root, init, () => showGallery(spec.id), saves, showSailing);
   });
