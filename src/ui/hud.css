@@ -49,6 +49,8 @@
 
 .hud-hull > div { background: #7bc96f; }
 .hud-hull.low > div { background: #e8643c; }
+.hud-rig > div { background: #c9b27b; }
+.hud-rig.low > div { background: #e8643c; }
 .hud-guns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
 .hud-guns[hidden] { display: none; }
 .hud-gun-wrap { font-size: 11px; color: #9fb7c4; }

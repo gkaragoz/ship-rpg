@@ -2,6 +2,7 @@ import { angleDiff, clamp, wrapAngle } from '../core';
 import type { Controls, WindView } from '../core';
 import type { ShipSpec } from '../ships';
 import { NOMINAL_WIND, sailEfficiency, terrainHeight } from '../world';
+import { repairRigging, riggingSpeedFactor, riggingTurnFactor } from './damage';
 
 /** Tuning: converts the original game's stats into metres and seconds. */
 export const SAILING = {
@@ -41,10 +42,12 @@ export interface PlayerShip {
   grounded: number;
   /** Moored at a port: the ship does not move. */
   docked: boolean;
+  /** Health of sails and rigging, 1 intact … 0 wrecked: slows the ship and blunts its turning (see `damage.ts`). */
+  rigging: number;
 }
 
 export function createPlayerShip(x = 0, z = 0, heading = 0): PlayerShip {
-  return { x, z, heading, speed: 0, rudder: 0, sailTarget: 0.5, sailLevel: 0.5, efficiency: 0, roll: 0, grounded: 0, docked: false };
+  return { x, z, heading, speed: 0, rudder: 0, sailTarget: 0.5, sailLevel: 0.5, efficiency: 0, roll: 0, grounded: 0, docked: false, rigging: 1 };
 }
 
 export const maxSpeed = (spec: ShipSpec): number => spec.stats.speed * SAILING.speedScale;
@@ -73,11 +76,13 @@ export function stepPlayerShip(s: PlayerShip, spec: ShipSpec, wind: WindView, co
     s.rudder = 0;
     s.sailTarget = 0;
     s.grounded = 0;
+    s.rigging = repairRigging(s.rigging, true, dt);
     s.roll += (0 - s.roll) * Math.min(1, dt * 2);
     return;
   }
   s.rudder += clamp(controls.rudder - s.rudder, -SAILING.rudderRate * dt, SAILING.rudderRate * dt);
   s.grounded = Math.max(0, s.grounded - dt);
+  s.rigging = repairRigging(s.rigging, false, dt);
 
   // > 0: the wind comes from the port side; < 0: from starboard.
   const rel = angleDiff(wind.from, s.heading);
@@ -89,7 +94,8 @@ export function stepPlayerShip(s: PlayerShip, spec: ShipSpec, wind: WindView, co
   const drive = s.grounded > 0 ? 0 : s.sailLevel * s.efficiency;
   // Head to wind the sails only push the ship astern, slowly: that is what lets it fall off again.
   const sternway = s.grounded <= 0 && s.efficiency < 0.05 ? -top * SAILING.ironsDrift * s.sailLevel : 0;
-  const target = Math.min(top * drive * windFactor, top * SAILING.overspeed) + sternway;
+  // Wrecked sails drive the ship less; the drift astern in irons is the wind's doing, not the sails'.
+  const target = Math.min(top * drive * windFactor, top * SAILING.overspeed) * riggingSpeedFactor(s.rigging) + sternway;
   const rate = target > s.speed ? SAILING.accel : SAILING.drag;
   s.speed += (target - s.speed) * (1 - Math.exp(-rate * dt));
 
@@ -97,7 +103,7 @@ export function stepPlayerShip(s: PlayerShip, spec: ShipSpec, wind: WindView, co
   const sailed = s.sailLevel > 0.05 ? SAILING.minAuthority : 0;
   const authority = Math.max(clamp(Math.abs(s.speed) / (0.4 * top), 0, 1), sailed, s.grounded > 0 ? 0.5 : 0);
   const previousHeading = s.heading;
-  s.heading = wrapAngle(s.heading - s.rudder * spec.stats.turn * SAILING.turnScale * authority * dt);
+  s.heading = wrapAngle(s.heading - s.rudder * spec.stats.turn * SAILING.turnScale * authority * riggingTurnFactor(s.rigging) * dt);
   // The hull cannot swing a corner onto the bottom; this also keeps a grounded ship from pinning itself.
   if (isBlocked(s, spec)) s.heading = previousHeading;
   s.speed *= 1 - 0.05 * Math.abs(s.rudder) * dt;

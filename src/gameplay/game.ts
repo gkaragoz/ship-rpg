@@ -3,7 +3,8 @@ import type { BallView, Controls, EnemyView, GameEvent, GameView, PortView } fro
 import type { ShipSpec } from '../ships';
 import { PORTS, getPort, terrainHeight, windAt, type Port } from '../world';
 import { createExploration } from './exploration';
-import { COMBAT, aimZone, ballHits, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball, type Side } from './combat';
+import { COMBAT, aimZone, ballHitZone, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball, type Side } from './combat';
+import { hitEffect } from './damage';
 import { MAX_ENEMIES, aiStep, createEnemy, desiredEnemies, findSpawn, lostTrack, pickEnemySpec, type Enemy } from './enemy';
 import { SAILING, createPlayerShip, maxSpeed, stepPlayerShip } from './sailing';
 
@@ -20,6 +21,8 @@ export interface Game {
     teleportPlayer(x: number, z: number): void;
     /** Pretend this many enemies have been sunk: changes how many attack at once. */
     setKills(n: number): void;
+    /** Set the player's rigging health, 0…1. */
+    setRigging(fraction: number): void;
   };
 }
 
@@ -128,9 +131,12 @@ export function createGame(spec: ShipSpec): Game {
       let consumed = false;
       if (b.owner === 'enemy') {
         // A moored ship is safe in the harbour.
-        if (!sunk && !dockedAt && ballHits(b, ship, spec)) {
-          hp = Math.max(0, hp - b.damage);
-          events.push({ type: 'hit', owner: 'enemy', x: b.x, y: b.y, z: b.z, amount: b.damage });
+        const zone = !sunk && !dockedAt ? ballHitZone(b, ship, spec) : null;
+        if (zone) {
+          const fx = hitEffect(zone, b.damage, maxHp);
+          hp = Math.max(0, hp - fx.hull);
+          ship.rigging = Math.max(0, ship.rigging - fx.rigging);
+          events.push({ type: 'hit', owner: 'enemy', x: b.x, y: b.y, z: b.z, amount: fx.hull, zone });
           consumed = true;
           if (hp <= 0) {
             sunk = true;
@@ -140,9 +146,12 @@ export function createGame(spec: ShipSpec): Game {
         }
       } else {
         for (const e of enemies) {
-          if (e.sinking >= 0 || !ballHits(b, e.ship, e.spec)) continue;
-          e.hp = Math.max(0, e.hp - b.damage);
-          events.push({ type: 'hit', owner: 'player', x: b.x, y: b.y, z: b.z, amount: b.damage });
+          const zone = e.sinking < 0 ? ballHitZone(b, e.ship, e.spec) : null;
+          if (!zone) continue;
+          const fx = hitEffect(zone, b.damage, e.maxHp);
+          e.hp = Math.max(0, e.hp - fx.hull);
+          e.ship.rigging = Math.max(0, e.ship.rigging - fx.rigging);
+          events.push({ type: 'hit', owner: 'player', x: b.x, y: b.y, z: b.z, amount: fx.hull, zone });
           consumed = true;
           if (e.hp <= 0) {
             e.sinking = 0;
@@ -211,6 +220,9 @@ export function createGame(spec: ShipSpec): Game {
       setKills(n): void {
         kills = n;
       },
+      setRigging(fraction): void {
+        ship.rigging = Math.min(Math.max(fraction, 0), 1);
+      },
     },
     update(dt, controls): void {
       time += dt;
@@ -265,8 +277,8 @@ export function createGame(spec: ShipSpec): Game {
         maxHp: e.maxHp,
         sinking: e.sinking,
         fleeing: e.fleeing,
-        rigging: 1, // placeholders until the damage model (5a.3a-c) fills them in
-        flooding: 0,
+        rigging: e.ship.rigging,
+        flooding: 0, // placeholders until leaks and fire (5a.3b, c)
         fire: 0,
         distance: Math.hypot(e.ship.x - ship.x, e.ship.z - ship.z),
         direction: Math.atan2(-(e.ship.z - ship.z), e.ship.x - ship.x),
@@ -293,7 +305,7 @@ export function createGame(spec: ShipSpec): Game {
           roll: ship.roll,
           hp,
           maxHp,
-          rigging: 1,
+          rigging: ship.rigging,
           flooding: 0,
           fire: 0,
           guns: cannonsPerSide(spec),

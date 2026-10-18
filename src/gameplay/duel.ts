@@ -1,7 +1,8 @@
 import { createRng } from '../core';
 import type { ShipSpec } from '../ships';
 import { windAt } from '../world';
-import { COMBAT, ballHits, fireBroadside, stepBall, type Ball } from './combat';
+import { COMBAT, ballHitZone, fireBroadside, stepBall, type Ball } from './combat';
+import { hitEffect } from './damage';
 import { ENEMY_TUNING, aiStep, createEnemy, lostTrack, type Enemy } from './enemy';
 import { stepPlayerShip } from './sailing';
 
@@ -133,8 +134,11 @@ export function runDuel(a: DuelSide, b: DuelSide, options: DuelOptions = {}): Du
         stepBall(ball, sub);
         const target = ball.owner === 'player' ? fb : fa;
         const shooter = ball.owner === 'player' ? fa : fb;
-        if (ballHits(ball, target.e.ship, target.e.spec)) {
-          target.e.hp = Math.max(0, target.e.hp - ball.damage);
+        const zone = ballHitZone(ball, target.e.ship, target.e.spec);
+        if (zone) {
+          const fx = hitEffect(zone, ball.damage, target.e.maxHp);
+          target.e.hp = Math.max(0, target.e.hp - fx.hull);
+          target.e.ship.rigging = Math.max(0, target.e.ship.rigging - fx.rigging);
           shooter.hits++;
           continue;
         }

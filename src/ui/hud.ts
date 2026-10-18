@@ -60,8 +60,10 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const driveEl = rowValue('Verim');
   const portEl = rowValue('Liman');
   const hullEl = rowValue('Gövde');
+  const rigEl = rowValue('Arma');
   const drive = bar();
   const hull = bar('hud-hull');
+  const rig = bar('hud-rig');
 
   // Broadsides: left and right, each a bar that fills while loaded.
   const guns = el('div', 'hud-guns');
@@ -73,7 +75,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
     return w;
   };
   guns.append(gunLabel('Sol (Q)', gunPort.root), gunLabel('Sağ (E)', gunStbd.root));
-  panel.append(el('h3', undefined, shipName), compass, rows, drive.root, hull.root, guns);
+  panel.append(el('h3', undefined, shipName), compass, rows, drive.root, hull.root, rig.root, guns);
 
   // Nearest enemy.
   const target = el('div', 'hud-target');
@@ -84,7 +86,8 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const targetText = el('span');
   targetName.append(targetText);
   const targetBar = bar('hud-hull');
-  target.append(targetName, targetBar.root);
+  const targetRig = bar('hud-rig');
+  target.append(targetName, targetBar.root, targetRig.root);
 
   const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · Q/E top · G nişan · N ses · F liman · M harita · Fare: kamera · Esc: galeri');
   const prompt = el('div', 'hud-prompt');
@@ -129,6 +132,9 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
       hullEl.textContent = `${Math.round(ship.hp)} / ${ship.maxHp}`;
       hull.fill.style.width = pct(ship.hp / ship.maxHp);
       hull.root.classList.toggle('low', ship.hp / ship.maxHp < 0.3);
+      rigEl.textContent = pct(ship.rigging);
+      rig.fill.style.width = pct(ship.rigging);
+      rig.root.classList.toggle('low', ship.rigging < 0.35);
       guns.hidden = ship.guns === 0;
       gunPort.fill.style.width = pct(1 - ship.reload.port);
       gunStbd.fill.style.width = pct(1 - ship.reload.starboard);
@@ -158,6 +164,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
         targetChip.style.background = `#${nation.flag.toString(16).padStart(6, '0')}`;
         targetText.textContent = `${nation.name} ${foe.name}${foe.fleeing ? ' (kaçıyor)' : ''} · ${Math.round(foe.distance)} m · ${bearing(foe.direction).toFixed(0).padStart(3, '0')}°`;
         targetBar.fill.style.width = pct(foe.hp / foe.maxHp);
+        targetRig.fill.style.width = pct(foe.rigging);
       }
 
       // Hit feedback: a red flash when we are hit, a marker when our shot lands.

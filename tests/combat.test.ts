@@ -218,12 +218,19 @@ describe('createGame combat', () => {
     for (let i = 0; i < 60 * 900 && sunkAt < 0; i++) {
       game.update(DT, { rudder: 0, sailStep: 0 });
       const view = game.view();
-      for (const e of view.events) if (e.type === 'hit' && e.owner === 'enemy') sawHit = e.amount ?? 0;
+      for (const e of view.events) {
+        // A Lugger's 12 lb ball: 12 × 2.5 = 30 hull points, or 30% of that when it strikes the rigging.
+        if (e.type === 'hit' && e.owner === 'enemy') {
+          sawHit = e.amount ?? 0;
+          expect(e.zone).toBeDefined();
+          expect(e.amount).toBeCloseTo(e.zone === 'rigging' ? 9 : 30, 5);
+        }
+      }
       if (view.sunk) sunkAt = i / 60;
     }
     expect(sunkAt).toBeGreaterThan(0);
     const dead = game.view();
-    expect(sawHit).toBe(30); // a Lugger's 12 lb shot: 12 × 2.5 hull points per ball
+    expect(sawHit).toBeGreaterThan(0);
     expect(dead.ship.hp).toBe(0);
 
     game.update(DT, { rudder: 0, sailStep: 0, restart: true }); // too soon: must watch it sink first

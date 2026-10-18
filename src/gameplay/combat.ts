@@ -1,5 +1,7 @@
 import type { GameEvent, Owner } from '../core';
 import { CONFIG, lerp } from '../core';
+import type { HitZone } from '../core';
+import { WATERLINE_BAND } from './damage';
 import type { ShipSpec } from '../ships';
 
 export type Side = 'port' | 'starboard';
@@ -195,21 +197,27 @@ export function stepBall(b: Ball, dt: number): void {
   b.age += dt;
 }
 
-/** True if the ball is inside the target's hull footprint, between keel and rail (plus rigging height). */
-export function ballHits(b: Ball, target: Pick<Hull, 'x' | 'z' | 'heading'>, spec: ShipSpec): boolean {
+/**
+ * Where a ball strikes a ship, or null if it misses: inside the hull footprint, between the keel and
+ * the height of the hull plus rigging, and by height: just above the sea is the waterline, up to the
+ * deck rail the hull, above that the rigging.
+ */
+export function ballHitZone(b: Ball, target: Pick<Hull, 'x' | 'z' | 'heading'>, spec: ShipSpec): HitZone | null {
   const dx = b.x - target.x;
   const dz = b.z - target.z;
   const c = Math.cos(target.heading);
   const s = Math.sin(target.heading);
   const along = dx * c - dz * s;
   const across = dx * s + dz * c;
-  return (
-    Math.abs(along) < spec.length / 2 &&
-    Math.abs(across) < spec.beam / 2 &&
-    b.y > -spec.draft &&
-    b.y < spec.freeboard + 1.5
-  );
+  if (Math.abs(along) >= spec.length / 2 || Math.abs(across) >= spec.beam / 2) return null;
+  if (b.y <= -spec.draft || b.y >= spec.freeboard + 1.5) return null;
+  if (b.y < WATERLINE_BAND) return 'waterline';
+  return b.y < spec.freeboard ? 'hull' : 'rigging';
 }
+
+/** True if the ball is inside the target's hull footprint, between keel and rail (plus rigging height). */
+export const ballHits = (b: Ball, target: Pick<Hull, 'x' | 'z' | 'heading'>, spec: ShipSpec): boolean =>
+  ballHitZone(b, target, spec) !== null;
 
 /** True if the target's hull would be hit by a broadside on `side` fired now: its centre lies in the landing zone. */
 export function targetInZone(
