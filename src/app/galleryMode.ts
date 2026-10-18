@@ -27,7 +27,7 @@ const toItem = (s: ShipSpec): GalleryItem => ({
 const ORDERED = [...SHIP_SPECS].sort((a, b) => b.stats.rank - a.stats.rank);
 
 /** Ship gallery: browse the 16 ships in 3D; "sail" hands the chosen ship to the caller. */
-export function startGalleryMode(host: HTMLElement, selectedId: string | undefined, onSail: (spec: ShipSpec) => void): Mode {
+export function startGalleryMode(host: HTMLElement, selectedId: string | undefined, onSail: (spec: ShipSpec) => void, onContinue?: { label: string; run(): void }): Mode {
   // The panel is created after the view; the view reads its insets lazily.
   const panel: { ui?: GalleryUI } = {};
   const store = getSettings();
@@ -48,6 +48,7 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
       const spec = ORDERED.find((s) => s.id === id);
       if (spec) onSail(spec);
     },
+    onContinue,
   });
   panel.ui = ui;
   const settingsUI = createSettingsUI(host, store, { extraTabs: [weatherTab({ hour: () => view.hour(), setHour: (h) => view.setHour(h), weather: () => view.weather(), setWeather: (c) => view.setWeather(c) })] });

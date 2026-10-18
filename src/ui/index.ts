@@ -7,6 +7,8 @@ export type { MapUi } from './map';
 export { createDebugOverlay, profilerLines } from './debugOverlay';
 export type { DebugOverlay } from './debugOverlay';
 export { weatherTab } from './weatherPanel';
+export { saveTab } from './saveTab';
+export type { SaveControls } from './saveTab';
 export type { WorldControls } from './weatherPanel';
 export { createSettingsUI } from './settings';
 export type { SettingsHandlers, SettingsUI } from './settings';

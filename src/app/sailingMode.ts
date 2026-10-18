@@ -1,12 +1,13 @@
 import { createAudio } from '../audio';
 import { createInput, type Controls, type GameView } from '../core';
-import { createGame } from '../gameplay';
+import { createGame, type GameState, type SaveStore } from '../gameplay';
 import { createAutoQuality, createSailingView, lowerQuality, nextQuality } from '../render';
 import { getSettings } from '../settings';
 import { createShip, getShipSpec, requestShipAsset, type Ship, type ShipLod, type ShipSpec } from '../ships';
-import { createHud, createMapUi, createPortPanel, createSettingsUI, reasonText, weatherTab } from '../ui';
+import { createHud, createMapUi, createPortPanel, createSettingsUI, reasonText, saveTab, weatherTab } from '../ui';
 import { getNation, sunState, weatherAt, type Weather } from '../world';
 import { gameLines, renderLines } from './debugLines';
+import { describeSave } from './saves';
 import { applyGameSettings } from './gameSettings';
 import type { Mode } from './mode';
 
@@ -39,10 +40,17 @@ const weatherOf = (v: GameView): Weather => ({
   tuning: v.weather.tuning,
 });
 
-/** Free sailing on the open sea with the chosen ship. Esc opens the settings menu, which has the way back (`onExit`). */
-export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () => void): Mode {
+/** Seconds of game time between automatic saves at sea (the game also saves on docking). */
+const AUTOSAVE_SECONDS = 60;
+
+/**
+ * Free sailing on the open sea with the chosen ship, or the run in a saved state. Esc opens the settings menu, which has
+ * the way back (`onExit`) and the save tab (`onLoad` restarts the mode on the saved run).
+ */
+export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, onExit: () => void, saves: SaveStore, onLoad: (state: GameState) => void): Mode {
   const input = createInput();
-  const game = createGame(spec);
+  const game = createGame(init);
+  const spec = game.spec;
   // In dev, expose the game on window so it can be poked from the browser console (e.g. __game.dev.setKills(4)).
   if (import.meta.env.DEV) (window as unknown as { __game?: typeof game }).__game = game;
   let ship = createShip(spec, { flag: getNation('free').flag }); // the player is a free captain
@@ -77,10 +85,24 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   let paused = false;
   let lastView: GameView | null = null;
   let lastStrike = game.view().weather.strike?.id ?? 0; // a strike from before this mode started is not heard again
+  const writeSave = (): boolean => !lastView?.sunk && saves.save(game.state(), new Date().toISOString());
+  let lastSaveAt = game.view().time;
+  let lastDocked: string | null = null;
   const settingsUI = createSettingsUI(host, store, {
     onExit: { label: 'Galeriye dön', run: onExit },
     onOpenChange: (open) => (paused = open),
     extraTabs: [
+      saveTab({
+        info: () => describeSave(saves.load()),
+        save: () => (writeSave() ? 'Kaydedildi.' : 'Kaydedilemedi (tarayıcı depolamayı engelliyor).'),
+        load: () => {
+          const r = saves.load();
+          if (!r.ok) return 'Yüklenecek geçerli bir kayıt yok.';
+          onLoad(r.state);
+          return '';
+        },
+        canLoad: () => saves.load().ok,
+      }),
       weatherTab({
         hour: () => lastView?.hour ?? 9,
         setHour: (h) => game.setClock({ hour: h }),
@@ -249,6 +271,12 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
         audio.thunder(Math.hypot(v.weather.strike.x - v.ship.x, v.weather.strike.z - v.ship.z), v.weather.strike.power);
       }
       if (v.ship.specId !== shipId) swapPlayer(v.ship.specId);
+      // Autosave: whenever the ship moors, and every minute at sea.
+      if ((v.docked && v.docked !== lastDocked) || v.time - lastSaveAt >= AUTOSAVE_SECONDS) {
+        lastSaveAt = v.time;
+        if (writeSave()) hud.notice('Kaydedildi');
+      }
+      lastDocked = v.docked;
       syncOthers(v);
       ship.setSailTrim(v.ship.apparent.angle, v.ship.sailLevel);
       ship.setWind?.({ angle: v.ship.apparent.angle, speed: v.ship.apparent.speed, gust: v.ship.gust });

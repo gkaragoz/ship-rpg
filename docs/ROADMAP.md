@@ -27,7 +27,7 @@
 - [x] 4. Islands, ports, navigation (11 ports on 8 islands, grounding, docking, fog-of-war chart and minimap)
   - [ ] polish: harbour town detail (forts, docks, ships at anchor), beach waves
   - [ ] polish: coast sounding/depth warning on the HUD
-  - [ ] save/load of discovered map and position
+  - [x] save/load of discovered map and position (5f)
   - [ ] layout: at ~800 px width the dock hint overlaps the HUD compass and the harbour panel touches the minimap; check the mobile hint toast
   - [ ] visual: shallows show large flat facets (smooth the depth tint), far sea shows horizontal banding (near/far seam or aliasing: investigate), island labels clipped at the top edge or hidden behind the minimap
   - [ ] chart: fixed extent clips the ship marker near the south edge; no touch way to close it
@@ -67,4 +67,4 @@
   - [x] 5c. Trade: buy and sell goods at ports, hold capacity from ship stats, hiring crew at the tavern (`docs/ECONOMY.md`; the repo has no cargo table, so the goods and port tables are our own)
   - [x] 5d. Shipyard: buy ships from the 16 types (part exchange for yours, cargo must fit), paid repair, ship swap at the quay (`docs/ECONOMY.md`). Open: a ship cannot be kept as a second hull or captured as a prize; hull repair at the quay is slow (0.2 %/s)
   - [ ] 5e. NPC traffic between ports (also feeds 5a.2 several enemies), nationalities/factions, reputation and simple quests
-  - [ ] 5f. Save and load: a versioned state object (position, ship, gold, hold, discoveries, kills); plan the schema as 5b–5e add state
+  - [x] 5f. Save and load: a versioned `GameState` in one `localStorage` slot (ship and condition, gold, xp, crew, hold, position and mooring, discoveries, market pressure, time), migrations table, sanitising on load, autosave on mooring and every minute, Continue in the gallery, Kayıt tab in the menu (`docs/ARCHITECTURE.md` "Saving"). Open: one slot; what is at sea (enemies, shots) is not saved; the settings are saved separately

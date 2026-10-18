@@ -2,6 +2,8 @@ export { createGame } from './game';
 export { cloneState, newGameState } from './state';
 export type { GameState } from './state';
 export type { Game } from './game';
+export { MIGRATIONS, SAVE_KEY, SAVE_VERSION, createSaveStore, parseSave, sanitizeState, serializeSave } from './save';
+export type { LoadResult, Migration, SaveData, SaveStore, StorageLike } from './save';
 export { crewCountFor } from './crew';
 export { enemySide, playerSide, runDuel } from './duel';
 export type { DuelOptions, DuelOutcome, DuelResult, DuelSide } from './duel';

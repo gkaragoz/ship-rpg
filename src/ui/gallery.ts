@@ -13,6 +13,8 @@ export interface GalleryHandlers {
   onAutoRotate(on: boolean): void;
   /** The player chose to sail the selected ship. */
   onSail(id: string): void;
+  /** A saved game to go on with: the button's text (what is saved) and what it does. */
+  onContinue?: { label: string; run(): void };
 }
 
 export interface GalleryUI {
@@ -63,7 +65,15 @@ export function createGalleryUI(host: HTMLElement, items: readonly GalleryItem[]
   sail.type = 'button';
   sail.addEventListener('click', () => current && handlers.onSail(current));
   const actions = el('div', 'gallery-actions');
-  actions.append(rotate, sail);
+  if (handlers.onContinue) {
+    const go = handlers.onContinue;
+    const cont = el('button', 'gallery-sail', 'Devam et');
+    cont.type = 'button';
+    cont.title = go.label;
+    cont.addEventListener('click', () => go.run());
+    const saved = el('span', 'gallery-saved', go.label);
+    actions.append(rotate, saved, cont, sail);
+  } else actions.append(rotate, sail);
   card.append(title, blurb, stats, actions);
   root.append(list, card);
   host.appendChild(root);

@@ -50,3 +50,6 @@ input[type='checkbox'].settings-input { width: 18px; height: 18px; justify-self:
 .settings-auto { padding: 1px 4px; font: inherit; font-size: 11px; color: #9fb7c4; background: none; border: 1px solid #4b6a7a; border-radius: 3px; cursor: pointer; }
 .settings-auto:hover { color: #f3ead2; border-color: #c9a227; }
 @media (max-width: 520px) { .settings-weather { grid-template-columns: 1fr 64px 38px; } .settings-weather .settings-input { grid-column: 1 / -1; } }
+
+.settings-note { margin: 8px 0; font-size: 13px; color: #9fb7c4; }
+.settings-inline button:disabled { opacity: 0.4; cursor: default; }

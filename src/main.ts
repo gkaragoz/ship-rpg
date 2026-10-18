@@ -1,7 +1,9 @@
 import { createProfiler, startLoop } from './core';
 import { getSettings } from './settings';
 import { loadCrewAssets } from './render';
-import { loadShipAssets, requestShipAsset, type ShipSpec } from './ships';
+import { loadShipAssets, requestShipAsset, getShipSpec, type ShipSpec } from './ships';
+import type { GameState } from './gameplay';
+import { createGameSaves, describeSave } from './app/saves';
 import { startGalleryMode } from './app/galleryMode';
 import { startSailingMode } from './app/sailingMode';
 import type { Mode } from './app/mode';
@@ -12,17 +14,25 @@ if (!host) throw new Error('#app not found');
 const root: HTMLElement = host;
 
 let mode: Mode | undefined;
+const saves = createGameSaves();
 
 function showGallery(selectedId?: string): void {
   mode?.dispose();
-  mode = startGalleryMode(root, selectedId, showSailing);
+  const saved = saves.load();
+  mode = startGalleryMode(root, selectedId, showSailing, saved.ok ? { label: describeSave(saved), run: () => showSailing(saved.state) } : undefined);
 }
 
-function showSailing(spec: ShipSpec): void {
+/** Start sailing: a new run with a ship, or a saved run's state. */
+function showSailing(init: ShipSpec | GameState): void {
+  const spec = 'ship' in init ? getShipSpec(init.ship.specId) : init;
+  if (!spec) {
+    showGallery();
+    return;
+  }
   // The crew walks the model's deck, which the game reads once at the start: have the model loaded first.
   void requestShipAsset(spec.id).finally(() => {
     mode?.dispose();
-    mode = startSailingMode(root, spec, () => showGallery(spec.id));
+    mode = startSailingMode(root, init, () => showGallery(spec.id), saves, showSailing);
   });
 }
 
