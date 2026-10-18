@@ -38,7 +38,7 @@
 .hud-bar { height: 6px; background: rgba(255, 255, 255, 0.15); border-radius: 3px; overflow: hidden; }
 .hud-bar > div { height: 100%; background: #e0b840; width: 0; }
 .hud-speed {
-  position: absolute; left: 50%; top: 46px; transform: translateX(-50%); padding: 3px 12px; font-size: 14px; font-weight: bold;
+  position: absolute; left: 50%; top: 86px; transform: translateX(-50%); padding: 3px 12px; font-size: 14px; font-weight: bold;
   background: rgba(11, 26, 36, 0.82); border: 1px solid #c9a227; border-radius: 4px; color: #e0b840; white-space: nowrap;
 }
 .hud-speed.held { border-color: #e8643c; color: #ffb199; }
