@@ -30,10 +30,11 @@ function ownMaterials(nodes: THREE.Object3D[]): THREE.MeshStandardMaterial[] {
   return [...clones.values()];
 }
 
-function flagNodes(root: THREE.Object3D): THREE.Object3D[] {
+/** Nodes whose name ends with `suffix` (`LODn_Flag` pennants and ensign, `LODn_Jib` the static headsails). */
+function namedNodes(root: THREE.Object3D, suffix: string): THREE.Object3D[] {
   const out: THREE.Object3D[] = [];
   root.traverse((o) => {
-    if (o.name.endsWith('_Flag')) out.push(o);
+    if (o.name.endsWith(suffix)) out.push(o);
   });
   return out;
 }
@@ -52,9 +53,9 @@ export function createGlbShip(spec: ShipSpec, asset: ShipAsset, flag: number = D
   root.add(pivot);
   const lods = [0, 1, 2].map((l) => root.getObjectByName(`LOD${l}`));
   const sails = collectSailNodes(root);
-  const sailMats = ownMaterials([...sails.square, ...sails.aft]);
+  const sailMats = ownMaterials([...sails.square, ...sails.aft, ...namedNodes(root, '_Jib')]);
   // Pennants and the ensign are their own `LODn_Flag` meshes so each nation's colour can be set per ship.
-  const flagMats = ownMaterials(flagNodes(root));
+  const flagMats = ownMaterials(namedNodes(root, '_Flag'));
   for (const m of flagMats) m.color.setHex(flag);
 
   const sailTrim = createSailTrim(sails);

@@ -7,7 +7,6 @@ hand-tuned tartane, kept as a reference only). Each ship is built in a scratch s
 Node contract (docs/SHIP_ASSETS.md): `<id>` root > `LOD0|1|2` > `LODn_Body`, `LODn_m<i>_trim-square|aft`
 pivots (sails as children), `LOD0_Glass` (emissive windows and lanterns).
 """
-import importlib
 import json
 import pathlib
 import sys
@@ -16,18 +15,20 @@ import bpy
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+# The open Blender keeps imported modules between runs (and between worktrees): drop ours so this folder's code is used.
+for _name in ("shipkit", "hullmath", "shipbuilder", "shipdetails", "pbrship", "pbrao", "pbrbody", "pbrbow", "pbrcastle", "pbrdeck",
+              "pbrguns", "pbrhull", "pbrlayout", "pbrmat", "pbrmesh", "pbrrig", "pbrsail", "pbrtex"):
+    sys.modules.pop(_name, None)
 import shipkit  # noqa: E402
 import shipbuilder  # noqa: E402
 import shipdetails  # noqa: E402
-
-importlib.reload(shipkit)
-importlib.reload(shipbuilder)
-importlib.reload(shipdetails)
+import pbrship  # noqa: E402
 from shipkit import Atlas, MB, Scratch, emissive_material, empty, export_glb, fnv1a, tri_count, validate_ship, write_json  # noqa: E402
 from shipbuilder import B, LOD_CFG, Mast  # noqa: E402
 
 REPO = HERE.parents[1]
 OUT = REPO / "public" / "models" / "ships"
+PBR_IDS = ("tartane", "brig", "galleon", "battleship")   # built by pbrship.py (baked PBR textures); the rest use the flat-colour atlas
 SPECS = {s['id']: s for s in json.loads((HERE / "ships.json").read_text(encoding="utf-8"))}
 
 
@@ -134,6 +135,10 @@ def build_meta(spec, masts, report, lantern, budget, extra):
 def build_ship(spec_id):
     spec = SPECS[spec_id]
     OUT.mkdir(parents=True, exist_ok=True)
+    if spec_id in PBR_IDS:
+        meta = pbrship.build_ship(spec, build_meta, OUT)
+        write_json(OUT / f"{spec_id}.meta.json", meta)
+        return meta
     budget = budgets(spec['length'])
     with Scratch() as sc:
         atlas = Atlas(f"{spec_id}_atlas", swatches(spec))

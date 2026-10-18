@@ -11,67 +11,13 @@ from mathutils import Vector
 
 from shipkit import MB
 
-SECTION_FULLNESS = 0.6
-DEPTH_EXPONENT = 0.8
+from hullmath import (DEPTH_EXPONENT, SECTION_FULLNESS, bulwark, clamp01, deck_height, half_beam, keel_height,  # noqa: F401
+                      mast_base, section_point, side_point, smooth)
 
 
 def B(p):
     """Game (x, y, z) -> Blender (x, -z, y)."""
     return (p[0], -p[2], p[1])
-
-
-def clamp01(x):
-    return min(max(x, 0.0), 1.0)
-
-
-def smooth(x):
-    c = clamp01(x)
-    return c * c * (3 - 2 * c)
-
-
-# --------------------------------------------------------------------------- hull math (hullShape.ts)
-def half_beam(s, t):
-    base = s['beam'] / 2
-    if t >= 0.5:
-        u = (t - 0.5) * 2
-        return base * max((1 - u ** 1.7) ** 0.75, 0.03)
-    u = (0.5 - t) * 2
-    return base * (1 - 0.22 * u * u)
-
-
-def deck_height(s, t):
-    return s['freeboard'] + s['sheer'] * (0.6 * (1 - t) ** 2 + t ** 2.5)
-
-
-def keel_height(s, t):
-    bow = smooth((t - 0.6) / 0.4)
-    stern = smooth((0.25 - t) / 0.25)
-    return -s['draft'] * (1 - 0.7 * bow - 0.3 * stern)
-
-
-def section_point(s, t, k):
-    hw, top, keel = half_beam(s, t), deck_height(s, t), keel_height(s, t)
-    theta = k * math.pi
-    c, sn = math.cos(theta), math.sin(theta)
-    sign = (c > 0) - (c < 0)
-    z = -sign * hw * abs(c) ** SECTION_FULLNESS
-    y = top + (keel - top) * max(sn, 0.0) ** DEPTH_EXPONENT
-    x = (t - 0.5) * s['length'] + s['length'] * (0.05 * t ** 3 - 0.02 * (1 - t) ** 3) * (1 - sn)
-    return (x, y, z)
-
-
-def side_point(s, t, drop):
-    rng = deck_height(s, t) - keel_height(s, t)
-    theta = math.asin(clamp01(drop / rng) ** (1 / DEPTH_EXPONENT))
-    return section_point(s, t, 1 - theta / math.pi)
-
-
-def bulwark(s):
-    return min(max(0.2 + 0.017 * s['length'], 0.5), 1.2)
-
-
-def mast_base(s, m):
-    return ((0.5 - m['at']) * s['length'], deck_height(s, 1 - m['at']) - bulwark(s), 0.0)
 
 
 # --------------------------------------------------------------------------- LOD ladder

@@ -7,7 +7,7 @@ How the ships (all 16 generated from `ShipSpec` data) and the crew are produced,
 |---|---|
 | Model | `llama-server` (Gemma 4 26B-A4B, 16k context, port 8080) with its web UI |
 | Bridge | `blender-mcp --transport http --port 9191` ↔ Blender add-on (socket 9876); `C:/blender_mcp`, tools such as `execute_blender_code` |
-| Scripts | `tools/blender/` in this repo: `shipkit.py` (helpers), `shipbuilder.py` + `make_ships.py` (generic ships from `ships.json`), `make_tartane.py` (legacy hand-tuned tartane, reference only), `make_crew.py` |
+| Scripts | `tools/blender/` in this repo: `shipkit.py` (helpers), `shipbuilder.py` + `make_ships.py` (generic flat-colour ships from `ships.json`), the **PBR pipeline** (`pbr*.py`, `hullmath.py`, see below) for the flagships, `make_tartane.py` (legacy hand-tuned tartane, reference only), `make_crew.py` |
 | Outputs | `public/models/ships/*`, `public/models/crew/*` (the scripts find the repo from `__file__`) |
 | Gate | `tests/assets.test.ts` (GLB contract, see `SHIP_ASSETS.md`) + `npm run check` |
 
@@ -29,7 +29,7 @@ from the model's summary.
 
 Both generators end with a `RESULT` dict, so the same wrapper works for `make_ships.py` and `make_crew.py` (only the path changes).
 Requirements: Blender 5.x (tested on 5.2.2 LTS) with its bundled glTF exporter and numpy, `blender-mcp` add-on enabled ("MCP Bridge Server" running), no extra pip packages.
-Headless smoke test (about 5 s each) and success check: `blender -b --factory-startup --python tools/blender/make_ships.py` must finish without a traceback and update
+Headless smoke test (about 5 s for the flat-colour ships, 5–10 s per PBR ship) and success check: `blender -b --factory-startup --python tools/blender/make_ships.py` must finish without a traceback and update
 `public/models/ships/<id>.{glb,meta.json}`; then `npm run check` (the asset contract tests) must pass.
 
 ## Rules every generator must follow (learned the hard way)
@@ -67,6 +67,35 @@ Changing a spec: edit `specs.ts`, `npm run export:specs`, re-run the ship throug
 6. Look at it in the browser: gallery, then `?perf&lod=0|1|2` in the sailing mode.
 `make_tartane.py` is the legacy hand-tuned tartane (superseded by the generic builder, which now has all its details); new ships should use the generic builder.
 A rig the builder does not know needs a new builder in `shipbuilder.py` (and `trim-…` pivots following the contract in `SHIP_ASSETS.md`).
+
+## PBR ships (baked textures): tartane, brig, galleon, battleship
+`make_ships.py` sends the ids in `PBR_IDS` to `pbrship.build_ship`; the other ids use the flat-colour builder above. Same wrapper, same `IDS`, same `RESULT`; one PBR ship takes about 5–10 s headless
+(textures 5–8 s of numpy, vertex AO 1–3 s), so run them two per call (tartane + brig, galleon + battleship) when Llama drives it.
+
+| File | Job |
+|---|---|
+| `hullmath.py` | hull formulas of `hullShape.ts` as plain numpy (shared by geometry and textures, no `bpy`) |
+| `pbrlayout.py` | atlas regions, swatch list, gun ports, wales, plank width: the one source of truth for texture **and** geometry |
+| `pbrtex.py`, `pbrhull.py` | numpy texture synthesis (noise, planks, wood and sail tiles; hull/deck/swatch atlas painted in hull coordinates, normals from height fields). No `bpy`: `python -c "import pbrhull"` works for quick previews (`write_png`) |
+| `pbrmesh.py` | `PM` mesh builder in **game** coordinates (box, tube, revolve, ellipsoid, grid) with per-vertex colour, tiling UVs in metres and atlas UVs |
+| `pbrbody.py`, `pbrcastle.py`, `pbrbow.py`, `pbrdeck.py`, `pbrguns.py`, `pbrrig.py`, `pbrsail.py` | hull/deck/bulwarks/wales, castles + stern gallery + balustrades, stem/figurehead/anchors/rudder, deck furniture/boats/lanterns, ports and cannons, masts/rigging/jibs/flags, sail groups (cloth, yards, boltropes) |
+| `pbrao.py` | baked vertex ambient occlusion (BVH ray casts) |
+| `pbrmat.py` | images from numpy arrays and glTF-friendly materials (albedo × vertex colour, normal map, ORM with the `glTF Material Output` occlusion group) |
+| `pbrship.py` | LOD configs, assembly, validation, export (`export_glb(..., pbr=True)`: WebP textures + meshopt) |
+
+How a PBR ship is made: textures → `Scratch` scope → materials/images → LOD0/1/2 (each: hull, deck, bulwarks, castles, rig, details, sails per pivot, weld, AO, objects) → validate → export
+(`use_selection=True`) → `meta.json` (+ `pbr`, `atlasPx`, `tilePx`). Nothing is written when validation fails. All textures are generated from the spec and a seed derived from the id, so a re-run is
+byte-identical. To change the look of the flagships edit the generators and re-run the four ids; to add a ship to the PBR set put its id in `PBR_IDS`, give it an atlas size in `pbrship.ATLAS_PX` and
+check the budgets in `pbrship.budgets` (the tests recompute the same formula). Tuning guide: planks/wales/copper/ports/weathering are in `pbrhull.hull_region`, canvas and wood grain in `pbrtex`, features per ship size in the part modules.
+
+Previewing without the game: a throwaway page with `GLTFLoader` + `MeshoptDecoder` + `RoomEnvironment` (not in the repo) is the quickest way to look at a GLB from any angle; the real check is the gallery and the sailing view.
+
+Gotchas found while building it:
+- The open Blender keeps imported modules between runs, **even from another worktree**: `make_ships.py` therefore drops its own modules from `sys.modules` before importing (an old copy of `shipbuilder` from another checkout once shadowed the new one). Keep that list in step when you add a module.
+- Vertex colours in `bmesh` need the float colour **loop** layer named `Col`, linear values; a `Color Attribute` node multiplied into the base colour makes the exporter write `COLOR_0`.
+- Mirrored UVs (both hull sides share the atlas region) are fine: three.js derives tangents from UV derivatives.
+- Merge coincident vertices (`PM.weld`) before AO and export: tubes and lathes only get smooth shading across ring seams that way, and degenerate pole faces disappear.
+- Llama sees `__name__` rendered as bold in its own chat; put the wrapper in a fenced code block.
 
 ## Crew
 `make_crew.py` builds six body types × 3 LODs, a 12-bone rig, Idle/Walk/Run actions and a palette atlas; details in `CREW.md`.
