@@ -199,11 +199,34 @@ const compileHook = (m: THREE.Material, vertexShader: string): FakeShader => {
   return shader;
 };
 
+describe('jibs', () => {
+  it('furl one after the other, lowest first, each with its own belly that fills a little later', () => {
+    const s = createClothState(2, 3);
+    stepCloth(s, input(), 0.016);
+    const first = [Infinity, Infinity, Infinity];
+    run(s, input({ level: 0 }), 8, 1 / 60, (t) => {
+      s.jibRaw.forEach((r, k) => {
+        if (r > 0.02 && first[k] === Infinity) first[k] = t;
+      });
+    });
+    expect(first[0]).toBeLessThan(first[1] as number);
+    expect(first[1]).toBeLessThan(first[2] as number);
+    expect(s.jibFurl.every((f) => f.x > 0.99)).toBe(true);
+    const t = createClothState(2, 3);
+    stepCloth(t, input({ windRel: 1.2, wind: { angle: 1.2, speed: 9, gust: 1 } }), 0.016);
+    expect(t.jibBelly[0]!.x).toBeGreaterThan(t.jibBelly[1]!.x);
+    expect(t.jibBelly[1]!.x).toBeGreaterThan(t.jibBelly[2]!.x);
+    run(t, input({ windRel: -1.2, wind: { angle: -1.2, speed: 9, gust: 1 } }), 0.6, 1 / 60);
+    expect(t.jibBelly[0]!.x).toBeLessThan(t.jibBelly[2]!.x); // the first jib is quickest to follow the wind across
+  });
+});
+
 describe('cloth uniforms', () => {
   it('start open, filled, calm: a ship nobody trims (the gallery) shows full sails', () => {
     const u = createClothUniforms();
     expect(u.furl.value.toArray()).toEqual([0, 0, 0, 0]); // Vector4() alone would be (0, 0, 0, 1): fore-and-aft sails furled
     expect(u.flutter.value.toArray()).toEqual([0, 0]);
+    expect(u.jibFurl.value.toArray()).toEqual([0, 0, 0, 0]);
     expect(u.tear.value).toBe(0);
     expect(u.detail.value).toBe(1);
   });

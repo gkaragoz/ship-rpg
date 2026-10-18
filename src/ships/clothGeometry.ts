@@ -233,7 +233,7 @@ export function prepareSail(geometry: THREE.BufferGeometry, kind: SailKind, seed
       for (const v of verts) perpMax = Math.max(perpMax, Math.abs(((pos.getX(v) - tx) * dy - (pos.getY(v) - ty) * dx) / len));
       for (const v of verts) {
         const px = pos.getX(v) - tx, py = pos.getY(v) - ty;
-        A.set([5, Math.min(Math.abs((px * dy - py * dx) / len) / perpMax, 1), Math.min(Math.max((px * dx + py * dy) / (len * len), 0), 1), baked(v)], v * 4);
+        A.set([5 + Math.min(k + slotOffset, 2), Math.min(Math.abs((px * dy - py * dx) / len) / perpMax, 1), Math.min(Math.max((px * dx + py * dy) / (len * len), 0), 1), baked(v)], v * 4);
         B.set([tx, ty, len, seed], v * 4);
       }
       return;

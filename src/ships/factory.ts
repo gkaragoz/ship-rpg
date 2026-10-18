@@ -85,7 +85,7 @@ export function createProceduralShip(spec: ShipSpec, options: ShipOptions = {}):
   patchFlagMaterial(mats.flag, cloth, false);
   const tiers = Math.max(1, ...spec.masts.map((m) => m.tiers ?? 2));
   const clothRig = clothifyProcedural(root, mats, tiers, cloth);
-  const sailTrim = createSailTrim(sails, { tiers, cloth, shaded: clothRig.shaded });
+  const sailTrim = createSailTrim(sails, { tiers, jibs: clothRig.jibs, cloth, shaded: clothRig.shaded });
   const condition = createConditionRig(spec, mats, pivot, () => sailTrim.setDamageHeight(condition.sailHeight()));
 
   return {
@@ -104,6 +104,7 @@ export function createProceduralShip(spec: ShipSpec, options: ShipOptions = {}):
       });
       disposeMaterials(mats);
       for (const d of clothRig.depths) d.dispose();
+      for (const m of clothRig.materials) m.dispose();
     },
   };
 }

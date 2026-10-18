@@ -75,7 +75,7 @@ export function createGlbShip(spec: ShipSpec, asset: ShipAsset, flag: number = D
     });
   }
 
-  const sailTrim = createSailTrim(sails, { tiers: cloth.tiers, cloth: uniforms, shaded: cloth.shaded });
+  const sailTrim = createSailTrim(sails, { tiers: cloth.tiers, jibs: cloth.jibs, cloth: uniforms, shaded: cloth.shaded });
   const condition = createRig(spec, pivot, () => sailTrim.setDamageHeight(condition.sailHeight()), (rigging) => {
     for (const m of sailMats) m.color.setRGB(1, 1, 1).lerp(SCORCHED, 1 - rigging);
   });

@@ -47,6 +47,8 @@ export interface SailTrim {
 export interface SailTrimOptions {
   /** Most square-sail tiers on one mast (sets how the furl is shared out). */
   tiers?: number;
+  /** Jibs on the ship (each gets its own furl and belly). */
+  jibs?: number;
   /** The cloth shader's uniforms: furl, belly, flutter, tear and the flags' wind are written here. */
   cloth?: ClothUniforms;
   /** Pivots whose sails are drawn by the cloth shader: they only swing, the others are scaled. */
@@ -59,7 +61,7 @@ const MIN_SCALE = 0.04;
 const MIN_DAMAGE_HEIGHT = 0.55;
 
 export function createSailTrim(nodes: SailNodes, options: SailTrimOptions = {}): SailTrim {
-  const state = createClothState(options.tiers ?? 2);
+  const state = createClothState(options.tiers ?? 2, options.jibs ?? 0);
   const cloth = options.cloth;
   const shaded = options.shaded;
   const wind: WindInput = { angle: 0, speed: 8, gust: 1 };
@@ -89,6 +91,8 @@ export function createSailTrim(nodes: SailNodes, options: SailTrimOptions = {}):
     }
     if (!cloth) return;
     cloth.furl.value.set(state.furl[0]?.x ?? 0, state.furl[1]?.x ?? 0, state.furl[2]?.x ?? 0, state.furlAft.x);
+    cloth.jibFurl.value.set(state.jibFurl[0]?.x ?? 0, state.jibFurl[1]?.x ?? 0, state.jibFurl[2]?.x ?? 0, 0);
+    cloth.jibBelly.value.set(clamp(state.jibBelly[0]?.x ?? 0, -1.15, 1.15), clamp(state.jibBelly[1]?.x ?? 0, -1.15, 1.15), clamp(state.jibBelly[2]?.x ?? 0, -1.15, 1.15), 0);
     cloth.belly.value.set(clamp(state.belly.x, 0, 1.15), clamp(state.bellyAft.x, -1.15, 1.15));
     cloth.flutter.value.set(clamp(state.flutter.x, 0, 1.2), clamp(state.flutterAft.x, 0, 1.2));
     cloth.tear.value = input.tear;

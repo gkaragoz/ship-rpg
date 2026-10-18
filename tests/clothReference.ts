@@ -2,7 +2,7 @@ import type * as THREE from 'three';
 
 /**
  * CPU mirror of the position part of `clothDeform` in `src/ships/clothShader.ts` (furl, gather, tear, corner shrink and
- * the jib haul-down; no belly, flutter or folds). Tests use it to see which vertices the shader would move.
+ * the jib haul-down; no belly, flutter or folds; `clothReference.test.ts` pins the GLSL expressions it copies). Tests use it to see which vertices the shader would move.
  */
 export function gatheredXY(geometry: THREE.BufferGeometry, v: number, furl: number, tear = 0): [number, number] {
   const A = geometry.getAttribute('clothA');

@@ -24,6 +24,9 @@ export interface ClothUniforms {
   belly: THREE.IUniform<THREE.Vector2>;
   /** Flutter (0…1.2) of the square and the fore-and-aft sails. */
   flutter: THREE.IUniform<THREE.Vector2>;
+  /** Furl and belly (−1…1) of each of up to three jibs, which move independently. */
+  jibFurl: THREE.IUniform<THREE.Vector4>;
+  jibBelly: THREE.IUniform<THREE.Vector4>;
   /** Damage: the lower part of every tier is torn up (0…1). */
   tear: THREE.IUniform<number>;
   /** Apparent wind for the flags: (angle from the bow, speed m/s, gust, 0). */
@@ -44,6 +47,8 @@ export function createClothUniforms(): ClothUniforms {
     furl: { value: new THREE.Vector4(0, 0, 0, 0) }, // not Vector4() (w = 1 would furl the fore-and-aft sails)
     belly: { value: new THREE.Vector2(0.9, 0.9) }, // a ship nobody trims (the gallery) shows filled sails
     flutter: { value: new THREE.Vector2() },
+    jibFurl: { value: new THREE.Vector4(0, 0, 0, 0) },
+    jibBelly: { value: new THREE.Vector4(0.9, 0.9, 0.9, 0) },
     tear: { value: 0 },
     wind: { value: new THREE.Vector4(0, 8, 1, 0) },
     detail: { value: 1 },
@@ -63,6 +68,8 @@ export function assignClothUniforms(target: Record<string, THREE.IUniform>, u: C
   target.uBelly = u.belly;
   target.uFlutter = u.flutter;
   target.uTear = u.tear;
+  target.uJibFurl = u.jibFurl;
+  target.uJibBelly = u.jibBelly;
   target.uDetail = u.detail;
   target.uTime = clothTime;
   target.uBake = clothBakeUniforms.uBake;
@@ -76,6 +83,8 @@ attribute vec4 clothC;   // fore-and-aft: head anchor x, y, tallest height, 1 - 
 uniform vec4 uFurl;
 uniform vec2 uBelly;
 uniform vec2 uFlutter;
+uniform vec4 uJibFurl;
+uniform vec4 uJibBelly;
 uniform float uTear;
 uniform float uTime;
 uniform float uDetail;
@@ -131,11 +140,12 @@ void jibDeform(inout vec3 p, inout vec3 n) {
   vec2 tack = clothB.xy;
   float L = max(clothB.z, 0.3);
   float seed = clothB.w;
-  float g = clamp(uFurl.w * 0.93, 0.0, 0.96);
-  float k = uBelly.y * (1.0 - g);
+  float jib = clothA.x - 5.0;                     // which jib: 0, 1, 2
+  float g = clamp((jib < 0.5 ? uJibFurl.x : jib < 1.5 ? uJibFurl.y : uJibFurl.z) * 0.93, 0.0, 0.96);
+  float k = (jib < 0.5 ? uJibBelly.x : jib < 1.5 ? uJibBelly.y : uJibBelly.z) * (1.0 - g);
   float baked = clothA.w;
   p.xy = tack + (p.xy - tack) * (1.0 - g);
-  vec3 fl = flutterField(clothA.z, clothA.y, 1.0, uFlutter.y, seed, L, L) * uDetail;
+  vec3 fl = flutterField(clothA.z, clothA.y, 1.0, uFlutter.y, seed + 0.27 * jib, L, L) * uDetail;
   p.z += (k - 1.0) * baked + L * fl.x * (1.0 - g);
   n = normalize(vec3(n.xy * k, n.z));
 }

@@ -15,6 +15,8 @@ export interface ClothRig {
   shaded: Set<THREE.Object3D>;
   /** Most square-sail tiers on one mast. */
   tiers: number;
+  /** Jibs on the ship (separate grids of the LOD0 jib mesh; the procedural ship has one mesh each). */
+  jibs: number;
   /** Private materials made for this ship (sail cloth, patched yards, plain spars): scorch and dispose them. */
   materials: THREE.MeshStandardMaterial[];
   /** Depth materials made for this ship. */
@@ -29,6 +31,11 @@ const meshesOf = (root: THREE.Object3D): THREE.Mesh[] => {
     if (o instanceof THREE.Mesh) out.push(o);
   });
   return out;
+};
+
+const jibCount = (g: THREE.BufferGeometry): number => {
+  const index = g.getIndex();
+  return index ? components(index.array, g.getAttribute('position').count).count : 0;
 };
 
 const lodOf = (name: string): number => Number(/^LOD(\d)/.exec(name)?.[1] ?? 0);
@@ -54,7 +61,7 @@ function cloner(uniforms: ClothUniforms, out: THREE.MeshStandardMaterial[]) {
  * sail is not the expected grid are left alone and stay scaled by `trim.ts`.
  */
 export function clothifyGlb(root: THREE.Object3D, sails: SailNodes, uniforms: ClothUniforms): ClothRig {
-  const rig: ClothRig = { shaded: new Set(), tiers: 1, materials: [], depths: [], meshes: [] };
+  const rig: ClothRig = { shaded: new Set(), tiers: 1, jibs: 0, materials: [], depths: [], meshes: [] };
   const pivots = [...sails.square, ...sails.aft];
   const levels = [0, 1, 2].map((l) => {
     const u = l === 0 ? uniforms : withDetail(uniforms, 0);
@@ -120,6 +127,7 @@ export function clothifyGlb(root: THREE.Object3D, sails: SailNodes, uniforms: Cl
     mesh.material = level.own(mesh.material, 'sail');
     mesh.customDepthMaterial = level.depth;
     rig.meshes.push({ mesh, kind: 'jib' });
+    if (lodOf(mesh.name) === 0) rig.jibs = Math.max(rig.jibs, jibCount(mesh.geometry));
   }
   return rig;
 }
@@ -127,14 +135,17 @@ export function clothifyGlb(root: THREE.Object3D, sails: SailNodes, uniforms: Cl
 /**
  * Cloth for the procedural ship: every mesh that uses the ship's sail material is a gridSail (a square tier in a
  * `sail-tier-<k>` group, a fore-and-aft sail under `trim-aft`, a jib under `bowsprit`); they get the attributes and
- * the ship's sail material is patched once. Yards and booms are plain cylinders and stay where they are.
+ * the ship's sail material is patched once. The yards of the square tiers sit on their head lines and stay; the booms
+ * and gaffs under `trim-aft` (cylinders) get their transform baked into the geometry and a patched private wood
+ * material, so they follow their sail like the GLB ones.
  */
 export function clothifyProcedural(root: THREE.Object3D, mats: ShipMaterials, tiers: number, uniforms: ClothUniforms): ClothRig {
-  const rig: ClothRig = { shaded: new Set(), tiers, materials: [], depths: [], meshes: [] };
+  const rig: ClothRig = { shaded: new Set(), tiers, jibs: 0, materials: [], depths: [], meshes: [] };
   const depth = createClothDepthMaterial(uniforms);
   rig.depths.push(depth);
   let patched = false;
   let i = 0;
+  const aftSails = new Map<THREE.Object3D, SailAnalysis>();
   for (const mesh of meshesOf(root)) {
     if (mesh.material !== mats.sail) continue;
     const parent = mesh.parent;
@@ -146,10 +157,13 @@ export function clothifyProcedural(root: THREE.Object3D, mats: ShipMaterials, ti
       ok = prepareSail(mesh.geometry, 'square', seed, Math.max(tiers - count, 0) + Number(tier[1])) !== undefined;
       if (ok) rig.shaded.add(parent.parent);
     } else if (parent?.name === 'trim-aft') {
-      ok = prepareSail(mesh.geometry, 'aft', seed) !== undefined;
+      const a = prepareSail(mesh.geometry, 'aft', seed);
+      ok = a !== undefined;
+      if (a) aftSails.set(parent, a);
       if (ok) rig.shaded.add(parent);
     } else if (parent?.name === 'bowsprit') {
-      ok = prepareSail(mesh.geometry, 'jib', seed) !== undefined;
+      ok = prepareSail(mesh.geometry, 'jib', seed, rig.jibs) !== undefined;
+      if (ok) rig.jibs++;
     }
     if (!ok) continue;
     mesh.customDepthMaterial = depth;
@@ -157,6 +171,25 @@ export function clothifyProcedural(root: THREE.Object3D, mats: ShipMaterials, ti
     if (!patched) {
       patchSailMaterial(mats.sail, uniforms);
       patched = true;
+    }
+  }
+  if (aftSails.size === 0) return rig;
+  const wood = (mats.wood as THREE.MeshStandardMaterial).clone();
+  patchSailMaterial(wood, uniforms);
+  rig.materials.push(wood);
+  for (const [pivot, analysis] of aftSails) {
+    for (const mesh of pivot.children) {
+      if (!(mesh instanceof THREE.Mesh) || mesh.material !== mats.wood) continue;
+      mesh.updateMatrix();
+      mesh.geometry.applyMatrix4(mesh.matrix); // the shader works on pivot-space positions
+      mesh.position.set(0, 0, 0);
+      mesh.quaternion.identity();
+      mesh.scale.set(1, 1, 1);
+      mesh.updateMatrix();
+      prepareAftYards(mesh.geometry, analysis, 0.5);
+      mesh.material = wood;
+      mesh.customDepthMaterial = depth;
+      rig.meshes.push({ mesh, kind: 'aftYards' });
     }
   }
   return rig;
