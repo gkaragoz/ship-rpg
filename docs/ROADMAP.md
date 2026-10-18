@@ -8,6 +8,56 @@
 - [x] 2e. Hero details on LOD0 (muzzles, rudder, anchors, ratlines, hatch, smooth sails) and a 12-ship NPC fleet
 - [x] 2g. Quality parity: all 16 ships come from the generic builder with the same LOD0 extras (tartane regenerated; deck seams, plank lines, rivets, barrels, lantern post added to every ship).
 - [ ] 2f. Per-ship polish (figureheads, boats, stern galleries), lazy GLB loading, NPC steering instead of fixed ellipses (patrols can currently overlap)
-- [ ] 3. Ocean + wind + playable ship
-- [ ] 4. Islands, ports, navigation
-- [ ] 5. Combat, trade, RPG layer
+- [x] 3. Ocean + wind + playable ship (wave ocean, sky, wind and polar, chase camera, HUD)
+  - [ ] polish: ship wake and foam
+  - [ ] polish: sails luff when in irons
+  - [ ] polish: sound (wind, water, creak)
+  - [ ] tuning pass on turn rate, acceleration and speed scale by playing
+  - [ ] tests for HUD bearing maths and the wave-riding sampling
+  - [ ] sea detail: far water looks soft/smeared (flat-shaded 2.5 m grid); add a fine normal layer or foam
+  - [ ] touch controls (no on-screen steering, sails or exit on mobile yet)
+  - [ ] measure frame rate on a real browser/GPU (the embedded pane throttles rAF, so 60 fps is unverified; ocean is 360×360 segments)
+- [x] 4. Islands, ports, navigation (11 ports on 8 islands, grounding, docking, fog-of-war chart and minimap)
+  - [ ] polish: harbour town detail (forts, docks, ships at anchor), beach waves
+  - [ ] polish: coast sounding/depth warning on the HUD
+  - [ ] save/load of discovered map and position
+  - [ ] layout: at ~800 px width the dock hint overlaps the HUD compass and the harbour panel touches the minimap; check the mobile hint toast
+  - [ ] visual: shallows show large flat facets (smooth the depth tint), far sea shows horizontal banding (near/far seam or aliasing: investigate), island labels clipped at the top edge or hidden behind the minimap
+  - [ ] chart: fixed extent clips the ship marker near the south edge; no touch way to close it
+  - [ ] runtime check of grounding in the browser (covered by unit tests only; upwind approaches end in irons)
+  - [ ] ports feel empty: NPC ships sailing between islands (phase 5)
+  - [ ] harbour services (market, shipyard to buy/switch ships, tavern) behind the placeholder panel (phase 5)
+  - [ ] tests: HUD bearing maths now also cover the nearest-port bearing; `createGame` dock speed limit; reachability of every anchorage for the deepest keel
+- [ ] 5. Combat, trade, RPG layer, in slices (each ends with tests, docs, QA and a commit):
+  - [x] 5a. Broadside cannons and one enemy ship. Done when: the player can fire either broadside (Q/E) with a visible reload, see balls, smoke and splashes, damage an enemy that hunts and fires back, sink it, be sunk, and restart (R); docking is F and a moored ship is safe and repairs.
+  - [x] 5a.1 player feedback, in three sub-slices (QA once at the end, a commit after each):
+    - [x] 5a.1a aim aid: translucent hit zones on the sea beside the ship (from the same ballistics the balls use: where a ball can hit and its chance, span along the hull, drift from ship speed; first built as a landing zone, corrected in 5a.4 after runtime QA showed enemies being hit outside it), gold when loaded, green when an enemy is inside (and the HUD bar glows), dim while reloading, a line from the hull to the far edge; `G` toggles them; camera can zoom out to 14 ship lengths
+    - [x] 5a.1b hit feedback: floating damage numbers, a hit marker when you hit, a red flash and camera shake when you are hit
+    - [x] 5a.1c sound: synthesized WebAudio (cannon, hit, splash, sinking, sea and wind), spatial mix by distance and bearing with speed-of-sound delay, `N` mutes; new `audio` module (imports `core` only)
+  - [ ] 5a.1d feedback polish (from QA): a "turn broadside" hint and an off-range indicator (which way to turn), arrows for off-screen hits and damage numbers, low-hull alarm, reload-ready click, a volume setting and persisting the mute choice (the mute and aim toggles now show a short notice), reduced-motion option for shake and the hurt flash, colour-blind-safe zones (shape or pulse rate, not only gold vs green), a hint that sound starts on the first key press, ambience variety (creak, rigging)
+  - [ ] 5a.1 tests to add: `aimArcs` state selection (gold / green / dim) and dispose, shake restores the camera, HUD flash/marker/glow with a fake view, more `targetInZone` edges (both sides with speed drift, an unarmed ship, a target astern)
+  - [ ] 5a.1f aim shading honesty: include the target's exposed cross-section and sideways scatter in the hit chance (it models the vertical chance only); consider smoothing the mid-range dip so it does not read as a gap; the outer fade is hard to see on a narrow pane
+  - [ ] 5a.1e runtime QA leftovers: the hit marker is a fixed HUD mark, not at the impact point (a world-space marker would be clearer); zone fore-and-aft is thin (~20 m) so the enemy is rarely inside it: confirm it is as intended; docking and sinking hiding the zones were checked in code only
+  - [x] 5a.2 enemy behaviour, in three sub-slices (QA once at the end, a commit after each):
+    - [x] 5a.2a flee and escape: an enemy below 25% hull breaks off and runs directly away (bearing off the wind if it must); an enemy that has lost you (over 1.5 km away for 30 s; now 1 km / 20 s, see 5a.4c) gives up and is replaced later; the player can escape by outrunning it
+    - [x] 5a.2b several enemies: up to three at once as kills mount, each targeted separately (nearest in the HUD, all on the minimap)
+    - [x] 5a.2c nationality: each enemy flies a flag (English, French, Spanish, Dutch, pirate) as a masthead pennant and a stern ensign, shown as a chip in the target panel and as the minimap tint; the player flies his own (cream)
+    - [x] 5a.2d from QA: dev hooks (`game.dev`) and game-level tests for flee, give-up, respawn and 1/2/3 enemies; the HUD target now shows out to the give-up range (then 1.5 km, now 1 km) and the mobile target/prompt overlap is fixed
+    - [ ] 5a.2e left from QA: HUD and map tests with a fake view; an escape rule that works for slower ships (done in 5a.4c by the speed cap: a slower runner is hunted by nothing faster; an equal-speed chase simply goes on, see BALANCE.md); no reward yet for kill vs escape; enemy hull below 25% never recovers; a cornered fleeing enemy cannot fire; killing was slow (fixed by the 5a.4 tuning: decisive duels in 60–160 s)
+  - [ ] 5a.5 follow-ups from the balance work: equal-speed chases never end (the enemy does not give up and cannot catch you either: decide a pursuit timeout or a visibility rule); the guard has no upper bound on win rates (Brig, Corvette, Frigate, Pinnace win 90–100% as a bot); fights are 1v1 in the sim but up to 3 in the game; the picker repeats a type for Barque, Caravel, Galleon and Battleship; re-measure after 5a.3 (damage model) and 5b (crew changes reload); big slow-turning ships still depend on their broadside geometry; a human playtest to calibrate the bot-vs-human gap; the Tartane has no way to fight (decide: boarding in 5b?)
+  - [x] 5a.3 damage model, in five sub-slices (a commit after each, QA once at the end; the balance guard and `docs/BALANCE.md` are re-measured in 5a.3e):
+    - [x] 5a.3a hit zones and rigging: where a ball strikes decides what it damages (waterline / hull / rigging by its height); rigging hits wreck sails, which cut speed and turning for both sides; repair is slow at sea and fast in harbour
+    - [x] 5a.3b leaks: waterline hits open leaks that flood the ship (hull points drain, speed drops) until pumped out or repaired
+    - [x] 5a.3c fire: hits can start fires that burn hull and sails until they burn out, are put out, or the ship docks
+    - [x] 5a.3d visuals: torn sails, a ship sitting low and listing when flooded, flames and smoke on the model, HUD Su/Yangın rows, the enemy's rigging bar and its flooding/fire in the target panel
+    - [x] 5a.3e balance: the duel simulator uses the same damage model; re-measure, adjust the guard windows, regenerate `docs/BALANCE.md`
+  - [x] 5a.4 balance (runtime QA: an even Brig-vs-Schooner fight was lost twice, a Frigate needed ~5 min for one Pinnace; squadron composition and the escape asymmetry also live here), in four sub-slices (QA once at the end, a commit after each):
+    - [x] 5a.4a measure (see also: targets are written down in docs/BALANCE.md and enforced by tests/balance.test.ts): a headless duel simulator (`gameplay/duel.ts`: two AI ships on the real sailing, ballistics and damage code, seeded, fast time step) and `npm run balance` that prints win rates, duration and remaining hull for every player ship against its squadron
+    - [x] 5a.4b tune: choose target win rates, then adjust damage per pound, reload, spread, hull factor (and ball cap) from the measurements
+    - [x] 5a.4c composition and escape: squadron pairing rules (not faster than the player, sensible hull ratio, unarmed ships get a weak hunter) and an escape rule that also works for slower ships
+    - [x] 5a.4d guard: a balance test that fails if a pairing leaves the target range, and `docs/BALANCE.md` with the table (done)
+  - [ ] 5b. Gold wallet and cargo hold (state in gameplay, shown in the HUD), crew count and its effect on reload speed; boarding a defeated ship for loot, crew losses, XP and captain level
+  - [ ] 5c. Trade: buy and sell goods at ports (prices from the guide's cargo table), hold capacity from ship stats
+  - [ ] 5d. Shipyard: buy, sell and repair ships from the 16 types (needs a game-state refactor: the player's ship spec, hull points and hold become mutable state; `createGame(spec)` becomes `createGame(state)`)
+  - [ ] 5e. NPC traffic between ports (also feeds 5a.2 several enemies), nationalities/factions, reputation and simple quests
+  - [ ] 5f. Save and load: a versioned state object (position, ship, gold, hold, discoveries, kills); plan the schema as 5b–5e add state

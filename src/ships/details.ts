@@ -100,3 +100,24 @@ export function buildLanterns(spec: ShipSpec, mats: ShipMaterials): THREE.Instan
   mesh.instanceMatrix.needsUpdate = true;
   return mesh;
 }
+
+/** An ensign on a pole at the stern, streaming aft, in the ship's flag colour. */
+export function buildSternFlag(spec: ShipSpec, mats: ShipMaterials): THREE.Group {
+  const castle = spec.sterncastle;
+  const tiers = 1 + (castle?.stepped ?? 0);
+  const castleHeight = castle ? castle.height * (1 + 0.6 * (tiers - 1)) : 0;
+  const base = deckHeight(spec, 0) - bulwark(spec) + castleHeight;
+  const pole = Math.max(3, spec.length * 0.12);
+  const w = Math.max(2.2, spec.length * 0.1);
+  const h = w * 0.62;
+  const x = -spec.length / 2 + 0.4;
+
+  const g = new THREE.Group();
+  g.name = 'stern-flag';
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, pole, 5), mats.wood);
+  stick.position.set(x, base + pole / 2, 0);
+  const cloth = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mats.flag);
+  cloth.position.set(x - w / 2, base + pole - h / 2, 0);
+  g.add(stick, cloth);
+  return g;
+}

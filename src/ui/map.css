@@ -1,0 +1,15 @@
+.map { position: fixed; inset: 0; pointer-events: none; font-family: Georgia, 'Times New Roman', serif; }
+.map-mini {
+  position: absolute; right: 12px; bottom: 12px; width: 180px; height: 180px; border-radius: 50%;
+  border: 2px solid #c9a227; box-shadow: 0 0 0 3px rgba(11, 26, 36, 0.6);
+}
+.map-chart {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(8, 20, 30, 0.72); pointer-events: auto;
+}
+.map-chart[hidden] { display: none; }
+.map-chart canvas { border: 3px solid #c9a227; border-radius: 4px; max-width: 100%; }
+.map-hint { margin-top: 8px; color: #f3ead2; font-size: 13px; }
+@media (max-width: 700px) {
+  .map-mini { width: 110px; height: 110px; right: 8px; bottom: auto; top: 64px; }
+}

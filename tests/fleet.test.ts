@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { GameView, OtherShipView } from '../src/core';
+import { createGame } from '../src/gameplay';
 import { createFleet } from '../src/render/fleet';
 import { getShipSpec, type Ship, type ShipLod, type ShipSpec } from '../src/ships';
 
@@ -15,6 +16,7 @@ function fakeShip(): Ship & { lod: ShipLod | null } {
     root: new THREE.Group(),
     lod: null as ShipLod | null,
     setSailTrim: (): void => undefined,
+    setCondition: (): void => undefined,
     setLod(l: ShipLod): void {
       ship.lod = l;
     },
@@ -24,13 +26,8 @@ function fakeShip(): Ship & { lod: ShipLod | null } {
 }
 
 const other = (id: number, x: number): OtherShipView => ({ id, specId: 'tartane', x, z: 0, heading: 0, sailLevel: 1, roll: 0 });
-const viewOf = (others: OtherShipView[]): GameView => ({
-  time: 0,
-  others,
-  crew: [],
-  wind: { from: 0, speed: 8 },
-  ship: { x: 0, z: 0, heading: 0, speed: 0, knots: 0, maxKnots: 7, rudder: 0, sailLevel: 1, sailTarget: 1, efficiency: 1, roll: 0 },
-});
+const base = createGame(spec).view();
+const viewOf = (others: OtherShipView[]): GameView => ({ ...base, others });
 const camera = new THREE.PerspectiveCamera();
 
 describe('fleet LOD by distance', () => {

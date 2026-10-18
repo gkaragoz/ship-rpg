@@ -12,6 +12,8 @@ import json
 import pathlib
 import sys
 
+import bpy
+
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import shipkit  # noqa: E402
@@ -56,10 +58,11 @@ def swatches(spec):
                 deck=0xB08A58, wood=0x4A3321, sail=0xEFE6CF, dark=0x140E08, flag=0xC0392B, iron=0x3A3A40)
 
 
-def build_lod(level, spec, masts, atlas, mat, glass_mat, root):
+def build_lod(level, spec, masts, atlas, mat, glass_mat, flag_mat, root):
     cfg = LOD_CFG[level]
     lod = empty(f"LOD{level}", root)
     body = MB(atlas)
+    flags = MB(atlas)   # pennants and the ensign: their own mesh and material so the game can tint them per nation
     shipbuilder.build_hull(body, spec, level, cfg)
     shipbuilder.build_deck(body, spec, cfg)
     if cfg['rail']:
@@ -67,15 +70,19 @@ def build_lod(level, spec, masts, atlas, mat, glass_mat, root):
     shipbuilder.build_castles(body, spec, cfg)
     tallest = max((m.m['height'] for m in masts), default=0)
     for mast in masts:
-        shipbuilder.build_mast_static(body, mast, cfg, mast.m['height'] == tallest)
+        shipbuilder.build_mast_static(body, mast, cfg, mast.m['height'] == tallest, flags)
     shipbuilder.build_stays(body, spec, masts, cfg)
     shipbuilder.build_bowsprit(body, spec, masts, cfg)
     if cfg['ports']:
         shipbuilder.build_ports(body, spec)
     if cfg['oars']:
         shipbuilder.build_oars(body, spec)
-    extra = shipdetails.build_hero(body, spec, masts, cfg) if cfg['hero'] else []
+    extra = shipdetails.build_hero(body, spec, masts, cfg, flags) if cfg['hero'] else []
     body.to_object(f"LOD{level}_Body", mat, lod)
+    if flags.bm.faces:
+        flags.to_object(f"LOD{level}_Flag", flag_mat, lod)
+    else:
+        flags.bm.free()
 
     pivots = 0
     for i, mast in enumerate(masts):
@@ -132,11 +139,15 @@ def build_ship(spec_id):
         atlas = Atlas(f"{spec_id}_atlas", swatches(spec))
         mat = atlas.material(f"{spec_id}_atlas_mat")
         glass_mat = emissive_material(f"{spec_id}_glass", (1.0, 0.82, 0.48), 3.0)
+        flag_mat = bpy.data.materials.new(f"{spec_id}_flag")
+        flag_mat.diffuse_color = (0.75, 0.22, 0.17, 1)
+        flag_mat.use_nodes = True
+        flag_mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.75, 0.22, 0.17, 1)
         root = empty(spec_id)
         masts = [Mast(spec, m) for m in spec['masts']]
         lantern, extra = None, []
         for level in (0, 1, 2):
-            got, more = build_lod(level, spec, masts, atlas, mat, glass_mat, root)
+            got, more = build_lod(level, spec, masts, atlas, mat, glass_mat, flag_mat, root)
             lantern = lantern or got
             extra = extra or more
         objs = sc.new_objects()
@@ -150,7 +161,7 @@ def build_ship(spec_id):
             names=[o.name for o in objs],
             has_trim_pivot=all(any(o.name.startswith(f"LOD{l}_") and "_trim-" in o.name for o in objs) for l in (0, 1, 2)),
         )
-        validate_ship(report, budget)
+        validate_ship(report, budget, max_materials=3)
         atlas.save(OUT / f"{spec_id}_atlas.png")
         size = export_glb(OUT / f"{spec_id}.glb", objs, root)
         meta = build_meta(spec, masts, report, lantern, budget, extra)

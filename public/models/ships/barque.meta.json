@@ -4,9 +4,9 @@
   "beam": 9.35,
   "lods": {
     "LOD0": {
-      "tris": 4143,
-      "meshes": 5,
-      "drawCalls": 5
+      "tris": 4157,
+      "meshes": 6,
+      "drawCalls": 6
     },
     "LOD1": {
       "tris": 566,
@@ -172,5 +172,5 @@
     4.712,
     -2.917
   ],
-  "bytes": 309888
+  "bytes": 311804
 }

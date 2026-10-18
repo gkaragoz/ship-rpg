@@ -38,6 +38,7 @@ export function buildHull(spec: ShipSpec, mats: ShipMaterials): THREE.Group {
   c.divideScalar(ringSize);
   positions.push(c.x, c.y, c.z);
   for (let j = 0; j < SEGMENTS; j++) main.push(center, j + 1, j);
+  main.push(center, 0, SEGMENTS); // the wedge along the deck edge, or the transom has a V-shaped hole
 
   const hull = new THREE.Mesh(buildGroupedGeometry(positions, [lower, main, wale]), [
     mats.hullLower,

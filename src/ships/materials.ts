@@ -17,7 +17,10 @@ export interface ShipMaterials {
 const flat = (color: number): THREE.MeshStandardMaterial =>
   new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
 
-export function createMaterials(spec: ShipSpec): ShipMaterials {
+/** Flag cloth colour when a ship is built without one. */
+export const DEFAULT_FLAG = 0xc0392b;
+
+export function createMaterials(spec: ShipSpec, flag: number = DEFAULT_FLAG): ShipMaterials {
   return {
     hullLower: flat(new THREE.Color(spec.hullColor).multiplyScalar(0.5).getHex()),
     hullMain: flat(spec.hullColor),
@@ -31,7 +34,7 @@ export function createMaterials(spec: ShipSpec): ShipMaterials {
       metalness: 0,
     }),
     dark: flat(0x140e08),
-    flag: new THREE.MeshBasicMaterial({ color: 0xc0392b, side: THREE.DoubleSide }),
+    flag: new THREE.MeshBasicMaterial({ color: flag, side: THREE.DoubleSide }),
     window: new THREE.MeshBasicMaterial({ color: 0xffd27a }),
   };
 }

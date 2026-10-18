@@ -140,7 +140,22 @@ def build_lantern_pole(mb, s):
     gbox(mb, (x, y0 + 1.5 - 0.02, 0), (size * 1.6, 0.04, size * 1.6), 'iron')
 
 
-def build_hero(mb, s, masts, cfg):
+def build_ensign(mb, flags, s):
+    """Stern ensign: a wooden pole in the body mesh and the cloth in the flag mesh (see details.ts buildSternFlag)."""
+    castle = s.get('sterncastle')
+    tiers = 1 + (castle.get('stepped', 0) if castle else 0)
+    base = deck_height(s, 0) - bulwark(s) + (castle['height'] * (1 + 0.6 * (tiers - 1)) if castle else 0)
+    pole = max(3.0, s['length'] * 0.12)
+    w = max(2.2, s['length'] * 0.1)
+    h = w * 0.62
+    x = -s['length'] / 2 + 0.4
+    spar(mb, (x, base, 0), (x, base + pole, 0), 0.07, 0.06, 'wood', 4, True)
+    top = base + pole
+    pts = [(x, top, 0), (x - w, top, 0), (x - w, top - h, 0), (x, top - h, 0)]
+    flags.face([flags.v(B(p)) for p in pts], 'flag')
+
+
+def build_hero(mb, s, masts, cfg, flags):
     """Details only the full-quality model carries. Returns extra deck obstacles for the crew."""
     build_rudder(mb, s)
     build_anchors(mb, s)
@@ -151,4 +166,5 @@ def build_hero(mb, s, masts, cfg):
     build_plank_lines(mb, s)
     build_rivets(mb, s)
     build_lantern_pole(mb, s)
+    build_ensign(mb, flags, s)
     return ([hatch] if hatch else []) + build_barrels(mb, s, masts, hatch)

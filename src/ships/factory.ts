@@ -3,12 +3,14 @@ import type { ShipSpec } from './types';
 import { createMaterials, disposeMaterials } from './materials';
 import { buildHull } from './hull';
 import { buildCastles } from './castles';
-import { buildGunPorts, buildLanterns, buildOars, buildSternWindows } from './details';
+import { buildGunPorts, buildLanterns, buildOars, buildSternFlag, buildSternWindows } from './details';
 import { buildRig } from './rig';
 import { getShipAsset } from './assets';
+import { createConditionRig } from './condition';
 import { createGlbShip } from './glbShip';
 import type { ShipLod } from './lod';
-import { applySailTrim, collectSailNodes } from './trim';
+import { collectSailNodes, createSailTrim } from './trim';
+import type { Condition } from '../core';
 
 export interface Ship {
   readonly spec: ShipSpec;
@@ -19,30 +21,52 @@ export interface Ship {
    * origin (+ = wind from port); `level` is sail deployment 0 (furled) … 1 (full).
    */
   setSailTrim(windRel: number, level: number): void;
-  /** Only on ships with level-of-detail variants (the GLB tartane): 0 = full … 2 = silhouette. */
+  /** Only on ships with level-of-detail variants (the GLB ships): 0 = full … 2 = silhouette. */
   setLod?(lod: ShipLod): void;
+  /**
+   * Show battle damage: sails scorch, shrink and lose upper tiers (rigging), the hull sits low
+   * and lists (flooding), flames burn on deck (fire). `time` is game seconds, for flicker.
+   * Cheap and idempotent; `{rigging: 1, flooding: 0, fire: 0}` restores the pristine look.
+   * Moves an inner pivot, never `root`.
+   */
+  setCondition(condition: Condition, time: number): void;
   /** Frees geometries and materials created for this ship. */
   dispose(): void;
 }
 
-export function createShip(spec: ShipSpec): Ship {
+export interface ShipOptions {
+  /** Flag cloth colour (pennant and stern ensign); defaults to red. */
+  flag?: number;
+}
+
+export function createShip(spec: ShipSpec, options: ShipOptions = {}): Ship {
   // A preloaded Blender model wins; otherwise the procedural ship is built.
   const glb = getShipAsset(spec.id);
-  if (glb) return createGlbShip(spec, glb);
-  const mats = createMaterials(spec);
+  if (glb) return createGlbShip(spec, glb, options.flag);
+  const mats = createMaterials(spec, options.flag);
   const root = new THREE.Group();
   root.name = spec.id;
-  root.add(buildHull(spec, mats), ...buildCastles(spec, mats), buildRig(spec, mats));
+  const pivot = new THREE.Group(); // condition (sinking, listing) moves this, not root
+  pivot.name = 'pivot';
+  root.add(pivot);
+  pivot.add(buildHull(spec, mats), ...buildCastles(spec, mats), buildRig(spec, mats), buildSternFlag(spec, mats));
   for (const part of [buildGunPorts(spec, mats), buildOars(spec, mats), buildSternWindows(spec, mats), buildLanterns(spec, mats)]) {
-    if (part) root.add(part);
+    if (part) pivot.add(part);
   }
   const sails = collectSailNodes(root);
+
+  const sailTrim = createSailTrim(sails);
+  const condition = createConditionRig(spec, mats, pivot, () => sailTrim.setDamageHeight(condition.sailHeight()));
 
   return {
     spec,
     root,
-    setSailTrim: (windRel, level) => applySailTrim(sails, windRel, level),
+    setSailTrim: (windRel, level) => sailTrim.trim(windRel, level),
+    setCondition(c, time): void {
+      condition.apply(c, time);
+    },
     dispose(): void {
+      condition.dispose();
       root.traverse((o) => {
         if (o instanceof THREE.Mesh) o.geometry.dispose();
         if (o instanceof THREE.InstancedMesh) o.dispose(); // instance matrix buffer

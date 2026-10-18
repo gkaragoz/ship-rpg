@@ -145,7 +145,7 @@ describe.each(SHIP_SPECS.map((s) => s.id))('%s (generic ship builder)', (id) => 
   });
 
   it('uses at most two materials and one image', () => {
-    expect(g.materials.length).toBeLessThanOrEqual(2);
+    expect(g.materials.length).toBeLessThanOrEqual(3); // atlas + emissive glass + the flag cloth the game tints
     expect(g.images?.length).toBe(1);
   });
 

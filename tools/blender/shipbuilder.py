@@ -224,7 +224,7 @@ def shroud_layout(s, m):
     return hw, count, spread, (0, m['height'] * (0.62 if m['rig'] == 'square' else 0.5), 0)
 
 
-def build_mast_static(mb, mast, cfg, flag):
+def build_mast_static(mb, mast, cfg, flag, flags=None):
     s, m = mast.s, mast.m
     r = 0.1 + 0.006 * m['height']
     spar(mb, mast.w((0, 0, 0)), mast.w((0, m['height'], 0)), r, r * 0.5, 'wood', cfg['seg'], cfg['caps'])
@@ -237,11 +237,11 @@ def build_mast_static(mb, mast, cfg, flag):
             for k in range(count):
                 dx = (k - (count - 1) / 2) * spread
                 spar(mb, mast.w(head), mast.w((dx, bulwark(s), side * hw)), 0.03, 0.03, 'wood', 4, False)
-    if flag and cfg['pennant']:
+    if flag and cfg['pennant'] and flags is not None:
         h = m['height']
         ln = max(1.2, h * 0.12)
         pts = [mast.w((0, h, 0)), mast.w((-ln, h - ln * 0.15, 0)), mast.w((0, h - ln * 0.35, 0))]
-        mb.face([v(mb, p) for p in pts], 'flag')
+        flags.face([v(flags, p) for p in pts], 'flag')   # own mesh/material: the game tints it per nation
 
 
 def square_sails(mb, mast, cfg):

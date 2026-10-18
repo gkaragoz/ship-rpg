@@ -77,3 +77,12 @@ space as above. Contract, budgets and LOD policy: `SHIP_ASSETS.md`.
 Every ship carries the same LOD0 extras (`SHIP_ASSETS.md`).
 
 Also on that deck: the crew (`CREW.md`).
+
+## Condition
+
+`Ship.setCondition({ rigging, flooding, fire }, time)` (see `Condition` in `src/core/views.ts`) makes a model show its battering; it is called every frame and only mutates transforms and materials.
+
+- **Rigging** 1 → 0: sail cloth lerps from cream to scorched grey-brown (per-ship material), sails shrink to 55% height, topsails vanish below 0.66, topgallants below 0.8 (further tiers below 0.88); courses and fore-and-aft sails always remain. Combines multiplicatively with `setSailTrim`; furled sails stay hidden.
+- **Flooding** 0 → 1: an inner `pivot` group (`root` is untouched) sinks up to 0.35 × draft and lists up to 0.18 rad to starboard, with a slow wobble.
+- **Fire** 0 → 1: a pool of flame cones (mast bases, sterncastle, bow) shows more flames, taller, flickering as a pure function of `time`.
+- `{ rigging: 1, flooding: 0, fire: 0 }` restores the pristine look. Smoke is a render particle effect, not part of the model.

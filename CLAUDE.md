@@ -6,16 +6,17 @@ Browser-based 3D naval RPG in the spirit of Pirates of the Caribbean (2003) / Se
 - `npm run dev` — dev server
 - `npm run check` — typecheck + lint + tests (must pass before "done")
 - `npm run build` — production build
+- `npm run balance` — duel simulator report (see `docs/BALANCE.md`); rerun it after changing combat or enemy numbers
 
 ## Architecture (read `docs/ARCHITECTURE.md` first)
-- `src/core` loop/input/config · `render` three scene · `ships` specs+factory · `world` islands/wind · `gameplay` combat/trade · `ui` DOM HUD.
-- Allowed imports: `ships`, `world` → core · `render`, `gameplay` → core, ships, world · `ui` → core, gameplay · `main` → all. `render` never imports `gameplay`; it reads state through view types defined in `core` (see `docs/ARCHITECTURE.md`). Enforced by eslint.
+- `src/core` loop/input/config · `render` three scene · `ships` specs+factory · `world` islands/wind · `gameplay` combat/trade · `ui` DOM HUD · `audio` procedural sound.
+- Allowed imports: `ships`, `world`, `audio` → core · `render`, `gameplay` → core, ships, world · `ui` → core, gameplay, world (static map data) · `app`/`main` → all (`app` holds one `Mode` per screen). `render` never imports `gameplay`; it reads state through view types defined in `core` (see `docs/ARCHITECTURE.md`). Enforced by eslint.
 - Import other modules only through their `index.ts`.
 - Data (e.g. `ships/specs`) is separate from behaviour. `render` reads game state, never writes it.
 - Keep files under ~300 lines. See `docs/CONVENTIONS.md`.
 
 ## Context docs
-`docs/ARCHITECTURE.md`, `docs/SHIPS.md` (single source of truth for the 16 ship types), `docs/SHIP_ASSETS.md` (GLB contract + LOD policy), `docs/BLENDER_PIPELINE.md` (Llama runbook), `docs/CREW.md`, `docs/GAME_DESIGN.md`, `docs/CONVENTIONS.md`, `docs/ROADMAP.md`. Update them in the same change that alters what they describe.
+`docs/ARCHITECTURE.md`, `docs/SHIPS.md` (single source of truth for the 16 ship types), `docs/SHIP_ASSETS.md` (GLB contract + LOD policy), `docs/BLENDER_PIPELINE.md` (Llama runbook), `docs/CREW.md`, `docs/GAME_DESIGN.md`, `docs/BALANCE.md`, `docs/CONVENTIONS.md`, `docs/ROADMAP.md`. Update them in the same change that alters what they describe.
 
 ## Definition of done
 1. `npm run check` passes.

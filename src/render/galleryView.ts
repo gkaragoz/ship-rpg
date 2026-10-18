@@ -118,6 +118,7 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets = (
       sea.geometry.dispose();
       (sea.material as THREE.Material).dispose();
       renderer.dispose();
+      renderer.forceContextLoss(); // release the WebGL context; browsers cap how many stay alive
       renderer.domElement.remove();
     },
   };

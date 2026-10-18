@@ -4,4 +4,5 @@ export type { LoopHandlers } from './loop';
 export { clamp, lerp, smoothstep, wrapAngle, angleDiff } from './math';
 export { createInput } from './input';
 export type { Input } from './input';
-export type { Controls, CrewAnim, CrewLook, CrewView, GameView, OtherShipView, ShipView, WindView } from './views';
+export type { AimZoneView, BallView, Condition, Controls, CrewAnim, CrewLook, CrewView, EnemyView, GameEvent, GameView, HitZone, OtherShipView, Owner, PortView, ShipView, WindView } from './views';
+export { createRng } from './rng';

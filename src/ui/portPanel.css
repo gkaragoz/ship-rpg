@@ -1,0 +1,11 @@
+.port-panel {
+  position: fixed; left: 50%; top: 18%; transform: translateX(-50%); width: min(420px, 90vw); padding: 14px 20px;
+  background: rgba(11, 26, 36, 0.9); border: 1px solid #c9a227; border-radius: 6px; color: #f3ead2;
+  font-family: Georgia, 'Times New Roman', serif; text-align: center;
+}
+.port-panel[hidden] { display: none; }
+.port-panel h2 { margin: 0 0 6px; font-size: 26px; color: #e0b840; }
+.port-panel p { margin: 0 0 10px; font-size: 15px; line-height: 1.4; }
+.port-panel ul { list-style: none; margin: 0 0 10px; padding: 0; display: flex; justify-content: center; gap: 16px; font-size: 14px; }
+.port-panel li span { color: #9fb7c4; font-size: 12px; }
+.port-leave { font-size: 13px; color: #9fb7c4; }

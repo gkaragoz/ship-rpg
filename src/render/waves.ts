@@ -26,10 +26,15 @@ const wave = (length: number): { k: number; omega: number } => {
   return { k, omega: k * Math.sqrt(GRAVITY / k) };
 };
 
-/** Surface height (m) at world (x, z); `windFrom` is the wind's origin angle (see core/views). */
-export function waveHeight(x: number, z: number, time: number, windFrom: number, ampScale = 1): number {
+/**
+ * Surface height (m) at world (x, z); `windFrom` is the wind's origin angle (see core/views).
+ * `minLength` leaves out waves shorter than that: the shader fades those with distance, so
+ * far-away overlays pass 50 to sit on the long swell they are sure to be above.
+ */
+export function waveHeight(x: number, z: number, time: number, windFrom: number, ampScale = 1, minLength = 0): number {
   let h = 0;
   for (const w of WAVES) {
+    if (w.length < minLength) continue;
     const { k, omega } = wave(w.length);
     const a = windFrom + Math.PI + w.dir;
     h += w.amplitude * Math.sin(k * (Math.cos(a) * x - Math.sin(a) * z) - omega * time);
@@ -37,13 +42,20 @@ export function waveHeight(x: number, z: number, time: number, windFrom: number,
   return h * ampScale;
 }
 
-/** GLSL `float oceanHeight(vec2 p)` matching `waveHeight`; needs uniforms uTime, uWind, uAmp. */
+/** Waves shorter than this fade out with distance (`lod`) so far water does not shimmer. */
+const SHORT_WAVE = 50;
+
+/**
+ * GLSL `float oceanHeight(vec2 p, float lod)` matching `waveHeight` at lod = 1; needs
+ * uniforms uTime, uWind, uAmp. `lod` (1 near, 0 far) scales the short waves.
+ */
 export function waveGlsl(): string {
   const f = (n: number): string => n.toFixed(6);
   const terms = WAVES.map((w) => {
     const { k, omega } = wave(w.length);
     const a = `uWind + ${f(Math.PI + w.dir)}`;
-    return `  h += ${f(w.amplitude)} * sin(${f(k)} * dot(p, vec2(cos(${a}), -sin(${a}))) - ${f(omega)} * uTime);`;
+    const fade = w.length < SHORT_WAVE ? ' * lod' : '';
+    return `  h += ${f(w.amplitude)} * sin(${f(k)} * dot(p, vec2(cos(${a}), -sin(${a}))) - ${f(omega)} * uTime)${fade};`;
   });
-  return `float oceanHeight(vec2 p) {\n  float h = 0.0;\n${terms.join('\n')}\n  return h * uAmp;\n}`;
+  return `float oceanHeight(vec2 p, float lod) {\n  float h = 0.0;\n${terms.join('\n')}\n  return h * uAmp;\n}`;
 }
