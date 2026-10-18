@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { SHIP_SPECS, createShip } from '../src/ships';
+import { clothClock } from '../src/ships/clothState';
 
 const EXPECTED_IDS = [
   'tartane', 'barque', 'yacht', 'lugger', 'sloop', 'galeoth', 'xebec', 'schooner',
@@ -77,6 +78,19 @@ describe('Ship.setSailTrim', () => {
   const brig = SHIP_SPECS.find((s) => s.id === 'brig');
   if (!brig) throw new Error('brig spec missing');
 
+  // The sails ease towards the trim on the clock; tests drive it by hand.
+  const time = { t: 0 };
+  beforeEach(() => {
+    time.t = 0;
+    clothClock.now = () => time.t;
+  });
+  const trim = (ship: ReturnType<typeof createShip>, windRel: number, level: number, seconds = 8): void => {
+    for (let i = 0; i < seconds * 30; i++) {
+      time.t += 1 / 30;
+      ship.setSailTrim(windRel, level);
+    }
+  };
+
   const trims = (root: THREE.Object3D, name: string): THREE.Object3D[] => {
     const out: THREE.Object3D[] = [];
     root.traverse((o) => {
@@ -85,33 +99,65 @@ describe('Ship.setSailTrim', () => {
     return out;
   };
 
-  it('hides sails when furled and shows them when set', () => {
+  it('shrinks the scaled sails smoothly when furled, hides them only once almost gone, and sets them again', () => {
     const ship = createShip(brig);
-    ship.setSailTrim(1.5, 0);
-    expect(trims(ship.root, 'trim-square').every((o) => !o.visible)).toBe(true);
-    ship.setSailTrim(1.5, 1);
-    expect(trims(ship.root, 'trim-square').every((o) => o.visible)).toBe(true);
+    const sq = trims(ship.root, 'trim-square');
+    trim(ship, 1.5, 1);
+    expect(sq.every((o) => o.visible && o.scale.y > 0.99)).toBe(true);
+    let prev = 1;
+    for (let i = 0; i < 8 * 30; i++) {
+      time.t += 1 / 30;
+      ship.setSailTrim(1.5, 0);
+      const y = sq[0]?.scale.y ?? 0;
+      expect(y).toBeLessThanOrEqual(prev + 1e-9);
+      expect(prev - y).toBeLessThan(0.1); // never a pop
+      prev = y;
+    }
+    expect(sq.every((o) => !o.visible)).toBe(true);
+    trim(ship, 1.5, 1);
+    expect(sq.every((o) => o.visible && o.scale.y > 0.99)).toBe(true);
     ship.dispose();
   });
 
-  it('mirrors fore-and-aft sails to the leeward side and braces yards harder when close-hauled', () => {
+  it('swings the yards and sheets through the bow smoothly and belies fore-and-aft sails to leeward', () => {
     const ship = createShip(brig);
-    ship.setSailTrim(1.0, 1); // wind from port
+    trim(ship, 1.0, 1); // wind from port
     const aft = trims(ship.root, 'trim-aft')[0];
     const square = trims(ship.root, 'trim-square')[0];
-    expect(aft?.scale.z).toBe(1);
+    expect(aft?.scale.z).toBeGreaterThan(0.8);
     const closeBrace = square?.rotation.y ?? 0;
+    expect(closeBrace).toBeGreaterThan(0.4);
 
-    ship.setSailTrim(-1.0, 1); // wind from starboard
-    expect(aft?.scale.z).toBe(-1);
-    expect(square?.rotation.y).toBeCloseTo(-closeBrace);
+    let prevZ = aft?.scale.z ?? 0;
+    let prevBrace = closeBrace;
+    for (let i = 0; i < 8 * 30; i++) {
+      time.t += 1 / 30;
+      ship.setSailTrim(-1.0, 1); // tack: wind from starboard now
+      const z = aft?.scale.z ?? 0;
+      const brace = square?.rotation.y ?? 0;
+      expect(Math.abs(z)).toBeGreaterThanOrEqual(0.06 - 1e-9); // the mirror never collapses
+      expect(Math.abs(z - prevZ)).toBeLessThan(0.2); // and never flips in one step
+      expect(Math.abs(brace - prevBrace)).toBeLessThan(0.1);
+      prevZ = z;
+      prevBrace = brace;
+    }
+    expect(aft?.scale.z).toBeLessThan(-0.8);
+    expect(square?.rotation.y).toBeCloseTo(-closeBrace, 1);
 
-    ship.setSailTrim(1.0, 0.5); // half sail: reefed to 0.35 + 0.65 * level of full height
-    expect(square?.scale.y).toBeCloseTo(0.675);
-    expect(aft?.scale.y).toBeCloseTo(0.675);
-
-    ship.setSailTrim(3.0, 1); // running
+    trim(ship, 3.0, 1); // running
     expect(Math.abs(square?.rotation.y ?? 1)).toBeLessThan(Math.abs(closeBrace));
+    trim(ship, 1.0, 0.5); // half sail: reefed to about half the height
+    expect(square?.scale.y).toBeGreaterThan(0.4);
+    expect(square?.scale.y).toBeLessThan(0.65);
+    ship.dispose();
+  });
+
+  it('takes an apparent wind and keeps working without one', () => {
+    const ship = createShip(brig);
+    ship.setWind?.({ angle: 0.5, speed: 14, gust: 1.2 });
+    trim(ship, 1.0, 1);
+    ship.setWind?.({ angle: -2, speed: 3, gust: 0.8 });
+    trim(ship, 1.0, 1);
     ship.dispose();
   });
 });

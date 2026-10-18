@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { ShipSpec } from './types';
 import type { ShipMaterials } from './materials';
 import { deckHeight, halfBeam, sectionPoint, sidePoint, bulwark } from './hullShape';
+import { flagStrip, prepareFlag } from './flagCloth';
 
 const dummy = new THREE.Object3D();
 
@@ -116,8 +117,10 @@ export function buildSternFlag(spec: ShipSpec, mats: ShipMaterials): THREE.Group
   g.name = 'stern-flag';
   const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, pole, 5), mats.wood);
   stick.position.set(x, base + pole / 2, 0);
-  const cloth = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mats.flag);
-  cloth.position.set(x - w / 2, base + pole - h / 2, 0);
+  const strip = flagStrip(w, h, 0);
+  prepareFlag(strip, 0.6);
+  const cloth = new THREE.Mesh(strip, mats.flag); // the flag shader waves it (see flagCloth.ts)
+  cloth.position.set(x, base + pole, 0);
   g.add(stick, cloth);
   return g;
 }

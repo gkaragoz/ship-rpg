@@ -15,7 +15,7 @@ Space: glTF Y-up export of Blender Z-up, +x bow, +y up, +z starboard, metres, wa
 | `<id>` | root empty |
 | `LOD0`, `LOD1`, `LOD2` | one child group per level; the game only toggles `.visible` (LOD0 is the hero model) |
 | `LODn_Body` | static hull, deck, mast, rigging, jib … merged by material |
-| `LODn_trim-aft` | (legacy hand-made tartane only; no shipped ship uses it any more, the game still accepts it) **sail pivot on the mast axis at deck height** (translation = `meta.trimPivot`). The game rotates it about Y and scales Y/Z for wind and sail level. Square rigs use `LODn_trim-square`. `setSailTrim` matches on `endsWith('trim-aft' / 'trim-square')` |
+| `LODn_trim-aft` | (legacy hand-made tartane only; no shipped ship uses it any more, the game still accepts it) **sail pivot on the mast axis at deck height** (translation = `meta.trimPivot`). The game rotates it about Y for the brace/sheet swing; LOD0 sails are then moved by the cloth shader (see the cloth contract below), the other LODs are scaled in Y/Z for sail level and wind side. Square rigs use `LODn_trim-square`. `setSailTrim` matches on `endsWith('trim-aft' / 'trim-square')` |
 | `LODn_AftSail` | yard + sail, pivot-local, child of the pivot |
 | `LODn_m<i>_trim-square` / `_trim-aft` | the generic builder (every ship): one pivot per sail group of mast `i` (square sails, and the spanker/gaff/lug/lateen sail), sails named `LODn_m<i>_SquareSail` / `_AftSail` |
 | `LOD0_Glass` | generic builder: emissive stern windows and lanterns (LOD0 only) |
@@ -69,6 +69,18 @@ Measured (from `meta.json`):
 | battleship | 37,710 / 2,423 / 897 | 13 | 2048² | 1.90 MB |
 
 GPU memory: textures are RGBA8 with mips on the GPU whatever the file format, about 3 × A² × 4 B × 1.33 per ship (tartane 17 MB, brig 38 MB, galleon and battleship 67 MB each) plus about 8 MB for the three 512² tiles, which every GLB embeds again (about 220 MB for the four); small ships use 1024² (length ≤ 20), 1536² (< 40), 2048² atlases; the full set of 16 would be roughly 0.7 GB if all were resident, so ships load on demand; KTX2/Basis is the next step if that matters. Oared ships (xebec, galeoth) get sweeps from `pbrdeck.oars`.
+
+## Cloth contract (sails and flags drawn by vertex shaders)
+The shaders need **nothing baked** into the GLBs; the game analyses the shipped meshes when a ship is built (`src/ships/clothGeometry.ts`, `flagCloth.ts`; `tests/clothGlb.test.ts` runs it on all 16). What the generator must keep true:
+- `LOD0_m<i>_SquareSail` is one welded quad grid **per tier**; the tiers of a mast are **separate grids with a gap** (the connected components of the index buffer are the tiers, sorted by height; their number must equal `spec.masts[i].tiers`). The grid is a plane in y/z with the baked belly along +x, rows run from the foot (bottom) to the yard (top).
+- `LOD0_m<i>_AftSail` is one grid in the x/y plane with the baked belly along +z; its upper and lower outlines (as functions of x) are used as head and foot lines.
+- `LOD0_m<i>_SquareYards` holds the yards, footropes, boltropes and lifts of all tiers as separate connected pieces; each piece belongs to the tier it starts in (its lowest point) and is gathered like that tier's sail except within a yard's thickness of the head line, so yards never move. `AftYards` is untouched.
+- `LOD0_Flag`: every pennant and the ensign is its own strip streaming towards **-x** from its pole (the +x end); strips need not share vertices (flat quads are welded by position). A single swatch UV is fine (it is not used).
+- Per-vertex data the game adds in memory (never in the file): `clothA` = (code 1-3 square tier slot, 4 fore-and-aft, +10 for rigging; v foot to head; u across; baked belly in metres), `clothB` = (head-line y, height, width, seed), `flagA` = (distance along the cloth, depth below the pole top, strip length, seed), `flagP` = pole point. Meshes without them (LOD1/LOD2, jibs, static spars) are not moved.
+- Material rules: each ship clones the sail, yards and flag materials (scorch and nation tint stay per ship) and patches the clones with `onBeforeCompile` plus a fixed `customProgramCacheKey`, so all ships share one GL program per kind. LOD1/LOD2 and the jibs keep unpatched clones. Every cloth mesh also gets a `customDepthMaterial` with the same displacement.
+- LOD1/LOD2 sail grids stay as they are (scaled, no cloth); the LOD0 sail meshes need at least about 15 x 11 vertices per tier so the folds have something to bend.
+
+Measured (`?perf`, sailing with 12 NPC ships, medium quality, 1024x768, dev server, before and after): frame 12.1 ms / 82 fps both; 210-222 draw calls both (the frame is v-sync bound); GPU time 4.7-6.2 ms before, 3.8-6.4 ms after. Shader programs for one ship with shadows on (a lab scene): 4 before, 8 after (sail, yards, flag and depth variants), **shared by all 16 ships**, so the count does not grow with the fleet.
 
 ## `<id>.meta.json` (written by the generator, read by `ships/deck.ts`)
 `lods` (tris/meshes/drawCalls, must equal the GLB), PBR ships also `pbr: true`, `atlasPx`, `tilePx`; `trimPivot`, `lantern`, `deck.stations` (`[x, y, halfWidth]` per hull station: deck height and **walkable** half width, already inset from the rail and 0 where the bow is too narrow) and `obstacles` (circles/rects in ship-local x/z: mast, hatch, barrels, anchor, tiller, lantern pole). Crew AI walks only where `Deck.walkable(x, z, radius)`.

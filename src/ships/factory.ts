@@ -11,6 +11,9 @@ import { createGlbShip } from './glbShip';
 import { createUpgradingShip } from './lazyShip';
 import type { ShipLod } from './lod';
 import { collectSailNodes, createSailTrim } from './trim';
+import { createClothUniforms } from './clothShader';
+import { patchFlagMaterial } from './flagCloth';
+import type { WindInput } from './clothState';
 import type { Condition } from '../core';
 
 export interface Ship {
@@ -22,6 +25,11 @@ export interface Ship {
    * origin (+ = wind from port); `level` is sail deployment 0 (furled) … 1 (full).
    */
   setSailTrim(windRel: number, level: number): void;
+  /**
+   * Apparent wind at the ship for the cloth (belly, flutter, flag direction): `angle` from the bow (+ = from port),
+   * `speed` m/s, `gust` multiplier 0.75…1.25. Optional: without it the cloth derives a steady 8 m/s wind from `windRel`.
+   */
+  setWind?(wind: WindInput): void;
   /** Only on ships with level-of-detail variants (the GLB ships, and ships that will become one): 0 = full … 2 = silhouette. */
   setLod?(lod: ShipLod): void;
   /**
@@ -69,13 +77,17 @@ export function createProceduralShip(spec: ShipSpec, options: ShipOptions = {}):
   }
   const sails = collectSailNodes(root);
 
-  const sailTrim = createSailTrim(sails);
+  // Sails are scaled (the cheap fallback); the pennant and the ensign still wave in the vertex shader.
+  const cloth = createClothUniforms();
+  patchFlagMaterial(mats.flag, cloth, false);
+  const sailTrim = createSailTrim(sails, { tiers: Math.max(1, ...spec.masts.map((m) => m.tiers ?? 2)), cloth });
   const condition = createConditionRig(spec, mats, pivot, () => sailTrim.setDamageHeight(condition.sailHeight()));
 
   return {
     spec,
     root,
     setSailTrim: (windRel, level) => sailTrim.trim(windRel, level),
+    setWind: (wind) => sailTrim.setWind(wind),
     setCondition(c, time): void {
       condition.apply(c, time);
     },

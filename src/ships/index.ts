@@ -7,3 +7,4 @@ export { createDeck } from './deck';
 export type { Deck, DeckObstacle, ShipModelMeta } from './deck';
 export { LOD_RANGES, selectLod, lodUpdateDue } from './lod';
 export type { ShipLod } from './lod';
+export type { WindInput } from './clothState';
