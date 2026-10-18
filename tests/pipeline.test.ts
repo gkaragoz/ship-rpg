@@ -8,9 +8,9 @@ describe('pipeline helpers', () => {
   });
 
   it('skips the post-processing chain only when nothing in it is switched on', () => {
-    const plain = merge(DEFAULTS, { graphics: { antialias: 'off', bloom: false, toneMapping: 'none', renderScale: 1 } }).graphics;
+    const plain = merge(DEFAULTS, { graphics: { antialias: 'off', bloom: false, toneMapping: 'none', renderScale: 1, ambientOcclusion: 'off', globalIllumination: 'off' } }).graphics;
     expect(needsComposer(plain)).toBe(false);
-    for (const change of [{ antialias: 'fxaa' }, { bloom: true }, { toneMapping: 'aces' }, { renderScale: 0.75 }] as const) {
+    for (const change of [{ antialias: 'fxaa' }, { bloom: true }, { toneMapping: 'aces' }, { renderScale: 0.75 }, { ambientOcclusion: 'ssao' }, { globalIllumination: 'ssgi' }] as const) {
       expect(needsComposer(merge(DEFAULTS, { graphics: { ...plain, ...change } }).graphics), JSON.stringify(change)).toBe(true);
     }
   });

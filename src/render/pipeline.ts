@@ -7,6 +7,7 @@ import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
+import { createGpuTimer } from './gpuTimer';
 import { SsgiPass } from './ssgiPass';
 import type { AntialiasMode, GraphicsSettings, OcclusionMode, ToneMapping } from '../settings';
 import type { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
@@ -37,10 +38,10 @@ export function msaaSamples(mode: AntialiasMode): number {
 
 /**
  * Does the frame have to go through the post-processing chain at all? Only when something in it is switched on:
- * antialiasing, bloom, tone mapping or a render scale other than 1.
+ * antialiasing, bloom, tone mapping, ambient occlusion or bounce light, or a render scale other than 1.
  */
 export function needsComposer(g: GraphicsSettings): boolean {
-  return g.antialias !== 'off' || g.bloom || g.toneMapping !== 'none' || g.renderScale !== 1;
+  return g.antialias !== 'off' || g.bloom || g.toneMapping !== 'none' || g.renderScale !== 1 || effectiveOcclusion(g) !== 'off';
 }
 
 /** The occlusion pass that runs: screen-space bounce light needs GTAO's depth and normal buffers, so it brings GTAO with it. */
@@ -56,7 +57,29 @@ export const canvasRatio = (): number => Math.min(window.devicePixelRatio || 1, 
  * through bloom, tone mapping (all objects, including the sea and sky shaders, are tone mapped together) and FXAA,
  * and the last pass writes the canvas. The render scale sets the target's size relative to the canvas.
  */
+/** What the last frame cost, for the debug overlay and `?perf`. */
+export interface RenderStats {
+  calls: number;
+  triangles: number;
+  geometries: number;
+  textures: number;
+  /** Multisample count of the scene target (0: none) and whether it is half float. */
+  samples: number;
+  hdr: boolean;
+  /** Whether the post-processing chain was used, the canvas size in pixels and the render scale. */
+  composer: boolean;
+  width: number;
+  height: number;
+  scale: number;
+  /** GPU time of the frame in ms, when the browser offers a timer. */
+  gpuMs: number | null;
+}
+
 export interface Pipeline {
+  /** Wrap a whole frame (wake passes included): counters are reset and the GPU timer runs between the two. */
+  beginFrame(): void;
+  endFrame(): void;
+  stats(): RenderStats;
   /** CSS size of the canvas. */
   setSize(width: number, height: number): void;
   apply(graphics: GraphicsSettings): void;
@@ -72,6 +95,7 @@ export function createPipeline(renderer: THREE.WebGLRenderer, scene: THREE.Scene
   renderer.info.autoReset = false;
   // The scene is rendered more than once a frame (beauty pass, occlusion normals): draw the sun's shadow map once.
   renderer.shadowMap.autoUpdate = false;
+  const gpu = createGpuTimer(renderer);
   const hdr = renderer.capabilities.isWebGL2 && renderer.extensions.has('EXT_color_buffer_float');
   const maxSamples = renderer.capabilities.maxSamples;
   const target = new THREE.WebGLRenderTarget(1, 1, { type: hdr ? THREE.HalfFloatType : THREE.UnsignedByteType, samples: 0 });
@@ -188,6 +212,29 @@ export function createPipeline(renderer: THREE.WebGLRenderer, scene: THREE.Scene
       layout();
     },
     apply,
+    beginFrame(): void {
+      renderer.info.reset();
+      gpu.begin();
+    },
+    endFrame(): void {
+      gpu.end();
+    },
+    stats(): RenderStats {
+      const info = renderer.info;
+      return {
+        calls: info.render.calls,
+        triangles: info.render.triangles,
+        geometries: info.memory.geometries,
+        textures: info.memory.textures,
+        samples,
+        hdr,
+        composer: useComposer,
+        width: renderer.domElement.width,
+        height: renderer.domElement.height,
+        scale: graphics.renderScale,
+        gpuMs: gpu.ms,
+      };
+    },
     render(): void {
       renderer.shadowMap.needsUpdate = true;
       if (occlusion) syncAoCamera();
@@ -198,6 +245,7 @@ export function createPipeline(renderer: THREE.WebGLRenderer, scene: THREE.Scene
       return { samples, hdr, composer: useComposer };
     },
     dispose(): void {
+      gpu.dispose();
       composer.dispose();
       bloom.dispose();
       output.dispose();

@@ -2,7 +2,9 @@
 
 three.js scenes. Depends on `core` types and static `world` data. It may import `ships` per the architecture table but currently does not: the app hands it plain `THREE.Object3D` ship models. Never reads `gameplay`.
 
-- `galleryView.ts` orbit stage for browsing ships, frames the model in the area not covered by panels
+- `galleryView.ts` orbit stage for browsing ships, frames the model in the area not covered by panels; it stands in the same sea and sky as the game (`environment.ts`), far from the islands, and the ship floats on the waves
+- `environment.ts` the sea, sky, fog and lights both views share (+ `shadows.ts` the sun's shadow map that follows the ship, `gi.ts` the live sky as image-based light)
+- `pipeline.ts` the frame's way to the screen: MSAA target, SSAO/GTAO (+ `ssgiPass.ts` screen-space bounce), bloom, tone mapping, FXAA, render scale; also the frame stats and GPU timer (`gpuTimer.ts`)
 - `sailingView.ts` open-sea scene: ocean, sky, island scenery, chase camera; the player's ship and enemy actors (`addActor`/`removeActor`) are drawn with the game's own heave/pitch/roll (`GameView.*.heave/pitch/waveRoll`, see `gameplay/buoyancy.ts`; `ride.ts`) and sink; the day's look (fog, sun, sky, sea colours) follows `GameView.seaState` (`seaLook.ts`); cannonballs are one instanced mesh
 - `aimArcs.ts` gun hit zones on the sea (from `GameView.ship.aim` incl. its hit-chance `profile`, shaded by it, and `inRange`), draped on the long swell
 - `damageNumbers.ts` floating damage numbers (`mergeHits` merges a volley into one number per target)

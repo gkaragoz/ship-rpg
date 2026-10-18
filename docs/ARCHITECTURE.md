@@ -6,7 +6,7 @@
 | `core` | fixed-step loop, input, math, config, shared view types | — |
 | `ships` | ship specs (data), procedural factory, GLB ships (`assets`, `glbShip`), LOD selection (`lod`), walkable deck (`deck`), sail trim, battle condition | `core` |
 | `world` | wind, polar diagram, sea (waves, sea state), archipelago terrain (height function), ports, nations (flags) | `core` |
-| `render` | three.js scene, camera, ocean (clip-map mesh, quality presets), sky, scenery, effects, other ships (`fleet`), animated crew (`crew`) | `core`, `ships`, `world` |
+| `render` | three.js scene, camera, ocean (clip-map mesh, quality presets), shared environment, render pipeline, shadows, GI, sky, scenery, effects, other ships (`fleet`), animated crew (`crew`) | `core`, `ships`, `world` |
 | `gameplay` | combat, trade, quests, game state, deck crew (`crew`), NPC patrols (`npcShips`) | `core`, `ships`, `world` |
 | `settings` | player options (graphics, audio, game, debug): schema, presets, store with saved JSON | `core` |
 | `audio` | procedural sound (Web Audio), spatial mix | `core` |
@@ -38,4 +38,4 @@ Conventions worth knowing: the sea surface is one definition (`world/sea.ts`: Ge
 
 ## Sea (see `SEA.md`)
 - `world/sea.ts` is the one definition of the waves (Gerstner) and the sea state; `gameplay/buoyancy.ts` turns it into ship motion (`Body` springs on the fixed step) and handling effects (`seaEffects`, optional `sea` argument of `stepPlayerShip`; the duel simulator passes none), exposed to `render` through `GameView.seaState` and `ShipView/EnemyView.heave|pitch|waveRoll` (`core/views.ts`). `render` only draws: clip-map sea mesh, shaders generated from the same wave table, the foam/ripple wake map (`wake.ts`, half-float render targets) and the day's look per sea state.
-- Quality: `render/quality.ts` presets (`?quality=`, `K`, automatic step-down); debugging: `?perf` (`window.__perf`), `?sea=0…1`, `game.dev.setSea`.
+- Quality and options: everything the player can change is in `settings` (see `SETTINGS.md`): the menu (gear, Esc), presets, `?quality=`, `K`, the automatic water step-down; `render/pipeline.ts` is the frame's way to the screen (MSAA/FXAA, bloom, tone mapping, AO, bounce light), `render/environment.ts` the sea, sky, fog and lights both views share. Debugging: the frame profiler overlay (F3), `?perf` (`window.__perf`), `?sea=0…1`, `game.dev.setSea`.

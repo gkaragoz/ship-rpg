@@ -73,6 +73,9 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
     sfxBus.connect(master);
     ambBus = ctx.createGain();
     ambBus.connect(master);
+    master.gain.value = muted ? 0 : MASTER * volumes.master; // start at the set level, not at full, then ease as settings change
+    sfxBus.gain.value = volumes.sfx;
+    ambBus.gain.value = volumes.ambience;
     applyVolumes();
     bus = { ctx, noise: makeNoise(ctx) };
     const c = ctx;

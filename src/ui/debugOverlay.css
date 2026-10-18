@@ -1,0 +1,8 @@
+.debug-overlay {
+  position: fixed; top: 52px; right: 12px; z-index: 35; padding: 6px 8px; pointer-events: none;
+  background: rgba(8, 18, 26, 0.78); border: 1px solid rgba(159, 183, 196, 0.5); border-radius: 4px;
+  font: 11px/1.35 Consolas, 'Courier New', monospace; color: #cfe3ea; max-width: 330px;
+}
+.debug-overlay[hidden] { display: none; }
+.debug-overlay pre { margin: 0 0 4px; white-space: pre; }
+.debug-overlay canvas { display: block; width: 200px; height: 36px; }

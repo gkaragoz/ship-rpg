@@ -2,6 +2,7 @@ import { SHIP_SPECS, createShip, type Ship, type ShipSpec } from '../ships';
 import { createGalleryView } from '../render';
 import { getSettings } from '../settings';
 import { createGalleryUI, createSettingsUI, type GalleryItem, type GalleryUI } from '../ui';
+import { renderLines } from './debugLines';
 import { applyGameSettings } from './gameSettings';
 import type { Mode } from './mode';
 
@@ -58,7 +59,7 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
   applySettings();
   const unsubscribe = store.subscribe(applySettings);
   const onKey = (e: KeyboardEvent): void => {
-    if (e.code === 'Escape') settingsUI.toggle();
+    if (e.code === 'Escape' && !e.repeat && !(e.target instanceof HTMLSelectElement)) settingsUI.toggle();
   };
   window.addEventListener('keydown', onKey);
 
@@ -66,6 +67,7 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
   if (first) ui.select(first.id);
 
   return {
+    debugInfo: () => renderLines(view.stats(), store.get().graphics),
     update: (dt) => view.update(dt),
     render: () => view.render(),
     dispose(): void {

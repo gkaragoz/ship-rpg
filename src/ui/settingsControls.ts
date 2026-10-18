@@ -148,7 +148,18 @@ export const CONTROLS: readonly Control[] = [
   { tab: 'audio', kind: 'range', label: 'Ana ses', min: 0, max: 1, step: 0.05, format: percent, get: (s) => s.audio.master, set: (v) => ({ audio: { master: v } }) },
   { tab: 'audio', kind: 'range', label: 'Efektler', hint: 'Toplar, isabetler, sıçramalar.', min: 0, max: 1, step: 0.05, format: percent, get: (s) => s.audio.sfx, set: (v) => ({ audio: { sfx: v } }) },
   { tab: 'audio', kind: 'range', label: 'Ortam', hint: 'Rüzgâr, deniz, gövde, yangın.', min: 0, max: 1, step: 0.05, format: percent, get: (s) => s.audio.ambience, set: (v) => ({ audio: { ambience: v } }) },
-  { tab: 'game', kind: 'range', label: 'Arayüz boyutu', min: 0.7, max: 1.5, step: 0.05, format: percent, get: (s) => s.game.hudScale, set: (v) => ({ game: { hudScale: v } }) },
+  { tab: 'game', kind: 'range', label: 'Yelken arayüzü boyutu', min: 0.7, max: 1.5, step: 0.05, format: percent, get: (s) => s.game.hudScale, set: (v) => ({ game: { hudScale: v } }) },
   { tab: 'game', kind: 'toggle', label: 'İpucu çubuğu', get: (s) => s.game.showHints, set: (v) => ({ game: { showHints: v } }) },
   { tab: 'game', kind: 'range', label: 'Kamera hassasiyeti', min: 0.4, max: 2, step: 0.05, format: percent, get: (s) => s.game.cameraSensitivity, set: (v) => ({ game: { cameraSensitivity: v } }) },
+  {
+    tab: 'debug', kind: 'toggle', label: 'Hata ayıklama paneli (F3)', hint: 'FPS, %1 düşük, kare/güncelleme/çizim süreleri, GPU süresi, sayaçlar.',
+    get: (s) => s.debug.overlay,
+    set: (v) => ({ debug: { overlay: v } }),
+  },
+  {
+    tab: 'debug', kind: 'select', label: 'Ayrıntı (Shift+F3)',
+    options: [['mini', 'Kısa'], ['full', 'Tam']],
+    get: (s) => s.debug.detail,
+    set: (v) => ({ debug: { detail: v as 'mini' | 'full' } }),
+  },
 ];

@@ -18,7 +18,7 @@ A **clip-map**: concentric square levels around the camera, each twice as coarse
 | medium (default) | 64 | 1.5 m | 1.5 | ~47k |
 | high | 96 | 1 m | 2 | ~100k |
 
-Choose with `?quality=low|medium|high` (fixed), the `K` key (cycles, remembered in `localStorage`), or let the game lower it: if a 2 s window averages slower than 40 fps it steps down one preset (never up by itself, never when the quality was chosen explicitly). `?perf` shows `quality` and `frameMs`.
+Choose with the settings menu (Su kalitesi), `?quality=low|medium|high` (fixed for that load), the `K` key (cycles; both are saved by the settings store, `SETTINGS.md`), or let the game lower it: if a 2 s window averages slower than 40 fps it steps down one preset (never up by itself, never when the quality was chosen explicitly). `?perf` shows `quality` and `frameMs`.
 
 Measured with `?perf` (same pane as the baseline): total triangles **539k → 124k** at medium (181k high, 104k low; the rest is ships and islands); draw calls 62 → 67.
 
@@ -35,7 +35,7 @@ Stylised but rich: smooth analytic wave normals plus two scrolling detail layers
 - **HUD and sound.** The panel shows the sea (`Sakin … Fırtına`, red in a storm); the ambience gets louder with the sea state.
 
 ## Ships and water (`render/wake.ts`, `wakeStamps.ts`)
-- **Wake map.** A 360 m square of sea around the camera is kept as a half-float ping-pong render target (512² on low, 1024² on medium/high): **R foam, G ripple height (m)**. Each frame a pass scrolls it with the camera (snapped to texels), fades the foam (0.45 /s) and the ripples (1.6 /s) and spreads both a little; then ships and splashes are painted in as soft instanced ellipses (one draw call, ≤ 96 stamps). Without half-float render targets (`EXT_color_buffer_float` or `EXT_color_buffer_half_float`) the map is switched off and the rest still works.
+- **Wake map** (R foam, G ripple height, B ship shadows redrawn each frame, see `SETTINGS.md`). A 360 m square of sea around the camera is kept as a half-float ping-pong render target (512² on low, 1024² on medium/high): **R foam, G ripple height (m)**. Each frame a pass scrolls it with the camera (snapped to texels), fades the foam (0.45 /s) and the ripples (1.6 /s) and spreads both a little; then ships and splashes are painted in as soft instanced ellipses (one draw call, ≤ 96 stamps). Without half-float render targets (`EXT_color_buffer_float` or `EXT_color_buffer_half_float`) the map is switched off and the rest still works.
 - **Stamps** (`shipStamps`, per frame so they are frame-rate independent): a foam ring along the waterline, a **bow wave** (a crest pushed up in front with foam), a **stern wash** (a trough and lots of foam, wider than the hull) and two arms behind, all scaled by speed and sea state; a foundering hull churns a disc of foam; splashes, hits and sinkings paint one-off bursts. Player, enemies and patrol ships all take part.
 - **In the shader** the map lifts and lowers the surface (vertex), adds foam through a noise breakup and tilts the normals along the ripples (fragment).
 - **Spray.** `effects.spray` throws sprites up and aside at the bow of every ship under way, more with speed and in a rough sea.

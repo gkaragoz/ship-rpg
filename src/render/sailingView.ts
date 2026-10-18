@@ -6,7 +6,7 @@ import type { Ship, ShipLod } from '../ships';
 import { createCrewRenderer } from './crew';
 import { createFleet } from './fleet';
 import { createEnvironment } from './environment';
-import { createPipeline, excludeFromOcclusion } from './pipeline';
+import { createPipeline, excludeFromOcclusion, type RenderStats } from './pipeline';
 import { enableShadows } from './shadows';
 import { QUALITIES } from './quality';
 import type { GraphicsSettings } from '../settings';
@@ -23,10 +23,8 @@ export interface ShipDims {
   beam: number;
 }
 
-/** Counters for performance checks (see `?perf` in the sailing mode). */
-export interface ViewStats {
-  calls: number;
-  triangles: number;
+/** Counters for performance checks (see `?perf` and the debug overlay). */
+export interface ViewStats extends RenderStats {
   /** Other ships currently drawn at LOD 0, 1 and 2. */
   lods: [number, number, number];
 }
@@ -153,11 +151,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
     },
     setLodOverride: (lod) => fleet.setOverride(lod),
 
-    stats: () => ({
-      calls: renderer.info.render.calls,
-      triangles: renderer.info.render.triangles,
-      lods: fleet.lodCounts(),
-    }),
+    stats: () => ({ ...pipeline.stats(), lods: fleet.lodCounts() }),
 
     setAimVisible(on): void {
       aim.setVisible(on);
@@ -193,7 +187,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
     },
 
     draw(view): void {
-      renderer.info.reset(); // the counters cover the whole frame, wake and post passes included
+      pipeline.beginFrame(); // the counters and the GPU timer cover the whole frame, wake and post passes included
       const { ship, wind, time } = view;
       const ampScale = seaAmp(view.seaState);
       const now = performance.now();
@@ -275,6 +269,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       } finally {
         camera.position.sub(shakeOffset); // never leave the shake on the camera, even if drawing throws
       }
+      pipeline.endFrame();
     },
 
     dispose(): void {

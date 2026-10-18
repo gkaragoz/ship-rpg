@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createEnvironment } from './environment';
-import { createPipeline } from './pipeline';
+import { createPipeline, type RenderStats } from './pipeline';
 import { enableShadows } from './shadows';
 import { QUALITIES } from './quality';
 import type { GraphicsSettings } from '../settings';
@@ -17,6 +17,7 @@ export interface GalleryView {
   setCameraSensitivity(factor: number): void;
   /** Apply the graphics settings: the same as at sea. */
   setGraphics(graphics: GraphicsSettings): void;
+  stats(): RenderStats;
   update(dt: number): void;
   render(): void;
   dispose(): void;
@@ -138,7 +139,7 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
       controls.update();
     },
     render(): void {
-      renderer.info.reset();
+      pipeline.beginFrame();
       const now = performance.now();
       const dt = Math.min((now - lastRender) / 1000, 0.1);
       lastRender = now;
@@ -151,7 +152,9 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
       }
       env.update({ camera, time: elapsed, dt, windFrom: GALLERY_WIND_FROM, seaState: GALLERY_SEA, stamps, focus: { position: pivot.position, length: dims.length } });
       pipeline.render();
+      pipeline.endFrame();
     },
+    stats: () => pipeline.stats(),
     dispose(): void {
       observer.disconnect();
       controls.dispose();

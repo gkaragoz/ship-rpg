@@ -6,3 +6,5 @@ export { createInput } from './input';
 export type { Input } from './input';
 export type { AimZoneView, Attitude, BallView, Condition, Controls, CrewAnim, CrewLook, CrewView, EnemyView, GameEvent, GameView, HitZone, OtherShipView, Owner, PortView, ShipView, WindView } from './views';
 export { createRng } from './rng';
+export { HISTORY, createProfiler, frameColor } from './profiler';
+export type { Profiler, ProfilerStats } from './profiler';

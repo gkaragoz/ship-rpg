@@ -6,6 +6,7 @@ import { getSettings } from '../settings';
 import { createShip, getShipSpec, type Ship, type ShipLod, type ShipSpec } from '../ships';
 import { createHud, createMapUi, createPortPanel, createSettingsUI } from '../ui';
 import { getNation } from '../world';
+import { gameLines, renderLines } from './debugLines';
 import { applyGameSettings } from './gameSettings';
 import type { Mode } from './mode';
 
@@ -23,7 +24,7 @@ const MUTE = 'KeyN';
 const QUALITY = 'KeyK';
 const GAME_KEYS = [...PORT, ...STARBOARD, ...MORE_SAIL, ...LESS_SAIL];
 
-/** Free sailing on the open sea with the chosen ship. Esc returns via `onExit`. */
+/** Free sailing on the open sea with the chosen ship. Esc opens the settings menu, which has the way back (`onExit`). */
 export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () => void): Mode {
   const input = createInput();
   const game = createGame(spec);
@@ -44,13 +45,21 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   const portPanel = createPortPanel(host);
   const audio = createAudio();
   let paused = false;
+  let lastView: GameView | null = null;
   const settingsUI = createSettingsUI(host, store, {
     onExit: { label: 'Galeriye dön', run: onExit },
     onOpenChange: (open) => (paused = open),
   });
   // Settings reach the view, the sound and the page whenever they change (and once now).
+  let water = store.get().graphics.water;
+  let chosenWater = false; // the player changed the water quality (menu or K): the automatic step-down leaves it alone
+  let autoChange = false;
   const applySettings = (): void => {
     const s = store.get();
+    if (s.graphics.water !== water) {
+      water = s.graphics.water;
+      if (!autoChange) chosenWater = true;
+    }
     view.setGraphics(s.graphics);
     audio.setVolumes(s.audio);
     view.setCameraSensitivity(s.game.cameraSensitivity);
@@ -84,7 +93,9 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
 
   const onKey = (e: KeyboardEvent): void => {
     audio.resume(); // browsers only start audio after a user gesture
-    if (e.code === 'Escape') settingsUI.toggle();
+    if (e.code === 'Escape') {
+      if (!e.repeat && !(e.target instanceof HTMLSelectElement)) settingsUI.toggle(); // Esc closes an open drop-down, not the menu
+    }
     else if (paused) return; // the menu is open: the game keys wait
     else if (e.code === MAP && !e.repeat) map.toggle();
     else if (e.code === QUALITY && !e.repeat) {
@@ -154,6 +165,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   };
 
   return {
+    debugInfo: () => [...renderLines(view.stats(), store.get().graphics), ...(lastView ? gameLines(lastView) : [])],
     update(dt): void {
       if (paused) return; // the settings menu stops the game
       game.update(dt, controls());
@@ -162,13 +174,19 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     render(): void {
       const now = performance.now();
       const slow = autoQuality.frame((now - lastRender) / 1000);
-      if (slow && store.get().graphics.autoQuality && !urlQuality && store.get().graphics.water !== 'low') {
-        const lower = lowerQuality(store.get().graphics.water);
+      const g = store.get().graphics;
+      // Not when the frame rate is capped on purpose (a 30 fps limit looks slow), nor once the player chose a water quality.
+      const capped = g.fpsLimit > 0 && g.fpsLimit < 45;
+      if (slow && g.autoQuality && !urlQuality && !capped && !chosenWater && g.water !== 'low') {
+        const lower = lowerQuality(g.water);
+        autoChange = true;
         store.patch({ graphics: { water: lower } }, false); // not saved: the next start tries the chosen quality again
+        autoChange = false;
         hud.notice(`Grafik düşürüldü: ${lower}`);
       }
       lastRender = now;
       const v = game.view();
+      lastView = v;
       syncOthers(v);
       ship.setSailTrim(angleDiff(v.wind.from, v.ship.heading), v.ship.sailLevel);
       ship.setCondition(v.ship, v.time);

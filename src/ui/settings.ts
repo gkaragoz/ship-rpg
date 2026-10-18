@@ -42,6 +42,7 @@ function buildRow(control: Control, store: SettingsStore): { row: HTMLElement; s
     select.addEventListener('change', () => {
       if (control.choose) control.choose(store, select.value);
       else store.patch(control.set(select.value));
+      select.value = control.get(settings()); // a choice that changed nothing (Özel) snaps back to what is true
     });
     row.append(select);
     return { row, sync: () => (select.value = control.get(settings())) };
