@@ -22,6 +22,22 @@ export interface Controls {
 
 export type Owner = 'player' | 'enemy';
 
+/** Where on a ship a ball struck, by its height: just above the sea, the hull proper, or the rigging above the deck. */
+export type HitZone = 'waterline' | 'hull' | 'rigging';
+
+/**
+ * How battered a ship is, each 0…1. Shared by `ShipView` (the player) and `EnemyView`, and what the ship
+ * models and effects draw: torn sails, a ship sitting low in the water, flames.
+ */
+export interface Condition {
+  /** Health of sails and rigging: 1 intact, 0 wrecked. Slows the ship and blunts its turning. */
+  rigging: number;
+  /** Water in the hull: 0 dry, 1 about to founder. */
+  flooding: number;
+  /** Fire: 0 none, 1 raging. */
+  fire: number;
+}
+
 export interface WindView {
   from: number;
   /** m/s */
@@ -45,7 +61,7 @@ export interface AimZoneView {
   spread: number;
 }
 
-export interface ShipView {
+export interface ShipView extends Condition {
   x: number;
   z: number;
   heading: number;
@@ -74,7 +90,7 @@ export interface ShipView {
   inRange: { port: boolean; starboard: boolean };
 }
 
-export interface EnemyView {
+export interface EnemyView extends Condition {
   id: string;
   specId: string;
   name: string;
@@ -111,6 +127,8 @@ export interface GameEvent {
   type: 'fire' | 'splash' | 'hit' | 'sunk' | 'escaped';
   /** Hull points the hit took off (`hit` events only). */
   amount?: number;
+  /** Where the ball struck (`hit` events only). */
+  zone?: HitZone;
   owner: Owner;
   x: number;
   y: number;

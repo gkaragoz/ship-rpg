@@ -265,6 +265,9 @@ export function createGame(spec: ShipSpec): Game {
         maxHp: e.maxHp,
         sinking: e.sinking,
         fleeing: e.fleeing,
+        rigging: 1, // placeholders until the damage model (5a.3a-c) fills them in
+        flooding: 0,
+        fire: 0,
         distance: Math.hypot(e.ship.x - ship.x, e.ship.z - ship.z),
         direction: Math.atan2(-(e.ship.z - ship.z), e.ship.x - ship.x),
       }));
@@ -290,6 +293,9 @@ export function createGame(spec: ShipSpec): Game {
           roll: ship.roll,
           hp,
           maxHp,
+          rigging: 1,
+          flooding: 0,
+          fire: 0,
           guns: cannonsPerSide(spec),
           aim: zone,
           inRange: {
