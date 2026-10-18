@@ -104,3 +104,7 @@
 .hud-panel dd.alert { color: #e8643c; }
 
 .no-hints .hud-help { display: none; }
+
+.hud-captain { margin-top: 8px; border-top: 1px solid rgba(224, 184, 64, 0.35); padding-top: 6px; }
+.hud-xp > div { background: #8fb7ff; }
+.hud-captain .hud-bar { margin-top: 4px; }

@@ -2,7 +2,7 @@ import { stepCrashes } from './crashes';
 import { CONFIG, createRng } from '../core';
 import type { Controls, GameEvent, GameView, WindView } from '../core';
 import { getDeck, getShipSpec, type ShipSpec } from '../ships';
-import { DEFAULT_CLOCK, getPort, gustAt, hourAt, seaAmp, startHourFor, waveHeight, type ClockSettings, type Port, type Weather, type WeatherOverrides } from '../world';
+import { DEFAULT_CLOCK, gustAt, hourAt, seaAmp, waveHeight, type ClockSettings, type Port, type Weather, type WeatherOverrides } from '../world';
 import { createExploration } from './exploration';
 import { COMBAT, ELEVATION, cannonsPerSide, windVelocity, type Ball, type Side } from './combat';
 import { planBroadside } from './gunnery';
@@ -10,7 +10,7 @@ import { createSalvo } from './salvo';
 import { flyBalls, type ShotWorld } from './shots';
 import { stepAffliction } from './damage';
 import { ballViews, enemyView, playerView, portView } from './enemyView';
-import { MAX_ENEMIES, aiStep, createEnemy, desiredEnemies, findSpawn, lostTrack, pickEnemySpec, type Enemy } from './enemy';
+import { aiStep, desiredEnemies, lostTrack, spawnFor, type Enemy } from './enemy';
 import { gunScatter, seaEffects, stepBody } from './buoyancy';
 import { createCrew, crewCountFor } from './crew';
 import { createDevHooks } from './devHooks';
@@ -18,8 +18,11 @@ import { createNpcFleet } from './npcShips';
 import { createWeatherState } from './weatherState';
 import { createPlayerShip, stepPlayerShip, type PlayerShip } from './sailing';
 import { cloneState, newGameState, startPose, type GameState } from './state';
-import { DOCK, ELEVATE_RATE, ENEMY_NATIONS, REPAIR_RATE, RESPAWN, STAGGER } from './tuning';
-import { captainView, cargoView, companyView, snapshot } from './stateView';
+import { DOCK, ELEVATE_RATE, REPAIR_RATE, RESPAWN, STAGGER } from './tuning';
+import { restoreShip, boardingView, captainView, cargoView, companyView, snapshot } from './stateView';
+import { changeClock } from './clockState';
+import { createDesk } from './desk';
+import { awardXp, killXp } from './plunder';
 
 export interface Game {
   /** The ship the player sails now. */
@@ -45,6 +48,10 @@ export interface Game {
     setRigging(fraction: number): void;
     /** Set the player's flooding and fire, 0…1. */
     setAffliction(flooding: number, fire: number): void;
+    /** Set the captain's gold, the crew count, or add experience. */
+    setGold(n: number): void;
+    setCrew(n: number): void;
+    addXp(n: number): void;
     /** Force the sea state, 0 (glassy) … 1 (storm); `null` returns to the weather. */
     setSea(state: number | null): void;
   };
@@ -69,6 +76,7 @@ export function createGame(init: ShipSpec | GameState): Game {
   let restartAsked = false;
   let threat = 0; // ships sunk this run: how many enemies attack at once (the career count is `st.captain.kills`)
   let time = st.time;
+  const desk = createDesk(st, () => spec);
   const weatherState = createWeatherState();
   let weather: Weather = weatherState.update(time, 0, ship);
   let wind = { from: weather.windFrom, speed: weather.windSpeed };
@@ -93,26 +101,18 @@ export function createGame(init: ShipSpec | GameState): Game {
   const canDock = (distance: number): boolean => distance <= DOCK.range && Math.abs(ship.speed) <= DOCK.maxSpeed;
 
   const toggleDock = (): void => {
-    if (dockedAt) {
-      dockedAt = null;
-      ship.docked = false;
-      return;
-    }
-    const n = nearest();
-    if (n && canDock(n.distance)) {
-      dockedAt = n.port;
-      ship.docked = true;
-      ship.speed = 0;
-    }
+    const n = dockedAt ? null : nearest();
+    dockedAt = n && canDock(n.distance) ? n.port : null;
+    ship.docked = !!dockedAt;
+    if (dockedAt) ship.speed = 0;
   };
 
   // --- enemies -----------------------------------------------------------------------------
   const spawnEnemy = (): void => {
-    const enemySpec = pickEnemySpec(spec, enemyCounter % MAX_ENEMIES); // a squadron of up to three different types
-    const at = findSpawn(ship, enemySpec, rng, enemies.filter((e) => e.sinking < 0).map((e) => e.ship));
-    if (!at) return; // no room right now: the caller tries again after STAGGER
-    const nation = ENEMY_NATIONS[enemyCounter % ENEMY_NATIONS.length];
-    enemies.push(createEnemy(`e${++enemyCounter}`, enemySpec, at.x, at.z, at.angle + Math.PI, nation));
+    const next = spawnFor(spec, ship, enemies, enemyCounter, rng);
+    if (!next) return; // no room right now: the caller tries again after STAGGER
+    enemies.push(next);
+    enemyCounter++;
   };
 
   const reset = (pose: GameState['pose'] = startPose()): void => {
@@ -156,9 +156,10 @@ export function createGame(init: ShipSpec | GameState): Game {
     events.push({ type: 'sunk', owner: 'player', x: ship.x, y: 0, z: ship.z });
   };
 
-  const checkEnemySunk = (e: Enemy): void => {
+  const checkEnemySunk = (e: Enemy, boarded = false): void => {
     if (e.hp > 0 || e.sinking >= 0) return;
     e.sinking = 0;
+    awardXp(st, killXp(e, boarded), e.ship, events);
     threat++;
     st.captain.kills++;
     respawnIn = RESPAWN;
@@ -174,8 +175,9 @@ export function createGame(init: ShipSpec | GameState): Game {
       rng,
       surfaceAt: (x, z) => waveHeight(x, z, time, wind.from, seaAmp(sea), 0, weather.tuning),
       emit: (e) => events.push(e),
-      onPlayerHit: (lost) => {
+      onPlayerHit: (lost, zone) => {
         hp = Math.max(0, hp - lost);
+        desk.loseCrew(lost, maxHp, zone);
         checkPlayerSunk();
       },
       onEnemyHit: (e, lost) => {
@@ -224,14 +226,7 @@ export function createGame(init: ShipSpec | GameState): Game {
   reset(st.pose);
   // A loaded run keeps the state its ship was in and may begin moored.
   hp = Math.min(maxHp, Math.max(1, st.ship.hp));
-  ship.rigging = st.ship.rigging;
-  ship.flooding = st.ship.flooding;
-  ship.fire = st.ship.fire;
-  const moored = st.pose.dockedAt ? getPort(st.pose.dockedAt) : undefined;
-  if (moored) {
-    dockedAt = moored;
-    ship.docked = true;
-  }
+  dockedAt = restoreShip(ship, st);
   explore.discover();
 
   return {
@@ -247,13 +242,10 @@ export function createGame(init: ShipSpec | GameState): Game {
       setKills: (n) => (threat = n),
       setSea: (state) => weatherState.patch({ seaState: state === null ? undefined : state }),
       discover: () => explore.discover(),
+      state: () => st,
     }),
     setWeather: (change) => weatherState.patch(change),
-    setClock({ hour, ...rest }): void {
-      const now = hourAt(time, clock); // keep the time of day when only the speed changes
-      clock = { ...clock, ...rest };
-      clock.startHour = startHourFor(hour ?? now, time, clock);
-    },
+    setClock: (change) => (clock = changeClock(clock, change, time)),
     update(dt, controls): void {
       time += dt;
       weather = weatherState.update(time, dt, ship);
@@ -267,10 +259,21 @@ export function createGame(init: ShipSpec | GameState): Game {
         stepBalls(dt);
         // A restart asked for during the first moments of sinking is honoured once the screen shows.
         if (controls.restart) restartAsked = true;
-        if (restartAsked && sinkTime > 2) reset();
+        if (restartAsked && sinkTime > 2) {
+          desk.sunkPenalty();
+          reset();
+        }
         return;
       }
       if (controls.interact) toggleDock();
+      desk.tick(dt);
+      if (controls.board && !dockedAt) {
+        const prize = desk.attempt(ship, enemies, rng, events);
+        if (prize) {
+          prize.hp = 0;
+          checkEnemySunk(prize, true); // the prize is scuttled: it goes down with a kill's experience (and the boarding bonus)
+        }
+      }
       stepPlayerShip(ship, spec, feel(ship), controls, dt, seaEffects(spec, ship.heading, wind.from, sea));
       stepBody(ship.body, ship, spec, time, wind.from, sea, dt, !!dockedAt, weather.tuning);
       crew?.update(dt);
@@ -282,7 +285,7 @@ export function createGame(init: ShipSpec | GameState): Game {
       const side: Side | null = controls.firePort ? 'port' : controls.fireStarboard ? 'starboard' : null;
       if (side && !dockedAt && reload[side] <= 0 && cannonsPerSide(spec) > 0) {
         fire('player', ship, spec, side, () => !sunk, elevation);
-        reload[side] = COMBAT.playerReload;
+        reload[side] = desk.reloadSeconds();
       }
       if (dockedAt) hp = Math.min(maxHp, hp + maxHp * REPAIR_RATE * dt);
       hp = Math.max(0, hp - stepAffliction(ship, maxHp, !!dockedAt, dt));
@@ -293,7 +296,7 @@ export function createGame(init: ShipSpec | GameState): Game {
       const crash = stepCrashes({ ship, spec, maxHp, active: !dockedAt && !sunk }, enemies, npcs.view(wind), (id, dx, dz, dyaw) => npcs.nudge(id, dx, dz, dyaw));
       events.push(...crash.events);
       crash.apply(
-        (lost) => ((hp = Math.max(0, hp - lost)), checkPlayerSunk()),
+        (lost) => ((hp = Math.max(0, hp - lost)), desk.loseCrew(lost, maxHp, 'hull'), checkPlayerSunk()),
         (e, lost) => ((e.hp = Math.max(0, e.hp - lost)), checkEnemySunk(e)),
       );
       stepSalvo(dt);
@@ -319,7 +322,8 @@ export function createGame(init: ShipSpec | GameState): Game {
         captain: captainView(st),
         cargo: cargoView(st, spec),
         company: companyView(st, spec),
-        ship: playerView(ship, spec, { hp, maxHp, reloadSeconds: COMBAT.playerReload, reload, elevation, air: windVelocity(wind), wind: feel(ship), gust: gustAt(ship.x, ship.z, time, wind), armed: !dockedAt && !sunk }, afloat),
+        boarding: boardingView(st, dockedAt || sunk ? null : desk.prize(ship, enemies), desk.cooldown()),
+        ship: playerView(ship, spec, { hp, maxHp, reloadSeconds: desk.reloadSeconds(), reload, elevation, air: windVelocity(wind), wind: feel(ship), gust: gustAt(ship.x, ship.z, time, wind), armed: !dockedAt && !sunk }, afloat),
         nearestPort,
         docked: dockedAt?.id ?? null,
         grounded: ship.grounded > 0,

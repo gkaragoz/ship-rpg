@@ -63,7 +63,7 @@
     - [x] 5a.4b tune: choose target win rates, then adjust damage per pound, reload, spread, hull factor (and ball cap) from the measurements
     - [x] 5a.4c composition and escape: squadron pairing rules (not faster than the player, sensible hull ratio, unarmed ships get a weak hunter) and an escape rule that also works for slower ships
     - [x] 5a.4d guard: a balance test that fails if a pairing leaves the target range, and `docs/BALANCE.md` with the table (done)
-  - [ ] 5b. Gold wallet and cargo hold (state in gameplay, shown in the HUD), crew count and its effect on reload speed; boarding a defeated ship for loot, crew losses, XP and captain level
+  - [x] 5b. Gold wallet and cargo hold (state in gameplay, shown in the HUD), crew count and its effect on reload speed; boarding a defeated ship (B) for loot, crew losses, XP and captain level (`docs/GAME_DESIGN.md`). Stage 0 first: `createGame(spec | GameState)`, `Game.state()`. Open: crew regrowth needs the tavern (5c); the visible deck crew does not follow the crew count
   - [ ] 5c. Trade: buy and sell goods at ports (prices from the guide's cargo table), hold capacity from ship stats
   - [ ] 5d. Shipyard: buy, sell and repair ships from the 16 types (needs a game-state refactor: the player's ship spec, hull points and hold become mutable state; `createGame(spec)` becomes `createGame(state)`)
   - [ ] 5e. NPC traffic between ports (also feeds 5a.2 several enemies), nationalities/factions, reputation and simple quests

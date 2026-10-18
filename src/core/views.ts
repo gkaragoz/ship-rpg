@@ -18,6 +18,8 @@ export interface Controls {
   fireStarboard?: boolean;
   /** Lay the guns lower (-1, shorter range) or higher (+1, longer range) while held. */
   elevate?: -1 | 0 | 1;
+  /** One-shot: board the crippled enemy alongside. */
+  board?: boolean;
   /** One-shot: start over after the ship has sunk. */
   restart?: boolean;
 }
@@ -164,8 +166,12 @@ export interface BallView {
 
 /** One-off things that happened since the previous `view()`: drives smoke, splashes and sound. */
 export interface GameEvent {
-  type: 'fire' | 'splash' | 'hit' | 'sunk' | 'escaped' | 'collision';
-  /** Hull points the hit took off (`hit` events only). */
+  type: 'fire' | 'splash' | 'hit' | 'sunk' | 'escaped' | 'collision' | 'boarded' | 'loot' | 'levelup';
+  /** `boarded`: the party won. `loot`: gold taken (`amount` is the goods). `levelup`: the level reached. */
+  won?: boolean;
+  gold?: number;
+  level?: number;
+  /** Hull points the hit took off (`hit` events), or the crew lost (`boarded`). */
   amount?: number;
   /** Where the ball struck (`hit` events only). */
   zone?: HitZone;
@@ -282,6 +288,16 @@ export interface CompanyView {
   factor: number;
 }
 
+/** Whether a crippled enemy lies alongside and could be boarded (`Controls.board`). */
+export interface BoardingView {
+  available: boolean;
+  targetId: string | null;
+  /** Chance 0…1 the party wins. */
+  odds: number;
+  /** Seconds before another try after a failed boarding. */
+  cooldown: number;
+}
+
 export interface GameView {
   time: number;
   ship: ShipView;
@@ -297,6 +313,7 @@ export interface GameView {
   captain: CaptainView;
   cargo: CargoView;
   company: CompanyView;
+  boarding: BoardingView;
   /** Closest port (discovered or not), or null if none is within 1.5 km. */
   nearestPort: PortView | null;
   /** Id of the port the ship is docked at, if any. */

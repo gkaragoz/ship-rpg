@@ -1,5 +1,6 @@
 import { CONFIG, type GameView } from '../core';
 import { formatHour, getNation, seaName } from '../world';
+import { createCaptainHud } from './hudCaptain';
 import './hud.css';
 
 export interface Hud {
@@ -80,7 +81,8 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
     return w;
   };
   guns.append(gunLabel('Sol (Q)', gunPort.root), gunLabel('Sağ (E)', gunStbd.root));
-  panel.append(el('h3', undefined, shipName), compass, rows, drive.root, hull.root, rig.root, guns);
+  const captainHud = createCaptainHud();
+  panel.append(el('h3', undefined, shipName), compass, rows, drive.root, hull.root, rig.root, guns, captainHud.root);
 
   // Nearest enemy.
   const target = el('div', 'hud-target');
@@ -94,7 +96,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const targetRig = bar('hud-rig');
   target.append(targetName, targetBar.root, targetRig.root);
 
-  const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · Q/E top · Z/X menzil · G nişan · N ses · K grafik · F liman · M harita · Fare: kamera · Esc: ayarlar');
+  const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · Q/E top · B abordaj · Z/X menzil · G nişan · N ses · K grafik · F liman · M harita · Fare: kamera · Esc: ayarlar');
   const prompt = el('div', 'hud-prompt');
   prompt.hidden = true;
   const toast = el('div', 'hud-toast');
@@ -182,6 +184,11 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
         targetRig.fill.style.width = pct(foe.rigging);
       }
 
+      captainHud.update(view, (text) => {
+        toast.textContent = text;
+        toastLeft = TOAST_SECONDS;
+      });
+
       // Hit feedback: a red flash when we are hit, a marker when our shot lands.
       if (view.events.some((e) => e.type === 'hit' && e.owner === 'enemy')) restart(hurt);
       if (view.events.some((e) => e.type === 'hit' && e.owner === 'player')) restart(marker);
@@ -206,6 +213,10 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
         prompt.className = 'hud-prompt hud-warn';
       } else if (docked) {
         prompt.hidden = true;
+      } else if (view.boarding.available) {
+        prompt.hidden = false;
+        prompt.textContent = `Gemiye çık [B] · şans %${Math.round(view.boarding.odds * 100)}`;
+        prompt.className = 'hud-prompt';
       } else if (nearestPort?.dockable) {
         prompt.hidden = false;
         prompt.textContent = `${nearestPort.name} limanına gir [F]`;

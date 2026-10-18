@@ -53,5 +53,8 @@ export function newGameState(spec: ShipSpec): GameState {
   };
 }
 
+/** Units of hold the goods take. */
+export const holdUsed = (hold: Record<string, number>): number => Object.values(hold).reduce((n, q) => n + q, 0);
+
 /** A deep copy that shares nothing with the original. */
 export const cloneState = (s: GameState): GameState => JSON.parse(JSON.stringify(s)) as GameState;

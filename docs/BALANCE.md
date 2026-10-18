@@ -176,3 +176,6 @@ A runner that is faster should get away; at equal or lower speed nobody wins: th
 | Galleon (7) | Galleon (7) | 0% | 0% | 100% |
 | Frigate (14.7) | Corvette (16) | 0% | 0% | 100% |
 | Battleship (12.6) | Battleship (12.6) | 0% | 0% | 100% |
+
+## Crew, levels and plunder (5b)
+The duel simulator is unchanged: it models a player with a full crew at level 1 (`playerReloadSeconds(full, full, 1) === COMBAT.playerReload`, guarded by `tests/progression.test.ts`) and enemies never lose crew. In the live game the player's crew falls with the damage taken and slows his guns, so a human will do a little worse than the bot-vs-bot tables once a fight turns against him; `COMPANY.casualty` (company.ts) is the knob. Level bonuses (2 % reload per level) are small on purpose. Open: measure the live attrition with a scripted player, and decide whether an enemy's reload should suffer from its own losses.

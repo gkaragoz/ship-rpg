@@ -85,7 +85,7 @@ export function playerView(
       port: afloat.some((e) => targetInZone(zone, ship, 'port', e.ship, e.spec.length)),
       starboard: afloat.some((e) => targetInZone(zone, ship, 'starboard', e.ship, e.spec.length)),
     },
-    reload: { port: state.reload.port / state.reloadSeconds, starboard: state.reload.starboard / state.reloadSeconds },
+    reload: { port: Math.min(1, state.reload.port / state.reloadSeconds), starboard: Math.min(1, state.reload.starboard / state.reloadSeconds) },
   };
 }
 

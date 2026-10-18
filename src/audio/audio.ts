@@ -132,7 +132,7 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
       let started = 0;
       for (const e of events) {
         if (started >= MAX_PER_FRAME) break;
-        if (e.type === 'escaped') continue; // nothing to hear: it simply sailed away
+        if (e.type === 'escaped' || e.type === 'boarded' || e.type === 'loot' || e.type === 'levelup') continue; // nothing to hear: it simply sailed away
         const loud = e.type === 'sunk' || e.type === 'collision' ? 1 : e.type === 'fire' ? 0.75 : e.type === 'hit' ? 0.9 : 0.6;
         const mix = spatialMix(listener, e.x, e.z, loud);
         if (mix.gain < AUDIBLE) continue;

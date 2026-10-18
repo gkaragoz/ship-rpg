@@ -1,4 +1,4 @@
-import type { GameEvent } from '../core';
+import type { GameEvent, HitZone } from '../core';
 import type { ShipSpec } from '../ships';
 import { terrainHeight } from '../world';
 import { COMBAT, ballHitZone, ballSpeed, hitNormal, stepBall, type Ball } from './combat';
@@ -15,7 +15,7 @@ export interface ShotWorld {
   surfaceAt(x: number, z: number): number;
   emit(event: GameEvent): void;
   /** The hull points a hit took off the player, or off one enemy (the game does the bookkeeping: hp, sinking). */
-  onPlayerHit(lost: number): void;
+  onPlayerHit(lost: number, zone: HitZone): void;
   onEnemyHit(enemy: Enemy, lost: number): void;
 }
 
@@ -30,7 +30,7 @@ export function resolveBall(b: Ball, w: ShotWorld): boolean {
       const lost = strike(w.player.ship, zone, b.damage, w.player.maxHp, w.rng());
       const n = hitNormal(b, w.player.ship);
       w.emit({ type: 'hit', owner: 'enemy', x: b.x, y: b.y, z: b.z, amount: lost, zone, nx: n.x, nz: n.z, speed: ballSpeed(b) });
-      w.onPlayerHit(lost);
+      w.onPlayerHit(lost, zone);
       return true;
     }
   } else {

@@ -189,3 +189,13 @@ export function findSpawn(
   }
   return null;
 }
+
+/** Nations the enemies sail for, in turn: until factions arrive (5e) everyone is hostile. */
+const ENEMY_NATIONS = ['pirate', 'spanish', 'french', 'english', 'dutch'] as const;
+
+/** The `counter`-th enemy of a run: a squadron of up to three different types in turn, each of the next nation; null when there is no room. */
+export function spawnFor(player: ShipSpec, ship: PlayerShip, enemies: readonly Enemy[], counter: number, rng: () => number): Enemy | null {
+  const spec = pickEnemySpec(player, counter % MAX_ENEMIES);
+  const at = findSpawn(ship, spec, rng, enemies.filter((e) => e.sinking < 0).map((e) => e.ship));
+  return at ? createEnemy(`e${counter + 1}`, spec, at.x, at.z, at.angle + Math.PI, ENEMY_NATIONS[counter % ENEMY_NATIONS.length]) : null;
+}

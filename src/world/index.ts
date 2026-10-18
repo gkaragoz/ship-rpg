@@ -12,3 +12,5 @@ export { DEFAULT_CLOCK, HOUR_PRESETS, formatHour, hourAt, startHourFor, sunState
 export type { ClockSettings, DayPhase, SunState } from './clock';
 export { WEATHER_PRESETS, autoLightning, autoRain, weatherAt } from './weather';
 export type { Weather, WeatherOverrides } from './weather';
+export { GOODS, getGood } from './goods';
+export type { Good } from './goods';

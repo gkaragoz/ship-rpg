@@ -18,6 +18,7 @@ const INTERACT = 'KeyF';
 const FIRE_PORT = 'KeyQ';
 const FIRE_STARBOARD = 'KeyE';
 const RESTART = 'KeyR';
+const BOARD = 'KeyB';
 const MAP = 'KeyM';
 const AIM = 'KeyG';
 const GUNS_UP = 'KeyX'; // longer range
@@ -146,6 +147,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   let stepTaken = false;
   let interactTaken = false;
   let fireTaken = false;
+  let boardTaken = false;
 
   const controls = (): Controls => {
     let sailStep: -1 | 0 | 1 = 0;
@@ -163,7 +165,9 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     const fireStarboard = !fireTaken && input.pressed(FIRE_STARBOARD);
     if (firePort || fireStarboard) fireTaken = true;
     const elevate = ((input.isDown(GUNS_UP) ? 1 : 0) - (input.isDown(GUNS_DOWN) ? 1 : 0)) as -1 | 0 | 1;
-    return { rudder, sailStep, interact, firePort, fireStarboard, elevate, restart: input.pressed(RESTART) };
+    const board = !boardTaken && input.pressed(BOARD);
+    if (board) boardTaken = true;
+    return { rudder, sailStep, interact, firePort, fireStarboard, elevate, board, restart: input.pressed(RESTART) };
   };
 
   const syncEnemies = (v: ReturnType<typeof game.view>): void => {
@@ -246,6 +250,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
         stepTaken = false;
         interactTaken = false;
         fireTaken = false;
+        boardTaken = false;
       }
     },
     dispose(): void {

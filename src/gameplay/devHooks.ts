@@ -9,6 +9,7 @@ export interface DevAccess {
   setKills(n: number): void;
   setSea(state: number | null): void;
   discover(): void;
+  state(): { captain: { gold: number; xp: number }; crew: number };
 }
 
 const unit = (v: number): number => Math.min(Math.max(v, 0), 1);
@@ -29,6 +30,9 @@ export function createDevHooks(a: DevAccess): Game['dev'] {
     setRigging(fraction): void {
       a.ship().rigging = unit(fraction);
     },
+    setGold: (n) => void (a.state().captain.gold = Math.max(0, n)),
+    setCrew: (n) => void (a.state().crew = Math.max(0, Math.round(n))),
+    addXp: (n) => void (a.state().captain.xp += n),
     setSea: (state) => a.setSea(state === null ? null : unit(state)),
     setAffliction(flooding, fire): void {
       const ship = a.ship();
