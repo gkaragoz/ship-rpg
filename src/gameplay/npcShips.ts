@@ -1,5 +1,6 @@
 import type { OtherShipView, WindView } from '../core';
 import { terrainHeight, windAt } from '../world';
+import { getShipSpec } from '../ships';
 import { apparentView } from './enemyView';
 
 /** An elliptical patrol around (cx, cz): semi-axes a (x) and b (z), starting phase, direction. */
@@ -76,6 +77,45 @@ export function placePatrols(origin: { x: number; z: number }): Patrol[] {
 /** Cruising speed of a patrol in m/s. */
 export const PATROL_SPEED = 5;
 
+/** A ship the patrols give way to: where it is and how long. */
+export interface WayShip {
+  x: number;
+  z: number;
+  length: number;
+}
+
+/** Clear water kept between two hulls beyond their half lengths (m), and the most a patrol is ever turned aside (m). */
+export const PATROL_CLEARANCE = 28;
+const MAX_AVOID = 70;
+
+/**
+ * How far each patrol is steered off its rail to keep clear of the others: a stateless push along the line between two
+ * ships that grows as they close, shared between two patrols and borne wholly by a patrol giving way to a ship that is
+ * not on rails. Because it depends only on where everybody is, nobody ever jumps. Returns `[dx, dz]` per patrol.
+ */
+export function avoidanceOffsets(patrols: readonly { x: number; z: number; length: number }[], giveWay: readonly WayShip[] = []): [number, number][] {
+  return patrols.map((p, i) => {
+    let ox = 0;
+    let oz = 0;
+    const push = (x: number, z: number, length: number, share: number): void => {
+      const dx = p.x - x;
+      const dz = p.z - z;
+      const d = Math.hypot(dx, dz) || 0.001;
+      const safe = (p.length + length) / 2 + PATROL_CLEARANCE;
+      if (d >= safe) return;
+      const k = ((safe - d) * share) / d;
+      ox += dx * k;
+      oz += dz * k;
+    };
+    patrols.forEach((q, j) => {
+      if (j !== i) push(q.x, q.z, q.length, 0.5);
+    });
+    for (const o of giveWay) push(o.x, o.z, o.length, 1);
+    const m = Math.hypot(ox, oz);
+    return m > MAX_AVOID ? [(ox / m) * MAX_AVOID, (oz / m) * MAX_AVOID] : [ox, oz];
+  });
+}
+
 /** Seconds in which a patrol that was shoved sails back onto its rail (time constant of the decay). */
 export const PATROL_RECOVERY = 5;
 
@@ -83,8 +123,12 @@ export interface NpcFleet {
   update(dt: number): void;
   /** Shove patrol `id` aside by (dx, dz) metres and turn it by `dyaw` radians (a crash); it drifts back onto its rail. */
   nudge(id: number, dx: number, dz: number, dyaw: number): void;
-  /** The patrols now; `wind` is the true wind they are sailing in (for the apparent wind they feel). */
-  view(wind?: WindView): OtherShipView[];
+  /**
+   * The patrols now; `wind` is the true wind they are sailing in (for the apparent wind they feel). With `giveWay` (the
+   * ships the patrols steer clear of, besides each other: the player, the enemies; may be empty) they sheer off to keep
+   * clear of each other; without it they are on their rails exactly.
+   */
+  view(wind?: WindView, giveWay?: readonly WayShip[]): OtherShipView[];
 }
 
 /**
@@ -113,8 +157,8 @@ export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }
       s.z += dz;
       s.yaw += dyaw;
     },
-    view(wind: WindView = windAt(time)): OtherShipView[] {
-      return patrols.map((p, id) => {
+    view(wind: WindView = windAt(time), giveWay?: readonly WayShip[]): OtherShipView[] {
+      const raw = patrols.map((p, id) => {
         const s = shoved[id]!;
         const omega = (p.dir * PATROL_SPEED) / ((p.a + p.b) / 2);
         const phi = p.phase + omega * time;
@@ -132,6 +176,13 @@ export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }
           roll: 0.03 * Math.sin(0.7 * time + id),
           apparent: apparentView(wind, Math.atan2(-vz, vx) + s.yaw, PATROL_SPEED),
         };
+      });
+      if (!giveWay) return raw; // on their rails exactly
+      // steer clear of each other and of the ships that give them no way (the player, the enemies)
+      const away = avoidanceOffsets(raw.map((o) => ({ x: o.x, z: o.z, length: getShipSpec(o.specId)?.length ?? 20 })), giveWay);
+      return raw.map((o, i) => {
+        const [dx, dz] = away[i] as [number, number];
+        return dx === 0 && dz === 0 ? o : { ...o, x: o.x + dx, z: o.z + dz };
       });
     },
   };

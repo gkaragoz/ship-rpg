@@ -21,6 +21,8 @@ export interface Enemy {
   sinking: number;
   /** Hull too damaged: breaks off and runs. Stays set. */
   fleeing: boolean;
+  /** Struck its colours: sails down, guns silent, waiting to be boarded or sunk (navies only, see `DOCTRINES`). */
+  surrendered: boolean;
   /** Seconds spent beyond `LOSE_RANGE` of the player. */
   lostFor: number;
   /** Gave up or got away: removed from play this step. */
@@ -33,8 +35,29 @@ export function createEnemy(id: string, spec: ShipSpec, x: number, z: number, he
   ship.sailTarget = 1;
   ship.sailLevel = 1;
   const maxHp = Math.round(spec.stats.hp * ENEMY_TUNING.hullFactor);
-  return { id, spec, nation, ship, hp: maxHp, maxHp, reload: { port: COMBAT.enemyReload / 2, starboard: COMBAT.enemyReload / 2 }, sinking: -1, fleeing: false, lostFor: 0, gone: false };
+  return { id, spec, nation, ship, hp: maxHp, maxHp, reload: { port: COMBAT.enemyReload / 2, starboard: COMBAT.enemyReload / 2 }, sinking: -1, fleeing: false, surrendered: false, lostFor: 0, gone: false };
 }
+
+/**
+ * How a nation's captains fight: how hard they close before turning broadside (rad of the approach angle given up),
+ * and the chance that a crippled ship strikes its colours instead of running (pirates hang if caught: they never do).
+ */
+export interface Doctrine {
+  closing: number;
+  surrender: number;
+}
+const DOCTRINES: Record<string, Doctrine> = {
+  pirate: { closing: 0.45, surrender: 0 },
+  default: { closing: 0.4, surrender: 0.5 },
+};
+export const doctrineFor = (nation: string): Doctrine => DOCTRINES[nation] ?? (DOCTRINES.default as Doctrine);
+/** Below this share of its hull a crippled enemy may surrender (a navy's roll is fixed by the enemy's id). */
+export const SURRENDER_HULL = 0.12;
+const strikeRoll = (id: string): number => {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 1000) / 1000;
+};
 
 /** How many enemies are afloat at once: one at first, a second after 2 kills, a third after 4. */
 export const MAX_ENEMIES = 3;
@@ -84,6 +107,8 @@ const FIRE_RANGE = 180;
 const PARALLEL_RANGE = 130;
 const CLOSE_IN = 300;
 const NO_GO = 0.75;
+/** A runner this close to the player with the shore or a shoal behind it turns and fights. */
+const CORNERED_RANGE = 120;
 /** Enemies closer than this to each other steer apart (m). */
 const SEPARATION = 70;
 /** Below this fraction of its hull an enemy breaks off. */
@@ -106,13 +131,16 @@ export interface AiResult {
   fire: Side | null;
 }
 
-/** Close in on the player, turn broadside at about 150 m and fire; stay off the wind and the shore. */
-export function aiStep(
-  e: Enemy,
-  player: Pick<PlayerShip, 'x' | 'z'>,
-  wind: WindView,
-  others: readonly Pick<PlayerShip, 'x' | 'z'>[] = [],
-): AiResult {
+/** Another ship of the enemy's squadron, as the AI needs to know it. */
+export type Mate = Pick<PlayerShip, 'x' | 'z'> & { heading?: number };
+
+/**
+ * Close in on the player, turn broadside at about 150 m and fire; stay off the wind and the shore. The squadron works
+ * together: the ship nearest the player leads, the others take the player's other beam (a pincer); a nation's doctrine
+ * says how hard it closes; a crippled navy ship may strike its colours (no sails, no guns) where a pirate runs; and a
+ * runner that is cornered turns and fights.
+ */
+export function aiStep(e: Enemy, player: Pick<PlayerShip, 'x' | 'z'>, wind: WindView, others: readonly Mate[] = []): AiResult {
   const s = e.ship;
   const dx = player.x - e.ship.x;
   const dz = player.z - e.ship.z;
@@ -120,15 +148,49 @@ export function aiStep(
   const toPlayer = Math.atan2(-dz, dx);
   // > 0: the player is on our port side.
   const rel = angleDiff(toPlayer, s.heading);
+  const doctrine = doctrineFor(e.nation);
 
-  if (!e.fleeing && e.hp < e.maxHp * FLEE_HULL) e.fleeing = true;
+  if (!e.fleeing && !e.surrendered && e.hp < e.maxHp * FLEE_HULL) e.fleeing = true;
+  if (e.fleeing && !e.surrendered && e.hp < e.maxHp * SURRENDER_HULL && strikeRoll(e.id) < doctrine.surrender) {
+    e.surrendered = true;
+    e.fleeing = false;
+  }
+  if (e.surrendered) {
+    // colours struck: sails come down, the helm is left alone, nothing fires
+    return { controls: { rudder: 0, sailStep: s.sailTarget > 0 ? -1 : 0 }, fire: null };
+  }
+
+  // Look ahead for shoals (also used below to tell whether a runner is cornered).
+  const probe = (angle: number, ahead: number): boolean =>
+    isBlocked({ x: s.x + Math.cos(angle) * ahead, z: s.z - Math.sin(angle) * ahead, heading: angle }, e.spec);
+  const cornered = e.fleeing && dist < CORNERED_RANGE && (probe(toPlayer + Math.PI, 110) || probe(s.heading, 80));
+  const running = e.fleeing && !cornered;
+
+  // The side the squadron's leader (the mate nearest the player) fights on: a later arrival takes the other beam.
+  let flank = 0;
+  if (!running && dist > PARALLEL_RANGE * 1.8) {
+    let lead: Mate | null = null;
+    let leadD = Infinity;
+    for (const o of others) {
+      const od = Math.hypot(player.x - o.x, player.z - o.z);
+      if (od < leadD) {
+        lead = o;
+        leadD = od;
+      }
+    }
+    if (lead && lead.heading !== undefined && leadD < dist) {
+      const leadRel = angleDiff(Math.atan2(-(player.z - lead.z), player.x - lead.x), lead.heading);
+      flank = leadRel >= 0 ? -1 : 1; // the leader keeps the player to port: we take starboard
+    }
+  }
 
   let desired = toPlayer;
-  if (e.fleeing) {
+  if (running) {
     desired = toPlayer + Math.PI; // run directly away
-  } else if (dist < CLOSE_IN) {
-    const closing = dist > PARALLEL_RANGE ? 0.45 : 0;
-    desired = rel >= 0 ? toPlayer - (BROADSIDE_ANGLE - closing) : toPlayer + (BROADSIDE_ANGLE - closing);
+  } else if (dist < CLOSE_IN || cornered) {
+    const closing = dist > PARALLEL_RANGE ? doctrine.closing : 0;
+    const keepPort = flank === 0 ? rel >= 0 : flank < 0;
+    desired = keepPort ? toPlayer - (BROADSIDE_ANGLE - closing) : toPlayer + (BROADSIDE_ANGLE - closing);
   }
 
   // Keep clear of the nearest other enemy if it is too close: head away from it. This comes first, so the
@@ -146,9 +208,7 @@ export function aiStep(
   const offWind = angleDiff(desired, wind.from);
   if (Math.abs(offWind) < NO_GO) desired = wind.from + (offWind >= 0 ? 1 : -1) * (NO_GO + 0.1);
 
-  // Look ahead for shoals and turn toward the clearer side.
-  const probe = (angle: number, ahead: number): boolean =>
-    isBlocked({ x: s.x + Math.cos(angle) * ahead, z: s.z - Math.sin(angle) * ahead, heading: angle }, e.spec);
+  // Turn toward the clearer side when the way ahead is shoal.
   if (probe(s.heading, 90) || probe(desired, 90)) {
     const leftClear = !probe(s.heading + 0.7, 90);
     desired = s.heading + (leftClear ? 0.9 : -0.9);
@@ -158,7 +218,7 @@ export function aiStep(
   const sailStep = s.sailTarget < 1 ? 1 : 0;
 
   let fire: Side | null = null;
-  if (!e.fleeing && dist < FIRE_RANGE) {
+  if (!running && dist < FIRE_RANGE) {
     if (Math.abs(rel - BROADSIDE_ANGLE) < FIRE_CONE && e.reload.port <= 0) fire = 'port';
     else if (Math.abs(rel + BROADSIDE_ANGLE) < FIRE_CONE && e.reload.starboard <= 0) fire = 'starboard';
   }

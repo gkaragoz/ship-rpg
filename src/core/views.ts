@@ -152,6 +152,8 @@ export interface EnemyView extends Condition, Attitude {
   sinking: number;
   /** Breaking off the fight. */
   fleeing: boolean;
+  /** Struck its colours: dead in the water, guns silent, ready to be boarded. */
+  surrendered: boolean;
   /** Metres from the player. */
   distance: number;
   /** Direction from the player as a world angle (same convention as heading). */

@@ -35,6 +35,7 @@ export function enemyView(e: Enemy, from: PlayerShip, wind: WindView): EnemyView
     maxHp: e.maxHp,
     sinking: e.sinking,
     fleeing: e.fleeing,
+    surrendered: e.surrendered,
     rigging: e.ship.rigging,
     flooding: e.ship.flooding,
     fire: e.ship.fire,

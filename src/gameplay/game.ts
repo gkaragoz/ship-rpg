@@ -226,6 +226,12 @@ export function createGame(init: ShipSpec | GameState): Game {
     balls = flyBalls(balls, dt, air, world);
   };
 
+  /** The ships the patrols steer clear of: the player's and the enemies afloat. */
+  const giveWay = (): { x: number; z: number; length: number }[] => [
+    { x: ship.x, z: ship.z, length: spec.length },
+    ...enemies.filter((e) => e.sinking < 0).map((e) => ({ x: e.ship.x, z: e.ship.z, length: e.spec.length })),
+  ];
+
   const stepEnemies = (dt: number): void => {
     for (const e of enemies) {
       if (e.sinking >= 0) {
@@ -340,7 +346,7 @@ export function createGame(init: ShipSpec | GameState): Game {
 
       stepEnemies(dt);
       // Ships that share the sea run into each other.
-      const crash = stepCrashes({ ship, spec, maxHp, active: !dockedAt && !sunk }, enemies, npcs.view(wind), (id, dx, dz, dyaw) => npcs.nudge(id, dx, dz, dyaw));
+      const crash = stepCrashes({ ship, spec, maxHp, active: !dockedAt && !sunk }, enemies, npcs.view(wind, giveWay()), (id, dx, dz, dyaw) => npcs.nudge(id, dx, dz, dyaw));
       events.push(...crash.events);
       crash.apply(
         (lost) => ((hp = Math.max(0, hp - lost)), desk.loseCrew(lost, maxHp, 'hull'), checkPlayerSunk()),
@@ -360,7 +366,7 @@ export function createGame(init: ShipSpec | GameState): Game {
         const crewView = shipCrews.view(`e:${e.id}`, { specId: e.spec.id, rudder: e.ship.rudder, sailTarget: e.ship.sailTarget, reload: e.reload, reloadSeconds: COMBAT.enemyReload }, v.distance);
         return crewView ? { ...v, crew: crewView } : v;
       });
-      const others = npcs.view(wind).map((o) => {
+      const others = npcs.view(wind, giveWay()).map((o) => {
         const crewView = shipCrews.view(`o:${o.id}`, { specId: o.specId, rudder: 0, sailTarget: o.sailLevel }, Math.hypot(o.x - ship.x, o.z - ship.z));
         return crewView ? { ...o, crew: crewView } : o;
       });

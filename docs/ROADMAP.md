@@ -32,6 +32,7 @@
   - [x] sea chart redone as an old parchment chart (zoom/pan, fog, grid, rose, route, tinted islands) in `ui/chart/`
   - [x] crews on every ship (enemies, patrols), work on deck (helm, climbing, hauling, loading and firing), sailors flung overboard by hits and spilled by sinkings that swim and drown (`docs/CREW.md`; `tests/crewJobs.test.ts`, `tests/swimmers.test.ts`)
   - [x] harbour town detail: 29 Blender world props (houses by nation, church, fort, lighthouse, windmill, crane, piers, boats, palms, pines, rocks) planned per port and island (`docs/WORLD_ASSETS.md`, `render/townPlan.ts`)
+  - [x] enemy AI: pincer by squadron, navy surrender, cornered runners fight, per-nation doctrine; patrols avoid each other and the player (2f) (`tests/enemyAi.test.ts`, `tests/patrolAvoid.test.ts`; the duel balance guard is unchanged: pirates fight as before)
   - [ ] polish: ships at anchor, beach waves
   - [ ] polish: coast sounding/depth warning on the HUD
   - [x] save/load of discovered map and position (5f)
