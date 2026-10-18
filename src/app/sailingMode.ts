@@ -20,6 +20,8 @@ const FIRE_STARBOARD = 'KeyE';
 const RESTART = 'KeyR';
 const MAP = 'KeyM';
 const AIM = 'KeyG';
+const GUNS_UP = 'KeyX'; // longer range
+const GUNS_DOWN = 'KeyZ'; // shorter range
 const MUTE = 'KeyN';
 const QUALITY = 'KeyK';
 const GAME_KEYS = [...PORT, ...STARBOARD, ...MORE_SAIL, ...LESS_SAIL];
@@ -160,7 +162,8 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     const firePort = !fireTaken && input.pressed(FIRE_PORT);
     const fireStarboard = !fireTaken && input.pressed(FIRE_STARBOARD);
     if (firePort || fireStarboard) fireTaken = true;
-    return { rudder, sailStep, interact, firePort, fireStarboard, restart: input.pressed(RESTART) };
+    const elevate = ((input.isDown(GUNS_UP) ? 1 : 0) - (input.isDown(GUNS_DOWN) ? 1 : 0)) as -1 | 0 | 1;
+    return { rudder, sailStep, interact, firePort, fireStarboard, elevate, restart: input.pressed(RESTART) };
   };
 
   const syncEnemies = (v: ReturnType<typeof game.view>): void => {

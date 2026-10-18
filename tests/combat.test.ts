@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CONFIG, createRng, type WindView } from '../src/core';
 import { createGame } from '../src/gameplay';
-import { COMBAT, aimZone, ballHits, hitChanceAt, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball } from '../src/gameplay/combat';
+import { COMBAT, aimZone, ballHits, hitChanceAt, cannonsPerSide, stepBall, targetInZone, type Ball } from '../src/gameplay/combat';
+import { fireBroadside } from '../src/gameplay/gunnery';
 import { ENEMY_TUNING, FLEE_HULL, LOSE_RANGE, LOSE_SECONDS, MAX_ENEMIES, MAX_SPEED_RATIO, SPAWN_DISTANCE, STRENGTH_WINDOW, strength, aiStep, createEnemy, desiredEnemies, findSpawn, lostTrack, pickEnemySpec } from '../src/gameplay/enemy';
 import { SHIP_SPECS, type ShipSpec } from '../src/ships';
 import { terrainHeight } from '../src/world';
@@ -171,17 +172,22 @@ describe('createGame combat', () => {
     expect(v.sunk).toBe(false);
   });
 
-  it('fires a broadside, reloads over time, and drains events once', () => {
+  it('fires a broadside as a ripple of guns, reloads over time, and drains events once', () => {
     const game = createGame(brig);
     game.update(DT, { rudder: 0, sailStep: 0, firePort: true });
     const first = game.view();
-    expect(first.balls.length).toBe(brig.stats.cannons / 2);
+    expect(first.balls.length).toBeLessThan(brig.stats.cannons / 2); // not all at once
     expect(first.ship.reload.port).toBeGreaterThan(0.9);
-    expect(first.events.some((e) => e.type === 'fire' && e.owner === 'player')).toBe(true);
+    let fired = first.events.filter((e) => e.type === 'fire' && e.owner === 'player').length;
     expect(game.view().events).toHaveLength(0); // drained
-
+    for (let i = 0; i < 60; i++) {
+      game.update(DT, { rudder: 0, sailStep: 0 });
+      fired += game.view().events.filter((e) => e.type === 'fire' && e.owner === 'player').length;
+    }
+    expect(fired).toBe(brig.stats.cannons / 2); // one muzzle blast per gun, all within a second
     game.update(DT, { rudder: 0, sailStep: 0, firePort: true }); // still reloading
-    expect(game.view().balls.length).toBe(brig.stats.cannons / 2);
+    expect(game.view().balls.length).toBeGreaterThan(0);
+    expect(game.view().events.filter((e) => e.type === 'fire')).toHaveLength(0);
 
     for (let i = 0; i < 60 * (COMBAT.playerReload + 1); i++) game.update(DT, { rudder: 0, sailStep: 0 });
     expect(game.view().ship.reload.port).toBe(0);
@@ -223,9 +229,7 @@ describe('createGame combat', () => {
         if (e.type === 'hit' && e.owner === 'enemy') {
           sawHit = e.amount ?? 0;
           expect(e.zone).toBeDefined();
-          // A ball that skipped off the sea first hits with 0.6 (once) or 0.36 (twice) of its damage.
-          const full = e.zone === 'rigging' ? 9 : 30;
-          expect([1, 0.6, 0.36].some((f) => Math.abs((e.amount ?? 0) - full * f) < 1e-5)).toBe(true);
+          expect(e.amount).toBeCloseTo(e.zone === 'rigging' ? 9 : 30, 5);
         }
       }
       if (view.sunk) sunkAt = i / 60;

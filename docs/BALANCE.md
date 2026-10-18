@@ -76,7 +76,7 @@ A human (aim zones, hit feedback, reading the wind by hand); more than one enemy
 - `npx vite-node scripts/accuracy.ts brig schooner` hit rates and shots per duel for one pairing.
 
 
-**Ballistics note.** Cannonballs now fly with quadratic air drag (0.00035 per metre) and a muzzle speed of 92 m/s (it was 90 with no drag), chosen so the landing distance and every win-rate window stayed where they were; the duel flies balls in still air with no sea skips and no ship collisions, so what is measured here is the sailing, gun and damage model only.
+**Ballistics note.** Cannonballs now fly with quadratic air drag (0.00035 per metre) and a muzzle speed of 92 m/s (it was 90 with no drag), chosen so the landing distance and every win-rate window stayed where they were; the duel flies balls in still air, fires each broadside at once at the default elevation band, and has no ship collisions, so what is measured here is the sailing, gun and damage model only.
 
 Report: 60 seeds per pairing.
 

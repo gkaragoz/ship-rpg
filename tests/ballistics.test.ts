@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getShipSpec } from '../src/ships';
-import { COMBAT, ballSpeed, fireBroadside, hitChanceAt, hitNormal, ricochet, stepBall, windVelocity, type Ball } from '../src/gameplay/combat';
+import { COMBAT, ballSpeed, hitChanceAt, hitNormal, stepBall, windVelocity, type Ball } from '../src/gameplay/combat';
+import { fireBroadside } from '../src/gameplay/gunnery';
 import { createDebris } from '../src/render/debris';
 
 const brig = (() => {
@@ -46,32 +47,6 @@ describe('flight', () => {
   it('has a chance of a hit at close range and none far beyond the range (the aim zone is tabulated from the same flight)', () => {
     expect(hitChanceAt(brig, 100)).toBeGreaterThan(0);
     expect(hitChanceAt(brig, 600)).toBe(0);
-  });
-});
-
-describe('the sea', () => {
-  it('skips a ball that comes in flat and fast, losing speed and damage, and sinks one that comes in steep', () => {
-    const flat = ball({ y: -0.1, vx: 88, vy: -7 });
-    expect(ricochet(flat, 0)).toBe(true);
-    expect(flat.vy).toBeGreaterThan(0);
-    expect(flat.damage).toBeLessThan(100);
-    expect(flat.vx).toBeLessThan(88);
-    const steep = ball({ y: -0.1, vx: 30, vy: -40 });
-    expect(ricochet(steep, 0)).toBe(false);
-    const slow = ball({ y: -0.1, vx: 30, vy: -2 });
-    expect(ricochet(slow, 0)).toBe(false);
-  });
-
-  it('skips at most twice', () => {
-    const b = ball({ y: -0.1, vx: 90, vy: -6 });
-    let skips = 0;
-    for (let i = 0; i < 6; i++) {
-      b.vy = -6;
-      b.vx = 90;
-      b.y = -0.1;
-      if (ricochet(b, 0)) skips++;
-    }
-    expect(skips).toBe(2);
   });
 });
 

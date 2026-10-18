@@ -1,7 +1,8 @@
 import { createRng } from '../core';
 import type { ShipSpec } from '../ships';
 import { windAt } from '../world';
-import { COMBAT, ballHitZone, fireBroadside, stepBall, type Ball } from './combat';
+import { COMBAT, ballHitZone, stepBall, type Ball } from './combat';
+import { fireBroadside } from './gunnery';
 import { strike, stepAffliction } from './damage';
 import { ENEMY_TUNING, aiStep, createEnemy, lostTrack, type Enemy } from './enemy';
 import { stepPlayerShip } from './sailing';

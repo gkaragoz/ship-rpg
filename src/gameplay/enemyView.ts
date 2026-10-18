@@ -3,6 +3,7 @@ import type { Port } from '../world';
 import type { Ball } from './combat';
 import type { ShipSpec } from '../ships';
 import { COMBAT, aimZone, cannonsPerSide, targetInZone } from './combat';
+import { arcFor } from './gunnery';
 import type { Enemy } from './enemy';
 import { SAILING, maxSpeed, type PlayerShip } from './sailing';
 
@@ -38,10 +39,10 @@ export function enemyView(e: Enemy, from: PlayerShip): EnemyView {
 export function playerView(
   ship: PlayerShip,
   spec: ShipSpec,
-  state: { hp: number; maxHp: number; reload: { port: number; starboard: number } },
+  state: { hp: number; maxHp: number; reload: { port: number; starboard: number }; elevation: number; air: { x: number; z: number } },
   afloat: readonly Enemy[],
 ): ShipView {
-  const zone = aimZone(spec, ship.speed);
+  const zone = aimZone(spec, ship.speed, state.elevation);
   return {
     x: ship.x,
     z: ship.z,
@@ -64,6 +65,8 @@ export function playerView(
     fire: ship.fire,
     guns: cannonsPerSide(spec),
     aim: zone,
+    elevation: state.elevation,
+    arc: { port: arcFor(spec, ship, 'port', state.elevation, state.air), starboard: arcFor(spec, ship, 'starboard', state.elevation, state.air) },
     inRange: {
       port: afloat.some((e) => targetInZone(zone, ship, 'port', e.ship, e.spec.length)),
       starboard: afloat.some((e) => targetInZone(zone, ship, 'starboard', e.ship, e.spec.length)),

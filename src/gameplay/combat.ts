@@ -1,5 +1,5 @@
-import type { GameEvent, Owner } from '../core';
-import { CONFIG, lerp } from '../core';
+import type { Owner } from '../core';
+import { CONFIG } from '../core';
 import type { HitZone } from '../core';
 import { WATERLINE_BAND } from './damage';
 import type { ShipSpec } from '../ships';
@@ -17,8 +17,6 @@ export interface Ball {
   vz: number;
   damage: number;
   age: number;
-  /** Times it has skipped off the sea (see `ricochet`). */
-  skips?: number;
 }
 
 /** What a ship needs to fire or be hit: position, heading, speed. */
@@ -110,17 +108,31 @@ const ballHeight = (spec: ShipSpec, elev: number, d: number): number => {
 /** Elevations tried when working out the chance of a hit: an even spread over the firing range. */
 const ELEVATION_SAMPLES = 24;
 
+/** Half the width (rad) of the band of elevations a broadside covers around the aimed elevation. */
+export const ELEVATION_SPREAD = 0.01;
+/** The aimed elevation is rounded to this (rad) so the tabulated flights and aim zones can be cached. */
+const ELEVATION_STEP = 0.0025;
+
+/** The range of elevations (rad) the guns can be laid at, and the default (the middle of the old fixed band). */
+export const ELEVATION = { min: 0.02, max: 0.22, rest: 0.08 } as const;
+
+/** Elevations a broadside covers: the default band, or `elevation` ± `ELEVATION_SPREAD`. */
+export const bandOf = (elevation?: number): [number, number] =>
+  elevation === undefined ? [COMBAT.elevationMin, COMBAT.elevationMax] : [elevation - ELEVATION_SPREAD, elevation + ELEVATION_SPREAD];
+
 /**
  * Chance 0…1 that a ball of a broadside hits a ship of the same size `d` metres away abeam: the
  * share of the elevation range for which the ball is airborne and below the target's hull-and-
  * rigging height there (the same height test `ballHits` uses). A ball flies low and flat over the
  * first stretch, climbs, then falls, so the hittable stretch is not just where balls land.
  */
-export function hitChanceAt(spec: ShipSpec, d: number): number {
+export function hitChanceAt(spec: ShipSpec, d: number, elevation?: number): number {
   const top = spec.freeboard + 1.5;
+  const [lo, hi] = bandOf(elevation);
   let hits = 0;
   for (let i = 0; i < ELEVATION_SAMPLES; i++) {
-    const elev = COMBAT.elevationMin + ((COMBAT.elevationMax - COMBAT.elevationMin) * i) / (ELEVATION_SAMPLES - 1);
+    const raw = lo + ((hi - lo) * i) / (ELEVATION_SAMPLES - 1);
+    const elev = elevation === undefined ? raw : Math.round(raw / 0.0005) * 0.0005; // an aimed elevation is rounded so the flights are cached
     const y = ballHeight(spec, elev, d);
     if (y > 0 && y < top) hits++;
   }
@@ -130,94 +142,55 @@ export function hitChanceAt(spec: ShipSpec, d: number): number {
 /** Seconds a ball fired at `elev` takes to come down to the sea from the muzzle. */
 const flightTime = (elev: number, y: number): number => trajectoryOf(y, elev).landsAt;
 
+const zones = new Map<string, { zone: AimZone; flight: number }>();
+
 /**
  * Where a broadside can hit, from the same ballistics `fireBroadside` uses (see tests): the stretch
  * abeam where the chance of a hit is above zero, and that chance across it. Short of the far edge
  * the chance is high but not constant: high-angle shots pass over a target at middle distances.
+ * `elevation` is the aimed elevation (rad); without it the default band of the enemy guns is used.
+ * The result is cached per ship type and elevation (only the drift depends on `shipSpeed`).
  */
-export function aimZone(spec: ShipSpec, shipSpeed: number): AimZone {
-  const STEP = 2;
-  const MAX = 400;
-  let first = -1;
-  let last = 0;
-  for (let d = 0; d <= MAX; d += STEP) {
-    if (hitChanceAt(spec, d) > 0) {
-      if (first < 0) first = d;
-      last = d;
+export function aimZone(spec: ShipSpec, shipSpeed: number, elevation?: number): AimZone {
+  const aimed = elevation === undefined ? undefined : Math.round(elevation / ELEVATION_STEP) * ELEVATION_STEP;
+  const key = `${spec.id}|${aimed ?? 'band'}|${COMBAT.elevationMin}|${COMBAT.elevationMax}|${COMBAT.ballSpeed}|${COMBAT.drag}|${COMBAT.yawJitter}`;
+  let known = zones.get(key);
+  if (!known) {
+    const STEP = 2;
+    const MAX = 700;
+    let first = -1;
+    let last = 0;
+    for (let d = 0; d <= MAX; d += STEP) {
+      if (hitChanceAt(spec, d, aimed) > 0) {
+        if (first < 0) first = d;
+        last = d;
+      }
     }
+    const nearD = Math.max(first, 0);
+    const farD = Math.max(last, nearD + STEP);
+    const steps = CONFIG.aimSteps;
+    const profile = Array.from({ length: steps + 1 }, (_, i) => hitChanceAt(spec, nearD + ((farD - nearD) * i) / steps, aimed));
+    const y = muzzleHeight(spec);
+    const [lo, hi] = bandOf(aimed);
+    const flight = (flightTime(lo, y) + flightTime(hi, y)) / 2;
+    known = {
+      flight,
+      zone: {
+        side: spec.beam / 2,
+        near: spec.beam / 2 + nearD,
+        far: spec.beam / 2 + farD,
+        profile,
+        halfSpan: 0.3 * spec.length,
+        drift: 0,
+        spread: Math.tan(COMBAT.yawJitter) * farD,
+      },
+    };
+    zones.set(key, known);
   }
-  const nearD = Math.max(first, 0);
-  const farD = Math.max(last, nearD + STEP);
-  const steps = CONFIG.aimSteps;
-  const profile = Array.from({ length: steps + 1 }, (_, i) => hitChanceAt(spec, nearD + ((farD - nearD) * i) / steps));
-  const y = muzzleHeight(spec);
-  const meanFlight = (flightTime(COMBAT.elevationMin, y) + flightTime(COMBAT.elevationMax, y)) / 2;
-  return {
-    side: spec.beam / 2,
-    near: spec.beam / 2 + nearD,
-    far: spec.beam / 2 + farD,
-    profile,
-    halfSpan: 0.3 * spec.length,
-    drift: shipSpeed * meanFlight,
-    spread: Math.tan(COMBAT.yawJitter) * farD,
-  };
+  return { ...known.zone, drift: shipSpeed * known.flight };
 }
 
 export const cannonsPerSide = (spec: ShipSpec): number => Math.min(COMBAT.maxPerVolley, Math.floor(spec.stats.cannons / 2));
-
-/**
- * Fire one broadside. Forward is (cos ψ, -sin ψ) and starboard is (sin ψ, cos ψ) in (x, z).
- * Balls inherit the ship's speed, spread along the hull and fan out slightly.
- */
-export function fireBroadside(
-  owner: Owner,
-  hull: Hull,
-  spec: ShipSpec,
-  side: Side,
-  rng: () => number,
-  nextId: () => number,
-  /** Sideways spread as a multiple of `COMBAT.yawJitter`; by default 1 for the player and `COMBAT.enemySpread` for enemies. */
-  spread: number = owner === 'enemy' ? COMBAT.enemySpread : 1,
-): { balls: Ball[]; events: GameEvent[] } {
-  const n = cannonsPerSide(spec);
-  const balls: Ball[] = [];
-  const events: GameEvent[] = [];
-  if (n === 0) return { balls, events };
-
-  const c = Math.cos(hull.heading);
-  const s = Math.sin(hull.heading);
-  const sign = side === 'starboard' ? 1 : -1;
-  const dirX = s * sign;
-  const dirZ = c * sign;
-  const y = muzzleHeight(spec);
-  // Keep a big ship's firepower when its guns exceed the ball cap: heavier hits, same total.
-  const damage = spec.stats.shot * COMBAT.damagePerLb * (spec.stats.cannons / 2 / n);
-
-  for (let i = 0; i < n; i++) {
-    const along = (-0.3 + (0.6 * (i + 0.5)) / n) * spec.length;
-    const px = hull.x + c * along + dirX * (spec.beam / 2);
-    const pz = hull.z - s * along + dirZ * (spec.beam / 2);
-    const yaw = (rng() * 2 - 1) * COMBAT.yawJitter * spread;
-    const cy = Math.cos(yaw);
-    const sy = Math.sin(yaw);
-    const elev = lerp(COMBAT.elevationMin, COMBAT.elevationMax, rng());
-    const horizontal = COMBAT.ballSpeed * Math.cos(elev);
-    balls.push({
-      id: nextId(),
-      owner,
-      x: px,
-      y,
-      z: pz,
-      vx: (dirX * cy - dirZ * sy) * horizontal + c * hull.speed,
-      vy: COMBAT.ballSpeed * Math.sin(elev),
-      vz: (dirX * sy + dirZ * cy) * horizontal - s * hull.speed,
-      damage,
-      age: 0,
-    });
-    if (i % Math.max(1, Math.floor(n / 4)) === 0) events.push({ type: 'fire', owner, x: px, y, z: pz, nx: dirX, nz: dirZ });
-  }
-  return { balls, events };
-}
 
 /** The air's velocity (m/s, x and z) for a wind blowing from `from` at `speed`: it blows towards the opposite direction. */
 export const windVelocity = (wind: { from: number; speed: number }): { x: number; z: number } => ({
@@ -241,28 +214,6 @@ export function stepBall(b: Ball, dt: number, air?: { x: number; z: number }): v
 
 /** The ball's speed (m/s). */
 export const ballSpeed = (b: Ball): number => Math.hypot(b.vx, b.vy, b.vz);
-
-/** Balls that strike the sea at a shallower angle than this (rad) and faster than `RICOCHET_SPEED` skip off it. */
-const RICOCHET_ANGLE = 0.14;
-const RICOCHET_SPEED = 55;
-const MAX_SKIPS = 2;
-
-/**
- * A ball that has gone under the surface at a glancing angle skips: it bounces up with less speed and a little damage
- * less. Returns true if it skipped (the caller reports a splash and keeps the ball), false if it sinks.
- */
-export function ricochet(b: Ball, surface: number): boolean {
-  const speed = ballSpeed(b);
-  if ((b.skips ?? 0) >= MAX_SKIPS || speed < RICOCHET_SPEED || b.vy >= 0) return false;
-  if (-b.vy / speed > Math.sin(RICOCHET_ANGLE)) return false;
-  b.skips = (b.skips ?? 0) + 1;
-  b.y = surface + 0.05;
-  b.vy = -b.vy * 0.55;
-  b.vx *= 0.7;
-  b.vz *= 0.7;
-  b.damage *= 0.6;
-  return true;
-}
 
 /** Unit normal (x, z) of the hull side a ball struck: outwards from the keel line on the side it came from. */
 export function hitNormal(b: Ball, target: Pick<Hull, 'x' | 'z' | 'heading'>): { x: number; z: number } {

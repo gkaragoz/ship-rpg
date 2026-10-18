@@ -2,10 +2,13 @@ import { stepCrashes } from './crashes';
 import { CONFIG, createRng } from '../core';
 import type { Controls, GameEvent, GameView } from '../core';
 import { getDeck, type ShipSpec } from '../ships';
-import { DEFAULT_CLOCK, PORTS, getPort, hourAt, seaAmp, startHourFor, terrainHeight, waveHeight, type ClockSettings, type Port, type Weather, type WeatherOverrides } from '../world';
+import { DEFAULT_CLOCK, PORTS, getPort, hourAt, seaAmp, startHourFor, waveHeight, type ClockSettings, type Port, type Weather, type WeatherOverrides } from '../world';
 import { createExploration } from './exploration';
-import { COMBAT, ballHitZone, ballSpeed, cannonsPerSide, fireBroadside, hitNormal, ricochet, stepBall, windVelocity, type Ball, type Side } from './combat';
-import { stepAffliction, strike } from './damage';
+import { COMBAT, ELEVATION, cannonsPerSide, stepBall, windVelocity, type Ball, type Side } from './combat';
+import { planBroadside } from './gunnery';
+import { createSalvo } from './salvo';
+import { resolveBall, type ShotWorld } from './shots';
+import { stepAffliction } from './damage';
 import { ballViews, enemyView, playerView, portView } from './enemyView';
 import { MAX_ENEMIES, aiStep, createEnemy, desiredEnemies, findSpawn, lostTrack, pickEnemySpec, type Enemy } from './enemy';
 import { gunScatter, seaEffects, stepBody } from './buoyancy';
@@ -56,6 +59,8 @@ const ENEMY_NATIONS = ['pirate', 'spanish', 'french', 'english', 'dutch'] as con
 const REPAIR_RATE = 0.02;
 /** Sub-steps per frame for the cannonballs. */
 const BALL_STEPS = 3;
+/** How fast the player lays the guns up or down (rad/s). */
+const ELEVATE_RATE = 0.06;
 
 /** Open-sea sandbox: one player ship, an archipelago with ports, and an enemy hunting you. */
 export function createGame(spec: ShipSpec): Game {
@@ -74,6 +79,8 @@ export function createGame(spec: ShipSpec): Game {
   let ship = makeShip();
   let hp = maxHp;
   const reload = { port: 0, starboard: 0 };
+  const salvo = createSalvo();
+  let elevation: number = ELEVATION.rest; // how high the player's guns are laid (rad)
   let sunk = false;
   let sinkTime = 0;
   let restartAsked = false;
@@ -128,6 +135,8 @@ export function createGame(spec: ShipSpec): Game {
     hp = maxHp;
     reload.port = 0;
     reload.starboard = 0;
+    salvo.clear();
+    elevation = ELEVATION.rest;
     sunk = false;
     sinkTime = 0;
     restartAsked = false;
@@ -142,12 +151,17 @@ export function createGame(spec: ShipSpec): Game {
   };
 
   // --- combat ------------------------------------------------------------------------------
-  const fire = (owner: 'player' | 'enemy', hull: PlayerShip, s: ShipSpec, side: Side): void => {
+  /** Order a broadside: the guns ripple off over the next half second (see `salvo.ts`), unless the ship is lost first. */
+  const fire = (owner: 'player' | 'enemy', hull: PlayerShip, s: ShipSpec, side: Side, alive: () => boolean, aimed?: number): void => {
     // A hull rolling in a rough sea shoots wider.
     const spread = (owner === 'enemy' ? COMBAT.enemySpread : 1) * gunScatter(hull.body, sea);
-    const shot = fireBroadside(owner, hull, s, side, rng, () => ++ballCounter, spread);
-    balls.push(...shot.balls);
-    events.push(...shot.events);
+    salvo.queue(owner, hull, s, side, planBroadside(s, rng, spread, aimed, true), alive);
+  };
+
+  const stepSalvo = (dt: number): void => {
+    const out = salvo.step(dt, () => ++ballCounter);
+    balls.push(...out.balls);
+    events.push(...out.events);
   };
 
   const checkPlayerSunk = (): void => {
@@ -165,53 +179,30 @@ export function createGame(spec: ShipSpec): Game {
     events.push({ type: 'sunk', owner: 'enemy', x: e.ship.x, y: 0, z: e.ship.z });
   };
 
-  /** One ball's step against ships, shore and sea: true when it is spent (hit, sunk, on land). */
-  const resolveBall = (b: Ball): boolean => {
-    if (b.owner === 'enemy') {
-      // A moored ship is safe in the harbour.
-      const zone = !sunk && !dockedAt ? ballHitZone(b, ship, spec) : null;
-      if (zone) {
-        const lost = strike(ship, zone, b.damage, maxHp, rng());
-        hp = Math.max(0, hp - lost);
-        const n = hitNormal(b, ship);
-        events.push({ type: 'hit', owner: 'enemy', x: b.x, y: b.y, z: b.z, amount: lost, zone, nx: n.x, nz: n.z, speed: ballSpeed(b) });
-        checkPlayerSunk();
-        return true;
-      }
-    } else {
-      for (const e of enemies) {
-        const zone = e.sinking < 0 ? ballHitZone(b, e.ship, e.spec) : null;
-        if (!zone) continue;
-        const lost = strike(e.ship, zone, b.damage, e.maxHp, rng());
-        e.hp = Math.max(0, e.hp - lost);
-        const n = hitNormal(b, e.ship);
-        events.push({ type: 'hit', owner: 'player', x: b.x, y: b.y, z: b.z, amount: lost, zone, nx: n.x, nz: n.z, speed: ballSpeed(b) });
-        checkEnemySunk(e);
-        return true;
-      }
-    }
-    const ground = terrainHeight(b.x, b.z);
-    if (ground > b.y) {
-      events.push({ type: 'splash', owner: b.owner, x: b.x, y: Math.max(0, ground), z: b.z, speed: ballSpeed(b) });
-      return true;
-    }
-    if (b.y > 4) return false;
-    const surface = waveHeight(b.x, b.z, time, wind.from, seaAmp(sea), 0, weather.tuning);
-    if (b.y > surface) return false;
-    const skipped = ricochet(b, surface);
-    events.push({ type: 'splash', owner: b.owner, x: b.x, y: surface, z: b.z, speed: ballSpeed(b), amount: skipped ? 0 : undefined });
-    return !skipped;
-  };
-
   /** Fly the balls: three sub-steps a frame (a ball moves 1.5 m a step, narrow targets are not skipped), drag and wind included. */
   const stepBalls = (dt: number): void => {
     const air = windVelocity(wind);
+    const world: ShotWorld = {
+      player: { ship, spec, maxHp, targetable: !sunk && !dockedAt }, // a moored ship is safe in the harbour
+      enemies,
+      rng,
+      surfaceAt: (x, z) => waveHeight(x, z, time, wind.from, seaAmp(sea), 0, weather.tuning),
+      emit: (e) => events.push(e),
+      onPlayerHit: (lost) => {
+        hp = Math.max(0, hp - lost);
+        checkPlayerSunk();
+      },
+      onEnemyHit: (e, lost) => {
+        e.hp = Math.max(0, e.hp - lost);
+        checkEnemySunk(e);
+      },
+    };
     const alive: Ball[] = [];
     for (const b of balls) {
       let spent = false;
       for (let k = 0; k < BALL_STEPS && !spent; k++) {
         stepBall(b, dt / BALL_STEPS, air);
-        spent = resolveBall(b);
+        spent = resolveBall(b, world);
       }
       if (!spent && b.age < COMBAT.maxAge) alive.push(b);
     }
@@ -241,7 +232,7 @@ export function createGame(spec: ShipSpec): Game {
       e.reload.port = Math.max(0, e.reload.port - dt);
       e.reload.starboard = Math.max(0, e.reload.starboard - dt);
       if (ai.fire && !sunk && !dockedAt) {
-        fire('enemy', e.ship, e.spec, ai.fire);
+        fire('enemy', e.ship, e.spec, ai.fire, () => e.sinking < 0 && !e.gone);
         e.reload[ai.fire] = COMBAT.enemyReload;
       }
     }
@@ -280,6 +271,7 @@ export function createGame(spec: ShipSpec): Game {
         sinkTime += dt;
         ship.speed *= 1 - 0.4 * dt;
         stepBody(ship.body, ship, spec, time, wind.from, sea, dt, false, weather.tuning);
+        stepSalvo(dt);
         stepBalls(dt);
         // A restart asked for during the first moments of sinking is honoured once the screen shows.
         if (controls.restart) restartAsked = true;
@@ -294,9 +286,10 @@ export function createGame(spec: ShipSpec): Game {
 
       reload.port = Math.max(0, reload.port - dt);
       reload.starboard = Math.max(0, reload.starboard - dt);
+      elevation = Math.min(ELEVATION.max, Math.max(ELEVATION.min, elevation + (controls.elevate ?? 0) * ELEVATE_RATE * dt));
       const side: Side | null = controls.firePort ? 'port' : controls.fireStarboard ? 'starboard' : null;
       if (side && !dockedAt && reload[side] <= 0 && cannonsPerSide(spec) > 0) {
-        fire('player', ship, spec, side);
+        fire('player', ship, spec, side, () => !sunk, elevation);
         reload[side] = COMBAT.playerReload;
       }
       if (dockedAt) hp = Math.min(maxHp, hp + maxHp * REPAIR_RATE * dt);
@@ -311,6 +304,7 @@ export function createGame(spec: ShipSpec): Game {
         (lost) => ((hp = Math.max(0, hp - lost)), checkPlayerSunk()),
         (e, lost) => ((e.hp = Math.max(0, e.hp - lost)), checkEnemySunk(e)),
       );
+      stepSalvo(dt);
       stepBalls(dt);
       explore.discover();
     },
@@ -330,7 +324,7 @@ export function createGame(spec: ShipSpec): Game {
         seaState: sea,
         others: npcs.view(),
         crew: crew?.view() ?? [],
-        ship: playerView(ship, spec, { hp, maxHp, reload }, afloat),
+        ship: playerView(ship, spec, { hp, maxHp, reload, elevation, air: windVelocity(wind) }, afloat),
         nearestPort,
         docked: dockedAt?.id ?? null,
         grounded: ship.grounded > 0,

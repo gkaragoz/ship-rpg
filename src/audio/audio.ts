@@ -133,17 +133,17 @@ export function createAudio(makeContext: () => AudioContext | null = () => (type
       for (const e of events) {
         if (started >= MAX_PER_FRAME) break;
         if (e.type === 'escaped') continue; // nothing to hear: it simply sailed away
-        const loud = e.type === 'sunk' || e.type === 'collision' ? 1 : e.type === 'fire' ? 1 : e.type === 'hit' ? 0.9 : 0.6;
+        const loud = e.type === 'sunk' || e.type === 'collision' ? 1 : e.type === 'fire' ? 0.75 : e.type === 'hit' ? 0.9 : 0.6;
         const mix = spatialMix(listener, e.x, e.z, loud);
         if (mix.gain < AUDIBLE) continue;
         const out = panner();
         out.pan.value = mix.pan;
         out.connect(sfxBus);
         // Muzzle events of one broadside arrive in a rolling spread, not on one tick.
-        const when = ctx.currentTime + mix.delay + (e.type === 'fire' ? Math.random() * 0.18 : 0);
+        const when = ctx.currentTime + mix.delay; // the guns of a broadside already fire one after another
         if (e.type === 'fire') cannon(bus, out, when, mix.gain);
         else if (e.type === 'hit') (e.zone === 'rigging' ? riggingHit : e.zone === 'waterline' ? waterlineHit : hit)(bus, out, when, mix.gain);
-        else if (e.type === 'splash') splash(bus, out, when, mix.gain * ((e.y ?? 0) > 0.4 ? 0.6 : e.amount === 0 ? 0.5 : 1));
+        else if (e.type === 'splash') splash(bus, out, when, mix.gain * ((e.y ?? 0) > 0.4 ? 0.6 : 1));
         else if (e.type === 'collision') crunch(bus, out, when, mix.gain * Math.min(1, 0.4 + (e.speed ?? 3) / 6));
         else sinking(bus, out, when, mix.gain);
         started++;

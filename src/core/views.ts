@@ -16,6 +16,8 @@ export interface Controls {
   /** One-shot: fire the port (left) or starboard (right) broadside. */
   firePort?: boolean;
   fireStarboard?: boolean;
+  /** Lay the guns lower (-1, shorter range) or higher (+1, longer range) while held. */
+  elevate?: -1 | 0 | 1;
   /** One-shot: start over after the ship has sunk. */
   restart?: boolean;
 }
@@ -42,6 +44,13 @@ export interface WindView {
   from: number;
   /** m/s */
   speed: number;
+}
+
+/** A point on a ball's flight path (world metres). */
+export interface ArcPointView {
+  x: number;
+  y: number;
+  z: number;
 }
 
 /** Where a broadside lands (metres): see `gameplay/combat.ts` `aimZone`. */
@@ -96,6 +105,10 @@ export interface ShipView extends Condition, Attitude {
   /** Broadside readiness: 0 = loaded and ready … 1 = just fired. */
   reload: { port: number; starboard: number };
   aim: AimZoneView;
+  /** How high the guns are laid (rad) and the range it gives: the landing point of the middle ball is `arc`'s last point. */
+  elevation: number;
+  /** The flight a ball of each broadside will fly now (muzzle to landing), with drag, wind and the ship's own speed. */
+  arc: { port: readonly ArcPointView[]; starboard: readonly ArcPointView[] };
   /** A live enemy lies inside that side's landing zone right now. */
   inRange: { port: boolean; starboard: boolean };
 }

@@ -115,23 +115,21 @@ export function createImpacts(fx: Effects): Impacts {
         const nx = e.nx ?? 0;
         const nz = e.nz ?? 0;
         if (e.type === 'fire') {
-          // the blast: a flash, a jet of smoke along the barrel, a few sparks, and a cloud that hangs behind
-          fx.emit('flash', e.x + nx * 0.6, e.y, e.z + nz * 0.6, { color: 0xffc766, life: 0.12, start: 3, end: 5.5 });
-          for (let i = 0; i < 4; i++) {
+          // one gun's blast (the guns of a broadside go off one after another): a flash, a jet of smoke along the barrel,
+          // a few sparks, and a cloud that hangs behind
+          fx.emit('flash', e.x + nx * 0.6, e.y, e.z + nz * 0.6, { color: 0xffc766, life: 0.12, start: 2.4, end: 4.5 });
+          for (let i = 0; i < 2; i++) {
             fx.emit('smoke', e.x + nx * (1 + i * 0.7), e.y + 0.3, e.z + nz * (1 + i * 0.7), {
               color: 0xe8e8e8, life: between(1.6, 2.6), start: 1.2, end: 6 + i, vx: nx * between(5, 12) + jitter(2), vy: between(0.5, 1.8), vz: nz * between(5, 12) + jitter(2), opacity: 0.65,
             });
           }
-          sparks(3, e.x + nx, e.y, e.z + nz, nx, nz, 1.2);
-          fx.emit('smoke', e.x, e.y + 0.5, e.z, { color: 0xd6d6d6, life: 3.2, start: 2.5, end: 9, vx: jitter(1), vy: 1.2, vz: jitter(1), opacity: 0.55 });
+          sparks(2, e.x + nx, e.y, e.z + nz, nx, nz, 1.2);
+          fx.emit('smoke', e.x, e.y + 0.5, e.z, { color: 0xd6d6d6, life: 3.2, start: 2, end: 7, vx: jitter(1), vy: 1.2, vz: jitter(1), opacity: 0.55 });
         } else if (e.type === 'splash') {
           const power = clamp((e.speed ?? 70) / 90, 0.35, 1.2);
           if (e.y > 0.4) {
             // ball into the ground: a burst of earth and dust
             dust(8, e.x, e.y + 0.4, e.z, 0, 0, 0x8a7a5a, 2.4);
-          } else if (e.amount === 0) {
-            // the ball skipped off the sea: a low, quick splash
-            waterColumn(e.x, e.y, e.z, 0.35);
           } else {
             waterColumn(e.x, e.y, e.z, power);
           }

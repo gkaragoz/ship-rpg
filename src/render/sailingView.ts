@@ -242,6 +242,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       // Being hit shakes the camera; the offset is undone after drawing so it never drifts.
       for (const e of view.events) {
         if (e.type === 'hit' && e.owner === 'enemy') shake = Math.min(1.2, shake + 0.25 + (e.amount ?? 0) / 600);
+        if (e.type === 'fire' && e.owner === 'player') shake = Math.min(1.2, shake + 0.04);
         if (e.type === 'collision' && e.owner === 'player') shake = Math.min(1.5, shake + 0.3 + (e.speed ?? 0) / 8);
       }
 

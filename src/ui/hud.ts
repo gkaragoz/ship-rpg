@@ -59,6 +59,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const seaEl = rowValue('Deniz');
   const clockEl = rowValue('Saat');
   const sailEl = rowValue('Yelken');
+  const aimEl = rowValue('Nişan');
   const driveEl = rowValue('Verim');
   const portEl = rowValue('Liman');
   const hullEl = rowValue('Gövde');
@@ -93,7 +94,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const targetRig = bar('hud-rig');
   target.append(targetName, targetBar.root, targetRig.root);
 
-  const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · Q/E top · G nişan · N ses · K grafik · F liman · M harita · Fare: kamera · Esc: ayarlar');
+  const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · Q/E top · Z/X menzil · G nişan · N ses · K grafik · F liman · M harita · Fare: kamera · Esc: ayarlar');
   const prompt = el('div', 'hud-prompt');
   prompt.hidden = true;
   const toast = el('div', 'hud-toast');
@@ -128,6 +129,8 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
       seaEl.classList.toggle('alert', view.seaState > 0.75);
       const steps = ['Toplu', 'Yarım', 'Tam'];
       sailEl.textContent = steps[Math.round(ship.sailTarget * 2)] ?? '';
+      const landing = ship.arc.port[ship.arc.port.length - 1];
+      aimEl.textContent = landing ? `${((ship.elevation * 180) / Math.PI).toFixed(1)}° · ${Math.round(Math.hypot(landing.x - ship.x, landing.z - ship.z))} m` : '–';
       const eff = ship.efficiency;
       driveEl.textContent = eff < 0.05 ? 'Rüzgâra karşı!' : `${Math.round(eff * 100)}%`;
       drive.fill.style.width = pct(eff);
