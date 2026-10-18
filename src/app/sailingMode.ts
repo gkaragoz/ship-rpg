@@ -1,7 +1,7 @@
 import { angleDiff, createInput, type Controls } from '../core';
 import { createGame } from '../gameplay';
 import { createSailingView } from '../render';
-import { createShip, type ShipSpec } from '../ships';
+import { createShip, getShipSpec, type Ship, type ShipSpec } from '../ships';
 import { createHud, createMapUi, createPortPanel } from '../ui';
 import type { Mode } from './mode';
 
@@ -9,7 +9,10 @@ const PORT = ['KeyA', 'ArrowLeft'];
 const STARBOARD = ['KeyD', 'ArrowRight'];
 const MORE_SAIL = ['KeyW', 'ArrowUp'];
 const LESS_SAIL = ['KeyS', 'ArrowDown'];
-const INTERACT = 'KeyE';
+const INTERACT = 'KeyF';
+const FIRE_PORT = 'KeyQ';
+const FIRE_STARBOARD = 'KeyE';
+const RESTART = 'KeyR';
 const MAP = 'KeyM';
 const GAME_KEYS = [...PORT, ...STARBOARD, ...MORE_SAIL, ...LESS_SAIL];
 
@@ -21,6 +24,8 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   const view = createSailingView(host);
   view.setPlayer(ship.root, { length: spec.length, beam: spec.beam });
   const hud = createHud(host, spec.name);
+  // Enemy ships: a model per id the game reports, created on first sight and dropped when gone.
+  const enemyShips = new Map<string, Ship>();
   const map = createMapUi(host);
   const portPanel = createPortPanel(host);
 
@@ -36,6 +41,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   let updated = false;
   let stepTaken = false;
   let interactTaken = false;
+  let fireTaken = false;
 
   const controls = (): Controls => {
     let sailStep: -1 | 0 | 1 = 0;
@@ -48,7 +54,33 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     // Like sail steps, a single press must act once even if a frame runs several updates.
     const interact = !interactTaken && input.pressed(INTERACT);
     if (interact) interactTaken = true;
-    return { rudder, sailStep, interact };
+    // Fire and restart presses are one-shot too; the game ignores repeats while reloading.
+    const firePort = !fireTaken && input.pressed(FIRE_PORT);
+    const fireStarboard = !fireTaken && input.pressed(FIRE_STARBOARD);
+    if (firePort || fireStarboard) fireTaken = true;
+    return { rudder, sailStep, interact, firePort, fireStarboard, restart: input.pressed(RESTART) };
+  };
+
+  const syncEnemies = (v: ReturnType<typeof game.view>): void => {
+    const live = new Set<string>();
+    for (const e of v.enemies) {
+      live.add(e.id);
+      let es = enemyShips.get(e.id);
+      if (!es) {
+        const enemySpec = getShipSpec(e.specId);
+        if (!enemySpec) continue;
+        es = createShip(enemySpec);
+        enemyShips.set(e.id, es);
+        view.addActor(e.id, es.root, { length: enemySpec.length, beam: enemySpec.beam });
+      }
+      es.setSailTrim(angleDiff(v.wind.from, e.heading), e.sailLevel);
+    }
+    for (const [id, es] of enemyShips) {
+      if (live.has(id)) continue;
+      view.removeActor(id);
+      es.dispose();
+      enemyShips.delete(id);
+    }
   };
 
   return {
@@ -59,6 +91,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     render(): void {
       const v = game.view();
       ship.setSailTrim(angleDiff(v.wind.from, v.ship.heading), v.ship.sailLevel);
+      syncEnemies(v);
       view.draw(v);
       hud.update(v);
       map.update(v);
@@ -68,6 +101,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
         updated = false;
         stepTaken = false;
         interactTaken = false;
+        fireTaken = false;
       }
     },
     dispose(): void {
@@ -78,6 +112,8 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
       portPanel.dispose();
       view.dispose();
       ship.dispose();
+      for (const es of enemyShips.values()) es.dispose();
+      enemyShips.clear();
     },
   };
 }

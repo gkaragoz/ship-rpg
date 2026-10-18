@@ -46,3 +46,34 @@
   .hud-compass { width: 48px; height: 48px; top: 8px; right: 8px; }
   .hud-help { display: none; }
 }
+
+.hud-hull > div { background: #7bc96f; }
+.hud-hull.low > div { background: #e8643c; }
+.hud-guns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.hud-guns[hidden] { display: none; }
+.hud-gun-wrap { font-size: 11px; color: #9fb7c4; }
+.hud-gun-wrap .hud-bar { margin-top: 2px; }
+.hud-gun > div { background: #c9a227; }
+.hud-gun.ready > div { background: #ffe066; }
+.hud-panel .hud-bar + .hud-bar { margin-top: 5px; }
+.hud-target {
+  position: absolute; left: 50%; top: 52px; transform: translateX(-50%); width: 240px; padding: 6px 12px; font-size: 13px;
+  text-align: center; background: rgba(11, 26, 36, 0.8); border: 1px solid #e8643c; border-radius: 4px;
+}
+.hud-target[hidden] { display: none; }
+.hud-target .hud-bar { margin-top: 4px; }
+.hud-toast {
+  position: absolute; left: 50%; top: 30%; transform: translateX(-50%); padding: 8px 20px; font-size: 20px;
+  background: rgba(11, 26, 36, 0.85); border: 1px solid #e0b840; border-radius: 4px; color: #e0b840;
+}
+.hud-toast[hidden] { display: none; }
+.hud-sunk {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(60, 10, 10, 0.55); text-align: center;
+}
+.hud-sunk[hidden] { display: none; }
+.hud-sunk h2 { margin: 0 0 6px; font-size: 44px; color: #ffb199; }
+.hud-sunk p { margin: 0; font-size: 18px; }
+@media (max-width: 700px) {
+  .hud-target { top: 8px; width: 180px; }
+}

@@ -1,0 +1,249 @@
+import { describe, expect, it } from 'vitest';
+import { createRng, type WindView } from '../src/core';
+import { createGame } from '../src/gameplay';
+import { COMBAT, ballHits, cannonsPerSide, fireBroadside, stepBall, type Ball } from '../src/gameplay/combat';
+import { aiStep, createEnemy, pickEnemySpec } from '../src/gameplay/enemy';
+import { getShipSpec } from '../src/ships';
+
+const spec = (id: string) => {
+  const s = getShipSpec(id);
+  if (!s) throw new Error(`${id} missing`);
+  return s;
+};
+const brig = spec('brig');
+const DT = 1 / 60;
+/** Wind from the north (north is -z, so the wind's origin angle is π/2). */
+const northWind: WindView = { from: Math.PI / 2, speed: 8 };
+
+const volley = (heading: number, side: 'port' | 'starboard', speed = 0, seed = 1) => {
+  let id = 0;
+  return fireBroadside('player', { x: 0, z: 0, heading, speed }, brig, side, createRng(seed), () => ++id);
+};
+
+describe('fireBroadside', () => {
+  it('fires half the guns per side, capped, and none for an unarmed ship', () => {
+    expect(volley(0, 'port').balls).toHaveLength(brig.stats.cannons / 2);
+    expect(cannonsPerSide(spec('battleship'))).toBe(COMBAT.maxPerVolley);
+    expect(cannonsPerSide(spec('tartane'))).toBe(0);
+    const none = fireBroadside('player', { x: 0, z: 0, heading: 0, speed: 0 }, spec('tartane'), 'port', createRng(1), () => 1);
+    expect(none.balls).toHaveLength(0);
+    expect(none.events).toHaveLength(0);
+  });
+
+  it('sends starboard balls to starboard and port balls to port, whatever the heading', () => {
+    for (const heading of [0, 1, 2.5, -1.2]) {
+      const starboard = { x: Math.sin(heading), z: Math.cos(heading) }; // (sin ψ, cos ψ)
+      for (const b of volley(heading, 'starboard').balls) {
+        expect((b.vx * starboard.x + b.vz * starboard.z) / COMBAT.ballSpeed).toBeGreaterThan(0.9);
+      }
+      for (const b of volley(heading, 'port').balls) {
+        expect((b.vx * starboard.x + b.vz * starboard.z) / COMBAT.ballSpeed).toBeLessThan(-0.9);
+      }
+    }
+  });
+
+  it('starts at the hull side, spread along its length, and inherits the ship speed', () => {
+    const still = volley(0, 'starboard', 0).balls;
+    const moving = volley(0, 'starboard', 6).balls;
+    const xs = still.map((b) => b.x);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(brig.length * 0.3);
+    for (const b of still) expect(b.z).toBeCloseTo(brig.beam / 2, 5); // heading 0: starboard is +z
+    expect(moving[0]!.vx - still[0]!.vx).toBeCloseTo(6, 5); // forward (heading 0) is +x
+  });
+
+  it('keeps total firepower when guns exceed the ball cap', () => {
+    const b = spec('battleship');
+    let id = 0;
+    const v = fireBroadside('player', { x: 0, z: 0, heading: 0, speed: 0 }, b, 'port', createRng(1), () => ++id);
+    expect(v.balls).toHaveLength(COMBAT.maxPerVolley);
+    const total = v.balls.reduce((a, ball) => a + ball.damage, 0);
+    expect(total).toBeCloseTo((b.stats.cannons / 2) * b.stats.shot * COMBAT.damagePerLb, 5);
+    // A ship under the cap deals exactly calibre × factor per ball.
+    expect(volley(0, 'port').balls[0]!.damage).toBeCloseTo(brig.stats.shot * COMBAT.damagePerLb, 5);
+  });
+
+  it('is deterministic for a given seed and emits muzzle events', () => {
+    expect(volley(0.4, 'port', 0, 7).balls).toEqual(volley(0.4, 'port', 0, 7).balls);
+    expect(volley(0.4, 'port', 0, 7).balls).not.toEqual(volley(0.4, 'port', 0, 8).balls);
+    const events = volley(0, 'port').events;
+    expect(events.length).toBeGreaterThan(0);
+    expect(events.every((e) => e.type === 'fire' && e.owner === 'player')).toBe(true);
+  });
+});
+
+describe('ballistics', () => {
+  it('lands 90–220 m out, fired from rest', () => {
+    for (const b of volley(0, 'starboard', 0).balls) {
+      const start = { x: b.x, z: b.z };
+      for (let i = 0; i < 60 * 6 && b.y > 0; i++) stepBall(b, DT);
+      expect(b.y).toBeLessThanOrEqual(0);
+      const range = Math.hypot(b.x - start.x, b.z - start.z);
+      expect(range).toBeGreaterThan(90);
+      expect(range).toBeLessThan(220);
+    }
+  });
+});
+
+describe('ballHits', () => {
+  const ball = (x: number, y: number, z: number): Ball => ({ id: 1, owner: 'player', x, y, z, vx: 0, vy: 0, vz: 0, damage: 10, age: 0 });
+  const target = { x: 100, z: 50, heading: 0 };
+
+  it('hits inside the hull footprint between keel and rail', () => {
+    expect(ballHits(ball(100, 1, 50), target, brig)).toBe(true);
+    expect(ballHits(ball(100 + brig.length * 0.49, 1, 50), target, brig)).toBe(true);
+  });
+
+  it('misses outside the footprint, above the rigging line or below the keel', () => {
+    expect(ballHits(ball(100 + brig.length, 1, 50), target, brig)).toBe(false);
+    expect(ballHits(ball(100, 1, 50 + brig.beam), target, brig)).toBe(false);
+    expect(ballHits(ball(100, brig.freeboard + 3, 50), target, brig)).toBe(false);
+    expect(ballHits(ball(100, -brig.draft - 1, 50), target, brig)).toBe(false);
+  });
+
+  it('follows the target heading: a ship turned 90° is long in z', () => {
+    const turned = { x: 100, z: 50, heading: Math.PI / 2 };
+    expect(ballHits(ball(100, 1, 50 - brig.length * 0.4), turned, brig)).toBe(true);
+    expect(ballHits(ball(100 + brig.length * 0.4, 1, 50), turned, brig)).toBe(false);
+  });
+});
+
+describe('enemy AI', () => {
+  it('picks the armed ship closest to 80% of the player hull strength', () => {
+    expect(pickEnemySpec(brig).id).toBe('schooner'); // 2000 wanted: schooner 1800 beats xebec 1500
+    expect(pickEnemySpec(spec('sloop')).id).toBe('galeoth'); // 960 wanted: galeoth 1000
+    expect(pickEnemySpec(spec('battleship')).id).toBe('battleship'); // 8000 wanted: the Battleship itself (10000) is closer than the Frigate (5700)
+    expect(pickEnemySpec(spec('tartane')).id).toBe('lugger'); // 80 wanted: weakest armed ship
+    for (const id of ['tartane', 'yacht', 'galleon']) expect(pickEnemySpec(spec(id)).stats.cannons).toBeGreaterThanOrEqual(8);
+  });
+
+  it('turns toward a distant player and does not fire', () => {
+    const e = createEnemy('e', spec('schooner'), 0, 0, 0); // heading east
+    // Player due north (north is -z): a left (port) turn is needed, which is a negative rudder.
+    const north1 = aiStep(e, { x: 0, z: -2000 }, { from: Math.PI, speed: 8 });
+    expect(north1.controls.rudder).toBeLessThan(0);
+    expect(north1.fire).toBeNull();
+    const south = aiStep(e, { x: 0, z: 2000 }, { from: Math.PI, speed: 8 });
+    expect(south.controls.rudder).toBeGreaterThan(0);
+  });
+
+  it('fires the broadside that faces the player, only when loaded and in range', () => {
+    const e = createEnemy('e', spec('schooner'), 0, 0, 0);
+    e.reload.port = 0;
+    e.reload.starboard = 0;
+    // Heading east: starboard is +z (south), port is -z (northWind). Player 100 m away abeam.
+    expect(aiStep(e, { x: 0, z: -100 }, northWind).fire).toBe('port');
+    expect(aiStep(e, { x: 0, z: 100 }, northWind).fire).toBe('starboard');
+    expect(aiStep(e, { x: 0, z: -400 }, northWind).fire).toBeNull(); // out of range
+    expect(aiStep(e, { x: 100, z: 0 }, northWind).fire).toBeNull(); // dead ahead, not abeam
+    e.reload.port = 3;
+    expect(aiStep(e, { x: 0, z: -100 }, northWind).fire).toBeNull(); // still reloading
+  });
+
+  it('bears off rather than steering into the wind', () => {
+    const e = createEnemy('e', spec('schooner'), 0, 0, 0);
+    // Wind from the east, player far to the east: straight at them is into the wind.
+    const r = aiStep(e, { x: 3000, z: 0 }, { from: 0, speed: 8 });
+    expect(Math.abs(r.controls.rudder)).toBeGreaterThan(0.2);
+  });
+});
+
+describe('createGame combat', () => {
+  it('starts with one enemy afloat at a distance, full hull and loaded guns', () => {
+    const v = createGame(brig).view();
+    expect(v.enemies).toHaveLength(1);
+    expect(v.enemies[0]!.distance).toBeGreaterThan(400);
+    expect(v.enemies[0]!.sinking).toBe(-1);
+    expect(v.ship.hp).toBe(brig.stats.hp);
+    expect(v.ship.guns).toBe(brig.stats.cannons / 2);
+    expect(v.ship.reload).toEqual({ port: 0, starboard: 0 });
+    expect(v.sunk).toBe(false);
+  });
+
+  it('fires a broadside, reloads over time, and drains events once', () => {
+    const game = createGame(brig);
+    game.update(DT, { rudder: 0, sailStep: 0, firePort: true });
+    const first = game.view();
+    expect(first.balls.length).toBe(brig.stats.cannons / 2);
+    expect(first.ship.reload.port).toBeGreaterThan(0.9);
+    expect(first.events.some((e) => e.type === 'fire' && e.owner === 'player')).toBe(true);
+    expect(game.view().events).toHaveLength(0); // drained
+
+    game.update(DT, { rudder: 0, sailStep: 0, firePort: true }); // still reloading
+    expect(game.view().balls.length).toBe(brig.stats.cannons / 2);
+
+    for (let i = 0; i < 60 * (COMBAT.playerReload + 1); i++) game.update(DT, { rudder: 0, sailStep: 0 });
+    expect(game.view().ship.reload.port).toBe(0);
+  });
+
+  it('puts splashes where missed balls land and removes them', () => {
+    const game = createGame(brig);
+    game.update(DT, { rudder: 0, sailStep: 0, fireStarboard: true });
+    let splashes = 0;
+    for (let i = 0; i < 60 * 5; i++) {
+      game.update(DT, { rudder: 0, sailStep: 0 });
+      splashes += game.view().events.filter((e) => e.type === 'splash').length;
+    }
+    expect(splashes).toBeGreaterThan(0);
+    expect(game.view().balls.filter((b) => b.owner === 'player')).toHaveLength(0);
+  });
+
+  it('cannot fire while moored or with an unarmed ship', () => {
+    const docked = createGame(brig);
+    docked.update(DT, { rudder: 0, sailStep: 0, interact: true });
+    expect(docked.view().docked).toBe('douwesen'); // the test is only meaningful if we really moored
+    docked.update(DT, { rudder: 0, sailStep: 0, firePort: true });
+    expect(docked.view().balls.filter((b) => b.owner === 'player')).toHaveLength(0);
+
+    const tartane = createGame(spec('tartane'));
+    tartane.update(DT, { rudder: 0, sailStep: 0, firePort: true });
+    expect(tartane.view().balls.filter((b) => b.owner === 'player')).toHaveLength(0);
+  });
+
+  it('lets the enemy hunt an unarmed ship to death, then restarts cleanly', () => {
+    const game = createGame(spec('tartane'));
+    let sunkAt = -1;
+    for (let i = 0; i < 60 * 900 && sunkAt < 0; i++) {
+      game.update(DT, { rudder: 0, sailStep: 0 });
+      if (game.view().sunk) sunkAt = i / 60;
+    }
+    expect(sunkAt).toBeGreaterThan(0);
+    const dead = game.view();
+    expect(dead.ship.hp).toBe(0);
+
+    game.update(DT, { rudder: 0, sailStep: 0, restart: true }); // too soon: must watch it sink first
+    expect(game.view().sunk).toBe(true);
+    for (let i = 0; i < 60 * 3; i++) game.update(DT, { rudder: 0, sailStep: 0 });
+    game.update(DT, { rudder: 0, sailStep: 0, restart: true });
+    const fresh = game.view();
+    expect(fresh.sunk).toBe(false);
+    expect(fresh.ship.hp).toBe(fresh.ship.maxHp);
+    expect(fresh.kills).toBe(0);
+    expect(fresh.enemies).toHaveLength(1);
+  });
+
+  /** Furl the sails so the ship idles near the harbour while the enemy comes to it. */
+  const idleUntilHurt = (game: ReturnType<typeof createGame>, maxSeconds: number): number => {
+    game.update(DT, { rudder: 0, sailStep: -1 });
+    game.update(DT, { rudder: 0, sailStep: -1 });
+    for (let i = 0; i < 60 * maxSeconds; i++) {
+      game.update(DT, { rudder: 0, sailStep: 0 });
+      if (game.view().ship.hp < game.view().ship.maxHp) return i / 60;
+    }
+    return -1;
+  };
+
+  it('repairs a moored ship, and the harbour protects it from enemy fire', () => {
+    const game = createGame(brig);
+    expect(idleUntilHurt(game, 600)).toBeGreaterThan(0);
+    const hurt = game.view().ship.hp;
+    expect(hurt).toBeLessThan(brig.stats.hp);
+
+    // Moor: the furled ship has been idling within 80 m of the anchorage.
+    expect(game.view().nearestPort?.dockable).toBe(true);
+    game.update(DT, { rudder: 0, sailStep: 0, interact: true });
+    expect(game.view().docked).not.toBeNull();
+    for (let i = 0; i < 60 * 20; i++) game.update(DT, { rudder: 0, sailStep: 0 });
+    expect(game.view().ship.hp).toBeGreaterThan(hurt); // repaired, never hit again while moored
+    expect(game.view().sunk).toBe(false);
+  });
+});

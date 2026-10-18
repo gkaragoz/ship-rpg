@@ -13,7 +13,14 @@ export interface Controls {
   sailStep: -1 | 0 | 1;
   /** One-shot: dock at / leave the nearest port. */
   interact?: boolean;
+  /** One-shot: fire the port (left) or starboard (right) broadside. */
+  firePort?: boolean;
+  fireStarboard?: boolean;
+  /** One-shot: start over after the ship has sunk. */
+  restart?: boolean;
 }
+
+export type Owner = 'player' | 'enemy';
 
 export interface WindView {
   from: number;
@@ -39,6 +46,49 @@ export interface ShipView {
   efficiency: number;
   /** Heel about the bow axis in radians; + heels to starboard. */
   roll: number;
+  hp: number;
+  maxHp: number;
+  /** Guns per broadside. */
+  guns: number;
+  /** Broadside readiness: 0 = loaded and ready … 1 = just fired. */
+  reload: { port: number; starboard: number };
+}
+
+export interface EnemyView {
+  id: string;
+  specId: string;
+  name: string;
+  x: number;
+  z: number;
+  heading: number;
+  speed: number;
+  roll: number;
+  sailLevel: number;
+  hp: number;
+  maxHp: number;
+  /** Seconds since it started sinking; -1 while afloat. */
+  sinking: number;
+  /** Metres from the player. */
+  distance: number;
+  /** Direction from the player as a world angle (same convention as heading). */
+  direction: number;
+}
+
+export interface BallView {
+  id: number;
+  owner: Owner;
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** One-off things that happened since the previous `view()`: drives smoke, splashes and sound. */
+export interface GameEvent {
+  type: 'fire' | 'splash' | 'hit' | 'sunk';
+  owner: Owner;
+  x: number;
+  y: number;
+  z: number;
 }
 
 export interface PortView {
@@ -66,4 +116,13 @@ export interface GameView {
   discoveredIslands: readonly string[];
   /** Ids of ports the player has seen. */
   discoveredPorts: readonly string[];
+  enemies: readonly EnemyView[];
+  balls: readonly BallView[];
+  /** Drained by each `view()` call: render once per frame from it. */
+  events: readonly GameEvent[];
+  /** The player's ship has sunk; restart with `Controls.restart`. */
+  sunk: boolean;
+  /** Seconds since the player's ship began to sink. */
+  sinkTime: number;
+  kills: number;
 }

@@ -148,6 +148,27 @@ export function createMapUi(host: HTMLElement): MapUi {
       }
     }
 
+    // Enemy ships afloat, as red triangles (radar: shown on the minimap, not the chart).
+    if (!labels) {
+      for (const e of view.enemies) {
+        if (e.sinking >= 0) continue;
+        ctx.save();
+        ctx.translate(sx(e.x), sy(e.z));
+        ctx.rotate(-e.heading);
+        ctx.fillStyle = '#e8402c';
+        ctx.strokeStyle = '#2a0a06';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(7, 0);
+        ctx.lineTo(-5, 4);
+        ctx.lineTo(-5, -4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     // The ship: a triangle pointing along its heading (forward is (cos ψ, -sin ψ) in x, z).
     ctx.save();
     ctx.translate(sx(view.ship.x), sy(view.ship.z));

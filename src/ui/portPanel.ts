@@ -26,7 +26,7 @@ export function createPortPanel(host: HTMLElement): PortPanel {
     item.append(el('span', undefined, ' · yakında'));
     services.append(item);
   }
-  const leave = el('div', 'port-leave', 'Denize çıkmak için E tuşuna bas');
+  const leave = el('div', 'port-leave', 'Denize çıkmak için F tuşuna bas');
   root.append(title, blurb, services, leave);
   host.appendChild(root);
 

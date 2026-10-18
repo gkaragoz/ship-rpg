@@ -15,10 +15,21 @@
   - [ ] polish: harbour town detail (forts, docks, ships at anchor), beach waves
   - [ ] polish: coast sounding/depth warning on the HUD
   - [ ] save/load of discovered map and position
+  - [ ] layout: at ~800 px width the dock hint overlaps the HUD compass and the harbour panel touches the minimap; check the mobile hint toast
   - [ ] visual: shallows show large flat facets (smooth the depth tint), far sea shows horizontal banding (near/far seam or aliasing: investigate), island labels clipped at the top edge or hidden behind the minimap
   - [ ] chart: fixed extent clips the ship marker near the south edge; no touch way to close it
   - [ ] runtime check of grounding in the browser (covered by unit tests only; upwind approaches end in irons)
   - [ ] ports feel empty: NPC ships sailing between islands (phase 5)
   - [ ] harbour services (market, shipyard to buy/switch ships, tavern) behind the placeholder panel (phase 5)
   - [ ] tests: HUD bearing maths now also cover the nearest-port bearing; `createGame` dock speed limit; reachability of every anchorage for the deepest keel
-- [ ] 5. Combat, trade, RPG layer
+- [ ] 5. Combat, trade, RPG layer, in slices (each ends with tests, docs, QA and a commit):
+  - [x] 5a. Broadside cannons and one enemy ship. Done when: the player can fire either broadside (Q/E) with a visible reload, see balls, smoke and splashes, damage an enemy that hunts and fires back, sink it, be sunk, and restart (R); docking is F and a moored ship is safe and repairs.
+  - [ ] 5a.1 player feedback: aim arc / range ring for the guns, hit markers and damage numbers, screen shake, sound
+  - [ ] 5a.2 enemy behaviour: flee when badly damaged, several enemies, enemy flags/nationality, escape rules
+  - [ ] 5a.3 damage model: sail and rigging damage reduce speed and turning, leaks, fire
+  - [ ] 5a.4 balance (runtime QA: an even Brig-vs-Schooner fight was lost twice, hits cost the target only 2–13% hull; handicap added, needs measuring): headless duel table per ship pairing (win rates), tune reload, damage, spawn; Tartane vs Lugger is a guaranteed loss unless it docks
+  - [ ] 5b. Gold wallet and cargo hold (state in gameplay, shown in the HUD), crew count and its effect on reload speed; boarding a defeated ship for loot, crew losses, XP and captain level
+  - [ ] 5c. Trade: buy and sell goods at ports (prices from the guide's cargo table), hold capacity from ship stats
+  - [ ] 5d. Shipyard: buy, sell and repair ships from the 16 types (needs a game-state refactor: the player's ship spec, hull points and hold become mutable state; `createGame(spec)` becomes `createGame(state)`)
+  - [ ] 5e. NPC traffic between ports (also feeds 5a.2 several enemies), nationalities/factions, reputation and simple quests
+  - [ ] 5f. Save and load: a versioned state object (position, ship, gold, hold, discoveries, kills); plan the schema as 5b–5e add state

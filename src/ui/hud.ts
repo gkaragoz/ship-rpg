@@ -16,8 +16,18 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
 const DEG = 180 / Math.PI;
 /** Compass bearing (clockwise from north, north = -z) of a world heading angle. */
 const bearing = (angle: number): number => (((Math.PI / 2 - angle) * DEG) % 360 + 360) % 360;
+const pct = (v: number): string => `${Math.round(Math.min(Math.max(v, 0), 1) * 100)}%`;
+const TOAST_SECONDS = 3.5;
 
-/** Sailing HUD: heading, speed, sails, wind compass and key hints. */
+/** A labelled thin bar; `fill` is the inner element whose width is set. */
+function bar(className = ''): { root: HTMLElement; fill: HTMLElement } {
+  const root = el('div', `hud-bar ${className}`.trim());
+  const fill = el('div');
+  root.append(fill);
+  return { root, fill };
+}
+
+/** Sailing HUD: heading, speed, sails, wind compass, hull and guns, target, prompts. */
 export function createHud(host: HTMLElement, shipName: string): Hud {
   const root = el('div', 'hud');
 
@@ -39,19 +49,50 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   const sailEl = rowValue('Yelken');
   const driveEl = rowValue('Verim');
   const portEl = rowValue('Liman');
-  const drive = el('div', 'hud-bar');
-  const driveFill = el('div');
-  drive.append(driveFill);
-  panel.append(el('h3', undefined, shipName), compass, rows, drive);
+  const hullEl = rowValue('Gövde');
+  const drive = bar();
+  const hull = bar('hud-hull');
 
-  const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · E liman · M harita · Fare: kamera · Esc: galeri');
+  // Broadsides: left and right, each a bar that fills while loaded.
+  const guns = el('div', 'hud-guns');
+  const gunPort = bar('hud-gun');
+  const gunStbd = bar('hud-gun');
+  const gunLabel = (text: string, b: HTMLElement): HTMLElement => {
+    const w = el('div', 'hud-gun-wrap');
+    w.append(el('span', undefined, text), b);
+    return w;
+  };
+  guns.append(gunLabel('Sol (Q)', gunPort.root), gunLabel('Sağ (E)', gunStbd.root));
+  panel.append(el('h3', undefined, shipName), compass, rows, drive.root, hull.root, guns);
+
+  // Nearest enemy.
+  const target = el('div', 'hud-target');
+  target.hidden = true;
+  const targetName = el('div');
+  const targetBar = bar('hud-hull');
+  target.append(targetName, targetBar.root);
+
+  const help = el('div', 'hud-help', 'A/D dümen · W/S yelken · Q/E top · F liman · M harita · Fare: kamera · Esc: galeri');
   const prompt = el('div', 'hud-prompt');
   prompt.hidden = true;
-  root.append(panel, help, prompt);
+  const toast = el('div', 'hud-toast');
+  toast.hidden = true;
+  const sunk = el('div', 'hud-sunk');
+  sunk.hidden = true;
+  sunk.append(el('h2', undefined, 'Gemin battı'), el('p', undefined, 'R: yeniden başla'));
+  root.append(panel, help, target, prompt, toast, sunk);
   host.appendChild(root);
 
+  let toastLeft = 0;
+  let lastClock = performance.now();
+
   return {
-    update({ ship, wind, nearestPort, docked, grounded }): void {
+    update(view): void {
+      const { ship, wind, nearestPort, docked, grounded } = view;
+      const now = performance.now();
+      const dt = Math.min((now - lastClock) / 1000, 0.5);
+      lastClock = now;
+
       headingEl.textContent = `${bearing(ship.heading).toFixed(0).padStart(3, '0')}°`;
       speedEl.textContent = `${ship.knots.toFixed(1)} / ${ship.maxKnots.toFixed(1)}`;
       windEl.textContent = `${bearing(wind.from).toFixed(0).padStart(3, '0')}° · ${wind.speed.toFixed(1)} m/s`;
@@ -59,10 +100,20 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
       sailEl.textContent = steps[Math.round(ship.sailTarget * 2)] ?? '';
       const eff = ship.efficiency;
       driveEl.textContent = eff < 0.05 ? 'Rüzgâra karşı!' : `${Math.round(eff * 100)}%`;
-      driveFill.style.width = `${Math.round(eff * 100)}%`;
+      drive.fill.style.width = pct(eff);
       // The arrow is drawn pointing at the stern (wind from dead ahead); rotating it by the
       // wind's relative bearing makes it point where the wind blows toward.
       arrow.style.transform = `rotate(${(ship.heading - wind.from) * DEG}deg)`;
+
+      // Hull and guns.
+      hullEl.textContent = `${Math.round(ship.hp)} / ${ship.maxHp}`;
+      hull.fill.style.width = pct(ship.hp / ship.maxHp);
+      hull.root.classList.toggle('low', ship.hp / ship.maxHp < 0.3);
+      guns.hidden = ship.guns === 0;
+      gunPort.fill.style.width = pct(1 - ship.reload.port);
+      gunStbd.fill.style.width = pct(1 - ship.reload.starboard);
+      gunPort.root.classList.toggle('ready', ship.reload.port <= 0);
+      gunStbd.root.classList.toggle('ready', ship.reload.starboard <= 0);
 
       // Nearest port: distance, compass bearing and a marker on the compass ring.
       portMark.hidden = !nearestPort;
@@ -75,7 +126,27 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
         portEl.textContent = '—';
       }
 
-      if (grounded) {
+      // Nearest enemy afloat within sight.
+      let foe = null as GameView['enemies'][number] | null;
+      for (const e of view.enemies) if (e.sinking < 0 && (!foe || e.distance < foe.distance)) foe = e;
+      target.hidden = !foe || foe.distance > 900 || view.sunk;
+      if (foe) {
+        targetName.textContent = `${foe.name} · ${Math.round(foe.distance)} m · ${bearing(foe.direction).toFixed(0).padStart(3, '0')}°`;
+        targetBar.fill.style.width = pct(foe.hp / foe.maxHp);
+      }
+
+      // Toast for a kill; the sunk screen for our own end.
+      if (view.events.some((e) => e.type === 'sunk' && e.owner === 'enemy')) {
+        toast.textContent = `Düşman gemisi battı! (${view.kills})`;
+        toastLeft = TOAST_SECONDS;
+      }
+      toastLeft = Math.max(0, toastLeft - dt);
+      toast.hidden = toastLeft <= 0;
+      sunk.hidden = !view.sunk || view.sinkTime < 2;
+
+      if (view.sunk) {
+        prompt.hidden = true;
+      } else if (grounded) {
         prompt.hidden = false;
         prompt.textContent = 'Karaya oturdun! Dümeni kır, kıçtan çık.';
         prompt.className = 'hud-prompt hud-warn';
@@ -83,7 +154,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
         prompt.hidden = true;
       } else if (nearestPort?.dockable) {
         prompt.hidden = false;
-        prompt.textContent = `${nearestPort.name} limanına gir [E]`;
+        prompt.textContent = `${nearestPort.name} limanına gir [F]`;
         prompt.className = 'hud-prompt';
       } else if (nearestPort && nearestPort.distance < 200) {
         prompt.hidden = false;
