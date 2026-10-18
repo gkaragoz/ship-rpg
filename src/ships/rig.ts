@@ -47,15 +47,15 @@ function buildMast(spec: ShipSpec, m: MastSpec, mats: ShipMaterials, flag: boole
   // Sails are trimmed for a wind from the port quarter: square yards braced round
   // to starboard, fore-and-aft sails sheeted out to starboard.
   if (m.rig === 'square') {
-    addSquareSails(trimmed(g, SQUARE_BRACE), spec, m, mats);
-    if (m.spanker) addGaffSail(trimmed(g, SHEET_ANGLE), m, mats, Math.min(spec.length * 0.2, aft), 0.12, 0.5);
+    addSquareSails(trimmed(g, SQUARE_BRACE, 'square'), spec, m, mats);
+    if (m.spanker) addGaffSail(trimmed(g, SHEET_ANGLE, 'aft'), m, mats, Math.min(spec.length * 0.2, aft), 0.12, 0.5);
     if (m.height >= 16) g.add(top(m, mats));
   } else if (m.rig === 'gaff') {
-    addGaffSail(trimmed(g, SHEET_ANGLE), m, mats, Math.min(spec.length * 0.3, aft), 0.1, 0.62);
+    addGaffSail(trimmed(g, SHEET_ANGLE, 'aft'), m, mats, Math.min(spec.length * 0.3, aft), 0.1, 0.62);
   } else if (m.rig === 'lug') {
-    addLugSail(trimmed(g, SHEET_ANGLE), m, mats, Math.min(spec.length * 0.22, aft));
+    addLugSail(trimmed(g, SHEET_ANGLE, 'aft'), m, mats, Math.min(spec.length * 0.22, aft));
   } else {
-    addLateenSail(trimmed(g, SHEET_ANGLE), spec, m, mats, aft, fore);
+    addLateenSail(trimmed(g, SHEET_ANGLE, 'aft'), spec, m, mats, aft, fore);
   }
 
   if (m.height >= 10) addShrouds(g, spec, m, mats);
@@ -71,8 +71,9 @@ const SQUARE_BRACE = 0.2;
 const SHEET_ANGLE = 0.28;
 
 /** Child group rotated about the mast axis (positive swings the stern side to starboard). */
-function trimmed(parent: THREE.Group, angle: number): THREE.Group {
+function trimmed(parent: THREE.Group, angle: number, kind: 'square' | 'aft'): THREE.Group {
   const t = new THREE.Group();
+  t.name = `trim-${kind}`; // found by Ship.setSailTrim
   t.rotation.y = angle;
   parent.add(t);
   return t;

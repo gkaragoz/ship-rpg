@@ -11,6 +11,8 @@ export interface GalleryItem {
 export interface GalleryHandlers {
   onSelect(id: string): void;
   onAutoRotate(on: boolean): void;
+  /** The player chose to sail the selected ship. */
+  onSail(id: string): void;
 }
 
 export interface GalleryUI {
@@ -57,7 +59,12 @@ export function createGalleryUI(host: HTMLElement, items: readonly GalleryItem[]
   checkbox.checked = true;
   checkbox.addEventListener('change', () => handlers.onAutoRotate(checkbox.checked));
   rotate.append(checkbox, ' Otomatik döndür');
-  card.append(title, blurb, stats, rotate);
+  const sail = el('button', 'gallery-sail', 'Yelken aç ▸');
+  sail.type = 'button';
+  sail.addEventListener('click', () => current && handlers.onSail(current));
+  const actions = el('div', 'gallery-actions');
+  actions.append(rotate, sail);
+  card.append(title, blurb, stats, actions);
   root.append(list, card);
   host.appendChild(root);
 

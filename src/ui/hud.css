@@ -1,0 +1,36 @@
+.hud { position: fixed; inset: 0; pointer-events: none; font-family: Georgia, 'Times New Roman', serif; color: #f3ead2; }
+.hud-panel {
+  position: absolute; left: 12px; bottom: 12px; width: 220px; padding: 10px 14px;
+  background: rgba(11, 26, 36, 0.82); border: 1px solid #c9a227; border-radius: 6px;
+}
+.hud-panel h3 { margin: 0 0 6px; font-size: 18px; color: #e0b840; }
+.hud-compass {
+  position: absolute; top: 10px; right: 12px; width: 64px; height: 64px;
+  border: 1px solid #9fb7c4; border-radius: 50%;
+}
+.hud-bow {
+  position: absolute; left: 50%; top: 6px; margin-left: -5px; width: 0; height: 0;
+  border: 5px solid transparent; border-bottom: 12px solid #e0b840; border-top: 0;
+}
+.hud-wind { position: absolute; inset: 0; }
+.hud-wind::before {
+  content: ''; position: absolute; left: 50%; top: 14px; width: 2px; height: 28px; margin-left: -1px; background: #7fd0ff;
+}
+.hud-wind::after {
+  content: ''; position: absolute; left: 50%; top: 40px; margin-left: -5px; width: 0; height: 0;
+  border: 5px solid transparent; border-top: 9px solid #7fd0ff; border-bottom: 0;
+}
+.hud dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 8px 0; font-size: 13px; }
+.hud dt { color: #9fb7c4; }
+.hud dd { margin: 0; font-weight: bold; }
+.hud-bar { height: 6px; background: rgba(255, 255, 255, 0.15); border-radius: 3px; overflow: hidden; }
+.hud-bar > div { height: 100%; background: #e0b840; width: 0; }
+.hud-help {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%); padding: 4px 12px; font-size: 13px;
+  background: rgba(11, 26, 36, 0.7); border-radius: 4px; white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .hud-panel { width: 170px; padding: 6px 10px; }
+  .hud-compass { width: 48px; height: 48px; top: 8px; right: 8px; }
+  .hud-help { display: none; }
+}

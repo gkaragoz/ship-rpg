@@ -22,7 +22,13 @@
 .gallery-card dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px 12px; margin: 0 0 8px; font-size: 13px; }
 .gallery-card dt { color: #9fb7c4; }
 .gallery-card dd { margin: 0 0 4px; font-weight: bold; }
+.gallery-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .gallery-rotate { font-size: 13px; cursor: pointer; }
+.gallery-sail {
+  padding: 6px 14px; font: inherit; font-size: 15px; color: #1a1205; background: #e0b840;
+  border: 1px solid #c9a227; border-radius: 4px; cursor: pointer;
+}
+.gallery-sail:hover { background: #f0cb55; }
 @media (max-width: 700px) {
   .gallery-list {
     top: 8px; left: 8px; right: 8px; bottom: auto; width: auto; padding: 6px 8px;
