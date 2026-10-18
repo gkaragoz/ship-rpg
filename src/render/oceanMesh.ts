@@ -4,8 +4,8 @@ import type { Quality } from './quality';
 /** The sea mesh must reach past the fog (`FOG_FAR`), beyond which it is invisible anyway. */
 export const SEA_REACH = 3000;
 
-/** Cells the hole of an outer level is smaller than the finer level inside it, so the two always overlap. */
-const HOLE_MARGIN = 2;
+/** Cells the hole of an outer level is smaller than the finer level inside it, so the two always overlap even when their snapped centres differ by up to 3/4 of a coarse cell. */
+const HOLE_MARGIN = 4;
 
 /** Number of clip-map levels so the outermost reaches `SEA_REACH` (each level doubles in size). */
 export function levelCount(q: Quality, reach = SEA_REACH): number {

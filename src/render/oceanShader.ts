@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { Quality } from './quality';
 import { WORLD_BOUNDS } from '../world';
 import { WAVE_COUNT, chop, waveDirections, waveGlsl } from './waves';
 import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR } from './seaLook';
@@ -10,6 +11,8 @@ const vertexShader = /* glsl */ `
 uniform float uTime;
 uniform float uAmp;
 uniform float uChop;
+uniform float uFade;
+uniform float uCell0;
 uniform vec2 uDirs[${WAVE_COUNT}];
 varying vec3 vWorld;
 varying float vHeight;
@@ -18,10 +21,11 @@ varying float vJac;
 ${waveGlsl()}
 void main() {
   vec4 w = modelMatrix * vec4(position, 1.0);
-  float lod = 1.0 - smoothstep(80.0, 260.0, distance(w.xz, cameraPosition.xz));
   vec3 disp;
-  oceanWaves(w.xz, lod, disp, vNormal, vJac);
+  oceanWaves(w.xz, distance(w.xz, cameraPosition.xz), disp, vNormal, vJac);
   w.xyz += disp;
+  // Coarser clip-map levels sit a little lower, so where two levels overlap the finer one is always the one seen.
+  w.y -= 0.04 * log2(length(modelMatrix[0].xyz) / uCell0);
   vWorld = w.xyz;
   vHeight = disp.y;
   gl_Position = projectionMatrix * viewMatrix * w;
@@ -78,6 +82,8 @@ export function createSeaMaterial(terrain: THREE.Texture): THREE.ShaderMaterial 
       uTime: { value: 0 },
       uAmp: { value: 1 },
       uChop: { value: chop(1) },
+      uFade: { value: 1 },
+      uCell0: { value: 1 },
       uDirs: { value: waveDirections(0).map(([x, z]) => new THREE.Vector2(x, z)) },
       uSun: { value: SUN_DIR },
       uDeep: { value: new THREE.Color(0x0e3a55) },
@@ -91,6 +97,12 @@ export function createSeaMaterial(terrain: THREE.Texture): THREE.ShaderMaterial 
       uTerrainScale: { value: new THREE.Vector2(TERRAIN_TEX.min, TERRAIN_TEX.range) },
     },
   });
+}
+
+/** Tell the shader about the mesh resolution (fine meshes keep short waves further out). */
+export function setSeaQuality(material: THREE.ShaderMaterial, quality: Quality): void {
+  material.uniforms.uFade!.value = quality.grid / 64;
+  material.uniforms.uCell0!.value = quality.cell;
 }
 
 /** Feed the per-frame state to the sea material. */

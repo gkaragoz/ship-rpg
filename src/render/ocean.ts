@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { WORLD_BOUNDS, terrainHeight } from '../world';
 import { createSeaMesh, type SeaMesh } from './oceanMesh';
-import { TERRAIN_TEX, createSeaMaterial, updateSeaMaterial } from './oceanShader';
+import { TERRAIN_TEX, createSeaMaterial, setSeaQuality, updateSeaMaterial } from './oceanShader';
 import type { Quality } from './quality';
 
 export { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR } from './seaLook';
@@ -41,6 +41,7 @@ export interface Ocean {
 export function createOcean(quality: Quality): Ocean {
   const terrain = bakeTerrainTexture();
   const material = createSeaMaterial(terrain);
+  setSeaQuality(material, quality);
   const object = new THREE.Group();
   let mesh: SeaMesh = createSeaMesh(quality, material);
   object.add(mesh.group);
@@ -52,6 +53,7 @@ export function createOcean(quality: Quality): Ocean {
       updateSeaMaterial(material, time, windFrom, ampScale);
     },
     setQuality(next): void {
+      setSeaQuality(material, next);
       object.remove(mesh.group);
       mesh.dispose();
       mesh = createSeaMesh(next, material);

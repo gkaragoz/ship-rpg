@@ -5,8 +5,8 @@
 |---|---|---|
 | `core` | fixed-step loop, input, math, config, shared view types | — |
 | `ships` | ship specs (data), procedural factory, GLB ships (`assets`, `glbShip`), LOD selection (`lod`), walkable deck (`deck`), sail trim, battle condition | `core` |
-| `world` | wind, polar diagram, archipelago terrain (height function), ports, nations (flags) | `core` |
-| `render` | three.js scene, camera, ocean, sky, scenery, effects, other ships (`fleet`), animated crew (`crew`) | `core`, `ships`, `world` |
+| `world` | wind, polar diagram, sea (waves, sea state), archipelago terrain (height function), ports, nations (flags) | `core` |
+| `render` | three.js scene, camera, ocean (clip-map mesh, quality presets), sky, scenery, effects, other ships (`fleet`), animated crew (`crew`) | `core`, `ships`, `world` |
 | `gameplay` | combat, trade, quests, game state, deck crew (`crew`), NPC patrols (`npcShips`) | `core`, `ships`, `world` |
 | `audio` | procedural sound (Web Audio), spatial mix | `core` |
 | `ui` | DOM HUD, map, port panel, menus | `core`, `gameplay`, `world` (static map data only) |
@@ -24,7 +24,7 @@ input → gameplay state (fixed update) → render reads the latest state each f
 ## Status
 Phases 1–4 and slices 5a, 5a.1, 5a.2, 5a.4 and 5a.3a–d (damage model: hit zones, rigging, leaks, fire) done: `core` (loop, math, input, views), `ships` (specs, factory, `setSailTrim`), `world` (wind, polar, archipelago, ports), `gameplay` (sailing model, grounding, docking, discovery, cannons, enemy AI), `render` (gallery stage, sailing view with enemy ships, cannonballs and particle effects, ocean/sky shaders, island scenery), `ui` (gallery, HUD, map, port panel), `audio` (synthesised effects and ambience), `app` (gallery and sailing modes). No boarding, trade, shipyard or quests yet. See `ROADMAP.md`.
 
-Conventions worth knowing: the sea surface is one definition (`render/waves.ts`) used by both the vertex shader and the CPU (ships ride the waves); the land is one height function (`world/islands.ts`) used by the terrain meshes, the sea-shader depth texture, the map, and ship collisions; game time is fixed-step, wind is a pure function of time (`world/wind.ts`).
+Conventions worth knowing: the sea surface is one definition (`world/sea.ts`: Gerstner waves, sea state) used by the vertex shader (`render/waves.ts` generates its GLSL), the CPU (ships ride the waves) and the game (`GameView.seaState`); see `SEA.md`; the land is one height function (`world/islands.ts`) used by the terrain meshes, the sea-shader depth texture, the map, and ship collisions; game time is fixed-step, wind is a pure function of time (`world/wind.ts`).
 
 ## Blender models, LOD and crew (phase 2c)
 - `main.ts` preloads GLBs (`loadShipAssets`, `loadCrewAssets`) before the first mode; failures only log and fall back to procedural ships / an empty deck.

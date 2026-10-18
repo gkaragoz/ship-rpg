@@ -10,11 +10,11 @@
 Measured with `?perf` on the sailing view (small embedded pane): **539,370 triangles, 62 draw calls**; about 462k of those triangles are the two flat sea grids (900 m × 360² near + 7 km × 320² far). Frame rate in the embedded pane is not a reliable absolute number (82–165 fps); compare like with like.
 
 ## Sea mesh (`render/oceanMesh.ts`, `render/quality.ts`)
-A **clip-map**: concentric square levels around the camera, each twice as coarse as the one inside it (`grid × grid` cells, hole in the middle of every outer level). Every level snaps to its own cell size so its vertices never slide against the waves; each outer level's hole is two cells smaller than the finer level it surrounds, so the levels overlap instead of leaving a gap and the finer one (drawn later, `LessEqualDepth`) wins. The mesh reaches 3 km, past the fog.
+A **clip-map**: concentric square levels around the camera, each twice as coarse as the one inside it (`grid × grid` cells, hole in the middle of every outer level). Every level snaps to its own cell size so its vertices never slide against the waves; each outer level's hole is two cells smaller than the finer level it surrounds, so the levels overlap (two coarse cells, enough for the snapped centres to differ) instead of leaving a gap, and the finer one wins: drawn later with `LessEqualDepth`, and every coarser level is shifted 4 cm per level lower in the vertex shader. Each wave fades out with distance where the cells are too coarse to hold it (about a third of its wavelength, scaled by the grid), so far water is calm rather than shimmering. The mesh reaches 3 km, past the fog.
 
 | Quality | grid | finest cell | pixel ratio cap | sea triangles |
 |---|---|---|---|---|
-| low | 48 | 2 m | 1 | see `seaTriangles` |
+| low | 48 | 2 m | 1 | ~26k |
 | medium (default) | 64 | 1.5 m | 1.5 | ~47k |
 | high | 96 | 1 m | 2 | ~100k |
 

@@ -22,7 +22,7 @@ Planned in phases, see `ROADMAP.md`.
 - Wind: 8 ± 3 ± 1 m/s (about 4–12), direction swings about ±37° (periods 97 s and 31 s). Wind factor is clamped to 0.3–1.5 and speed is capped at 1.15× top, so wind above ~9 m/s adds nothing on a good point of sail.
 - Easing: sail change 0.5/s, rudder 2/s, acceleration 0.35/s, drag 0.15/s (about 3 s up, 7 s down). Rudder use costs 5% speed per second at full lock.
 - Heel: 0.14 rad × sail level × sin(wind angle) × wind factor; lean out of turns 0.06 rad.
-- Waves: amplitude scales 0.6–1.4× with wind; the ship takes 80% of the pitch and 60% of the wave roll.
+- Waves: the sea state (0 glassy … 1 storm, from the wind plus rare storm cells, see `SEA.md`) scales amplitude 0.4–2.6×; the ship takes 80% of the pitch and 60% of the wave roll.
 - Camera: mouse drag and wheel orbit the ship (0.7–8× ship length); the camera swings with the ship's heading changes but is not pulled back behind it after a manual orbit.
 - Names: `ShipView.knots` is the original game's speed unit, not real knots.
 - Language: the in-game UI text is Turkish; docs and code are English. Localisation is not planned yet.
@@ -33,7 +33,7 @@ Planned in phases, see `ROADMAP.md`.
 - **Run aground:** the hull is sampled at five points; any point over water shallower than `draft + 0.5 m` stops the ship, bounces it back stern-first for 1.5 s (sails useless, rudder works at half authority) and shows "Karaya oturdun!". Big keels cannot enter shoals, ports have a 9 m deep anchorage.
 - **Docking:** within 80 m of a port's anchorage and under 2.5 m/s, `F` moors the ship (it cannot move, sails come down) and opens the harbour panel; `F` again casts off. Market, shipyard and tavern are placeholders for phase 5.
 - **Navigation:** HUD shows the nearest port's name, distance and bearing plus a marker on the compass ring; the minimap (always on) and the chart (`M`) show only discovered islands and ports (fog of war): an island is discovered within its radius × 1.3 + 350 m, a port town within 500 m. Start: just off Douwesen, facing open water.
-- **Looks:** low-poly terrain with sand/grass/rock colouring, cone trees, houses, a pier, flag and a floating name label per port; the sea tints to lagoon green and foams in the shallows (depth texture baked from the same height function) and extends to a hazy horizon (fine mesh near, coarse mesh far, short waves fade with distance).
+- **Looks:** low-poly terrain with sand/grass/rock colouring, cone trees, houses, a pier, flag and a floating name label per port; the sea tints to lagoon green and foams in the shallows (depth texture baked from the same height function) and extends to a hazy horizon (a clip-map mesh, fine near the camera and coarser in each ring outward; each wave fades out where the mesh is too coarse to hold it).
 - **Not yet:** NPC ships, day/night, landing on shore, discovery persistence (saves).
 
 ## Implemented: broadsides and one enemy (phase 5a)

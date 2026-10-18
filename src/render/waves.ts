@@ -1,4 +1,4 @@
-import { SHORT_WAVE, WAVES, WAVE_TERMS, chop, waveDirection } from '../world';
+import { WAVES, WAVE_TERMS, chop, waveDirection } from '../world';
 
 export { waveHeight } from '../world';
 
@@ -13,17 +13,19 @@ export function waveDirections(windFrom: number): [number, number][] {
 export { chop };
 
 /**
- * GLSL for the Gerstner sum of `world/sea.ts`. Needs uniforms `uTime`, `uAmp`, `uChop` (see `chop`) and
- * `uDirs[WAVE_COUNT]` (see `waveDirections`). `oceanWaves(p, lod, disp, nrm, jac)` gives, for the rest position
- * `p`, the displacement of the surface point, its unit normal and the Jacobian of the horizontal map
- * (below ~0.7 the crest is pinching: foam). `lod` (1 near, 0 far) scales the short waves down.
+ * GLSL for the Gerstner sum of `world/sea.ts`. Needs uniforms `uTime`, `uAmp`, `uChop` (see `chop`), `uFade`
+ * (sea grid / 64: finer meshes keep short waves further out) and `uDirs[WAVE_COUNT]` (see `waveDirections`).
+ * `oceanWaves(p, dist, disp, nrm, jac)` gives, for the rest position `p` seen from `dist` metres away, the
+ * displacement of the surface point, its unit normal and the Jacobian of the horizontal map (below ~0.7 the
+ * crest is pinching: foam). Each wave fades out once the mesh cells there are too coarse to hold it
+ * (about a third of its wavelength), so far water stays calm instead of shimmering.
  */
 export function waveGlsl(): string {
   const f = (n: number): string => n.toFixed(6);
   const terms = WAVES.map((w, i) => {
     const t = WAVE_TERMS[i];
     if (!t) return '';
-    const fade = w.length < SHORT_WAVE ? ' * lod' : '';
+    const fade = ` * (1.0 - smoothstep(${f(3.5 * w.length)} * uFade, ${f(8 * w.length)} * uFade, dist))`;
     return `  {
     vec2 d = uDirs[${i}];
     float th = ${f(t.k)} * dot(p, d) - ${f(t.omega)} * uTime;
@@ -40,7 +42,7 @@ export function waveGlsl(): string {
     dzz -= sc * d.y * d.y;
   }`;
   });
-  return `void oceanWaves(vec2 p, float lod, out vec3 disp, out vec3 nrm, out float jac) {
+  return `void oceanWaves(vec2 p, float dist, out vec3 disp, out vec3 nrm, out float jac) {
   float h = 0.0;
   vec2 pull = vec2(0.0);
   vec2 slope = vec2(0.0);
