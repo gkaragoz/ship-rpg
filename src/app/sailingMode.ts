@@ -1,13 +1,13 @@
 import { createAudio } from '../audio';
 import { createInput, type Controls, type GameView } from '../core';
-import { createGame, type GameState, type SaveStore } from '../gameplay';
+import { createGame, type GameState, type SaveStore, type SlotId } from '../gameplay';
 import { createAutoQuality, createSailingView, lowerQuality, nextQuality } from '../render';
 import { getSettings } from '../settings';
 import { createShip, getShipSpec, requestShipAsset, type Ship, type ShipLod, type ShipSpec } from '../ships';
 import { createHud, createMapUi, createPortPanel, createSettingsUI, reasonText, saveTab, weatherTab } from '../ui';
 import { getNation, sunState, weatherAt, type Weather } from '../world';
 import { gameLines, renderLines } from './debugLines';
-import { describeSave } from './saves';
+import { describeSave, whyNoSave } from './saves';
 import { SLOW_REASONS, effectiveSpeed, stepSpeed } from './timeScale';
 import { applyGameSettings } from './gameSettings';
 import type { Mode } from './mode';
@@ -89,7 +89,8 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
   let paused = false;
   let lastView: GameView | null = null;
   let lastStrike = game.view().weather.strike?.id ?? 0; // a strike from before this mode started is not heard again
-  const writeSave = (): boolean => !lastView?.sunk && saves.save(game.state(), new Date().toISOString());
+  /** Write the run to a slot (the autosave by default); false when the run may not be saved now or storage refuses. */
+  const writeSave = (slot: SlotId = 'auto'): boolean => !whyNoSave(lastView) && saves.save(game.state(), new Date().toISOString(), slot);
   let lastSaveAt = game.view().time;
   let lastDocked: string | null = null;
   const settingsUI = createSettingsUI(host, store, {
@@ -97,15 +98,14 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
     onOpenChange: (open) => (paused = open),
     extraTabs: [
       saveTab({
-        info: () => describeSave(saves.load()),
-        save: () => (writeSave() ? 'Kaydedildi.' : 'Kaydedilemedi (tarayıcı depolamayı engelliyor).'),
-        load: () => {
-          const r = saves.load();
+        slots: () => saves.slots().map(({ slot, result }) => ({ slot, label: slot === 'auto' ? 'Otomatik' : `Kayıt ${slot}`, info: describeSave(result), canLoad: result.ok, canSave: slot !== 'auto' })),
+        save: (slot) => whyNoSave(lastView) ?? (writeSave(slot as SlotId) ? 'Kaydedildi.' : 'Kaydedilemedi (tarayıcı depolamayı engelliyor).'),
+        load: (slot) => {
+          const r = saves.load(slot as SlotId);
           if (!r.ok) return 'Yüklenecek geçerli bir kayıt yok.';
           onLoad(r.state);
           return '';
         },
-        canLoad: () => saves.load().ok,
       }),
       weatherTab({
         hour: () => lastView?.hour ?? 9,
@@ -286,8 +286,10 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
       if (v.ship.specId !== shipId) swapPlayer(v.ship.specId);
       // Autosave: whenever the ship moors, and every minute at sea.
       if ((v.docked && v.docked !== lastDocked) || v.time - lastSaveAt >= AUTOSAVE_SECONDS) {
-        lastSaveAt = v.time;
-        if (writeSave()) hud.notice('Kaydedildi');
+        if (writeSave()) {
+          lastSaveAt = v.time;
+          hud.notice('Kaydedildi');
+        } else lastSaveAt = v.time - AUTOSAVE_SECONDS + 5; // not now (a fight, a blocked store): try again in 5 s
       }
       lastDocked = v.docked;
       syncOthers(v);

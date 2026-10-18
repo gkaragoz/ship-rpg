@@ -53,3 +53,11 @@ input[type='checkbox'].settings-input { width: 18px; height: 18px; justify-self:
 
 .settings-note { margin: 8px 0; font-size: 13px; color: #9fb7c4; }
 .settings-inline button:disabled { opacity: 0.4; cursor: default; }
+
+.save-slots { display: grid; gap: 4px; }
+.save-slot { display: grid; grid-template-columns: 6.5em 1fr auto auto; gap: 8px; align-items: center; font-size: 13px; }
+.save-slot strong { color: #e0b840; }
+.save-slot .save-info { color: #9fb7c4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.save-slot button { padding: 3px 8px; font: inherit; font-size: 13px; color: #f3ead2; background: #14303f; border: 1px solid #4b6a7a; border-radius: 4px; cursor: pointer; }
+.save-slot button:hover { background: #1d4256; }
+.save-slot button:disabled { opacity: 0.4; cursor: default; }

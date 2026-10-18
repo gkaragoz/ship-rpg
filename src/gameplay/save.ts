@@ -154,44 +154,64 @@ export function parseSave(text: string | null, migrations: Readonly<Record<numbe
 
 export const serializeSave = (state: GameState, savedAt: string): string => JSON.stringify({ version: SAVE_VERSION, savedAt, state } satisfies SaveData);
 
+/** The save slots: the autosave (also the key of the single slot of the first versions) and five of the player's own. */
+export const SLOTS = ['auto', '1', '2', '3', '4', '5'] as const;
+export type SlotId = (typeof SLOTS)[number];
+
 export interface SaveStore {
-  /** The saved run, if there is a usable one. */
-  load(): LoadResult;
-  /** Write the run; false when storage is blocked or full. */
-  save(state: GameState, savedAt: string): boolean;
-  clear(): void;
+  /** The run saved in `slot` (the autosave by default), if there is a usable one. */
+  load(slot?: SlotId): LoadResult;
+  /** Write the run to `slot`; false when storage is blocked or full. */
+  save(state: GameState, savedAt: string, slot?: SlotId): boolean;
+  clear(slot?: SlotId): void;
+  /** Every slot with what is in it. */
+  slots(): { slot: SlotId; result: LoadResult }[];
+  /** The newest usable save of any slot (what "Devam et" continues), or null. */
+  latest(): { slot: SlotId; result: Extract<LoadResult, { ok: true }> } | null;
 }
 
-/** One save slot in `storage` (null when the browser blocks it: nothing is ever saved or found). */
+/** The save slots in `storage` (null when the browser blocks it: nothing is ever saved or found); `key` is the autosave's key. */
 export function createSaveStore(storage: StorageLike | null, key = SAVE_KEY): SaveStore {
+  const keyOf = (slot: SlotId): string => (slot === 'auto' ? key : `${key}.${slot}`);
+  const load = (slot: SlotId = 'auto'): LoadResult => {
+    try {
+      return parseSave(storage?.getItem(keyOf(slot)) ?? null);
+    } catch {
+      return { ok: false, reason: 'empty' }; // storage refused to answer
+    }
+  };
   return {
-    load(): LoadResult {
-      try {
-        return parseSave(storage?.getItem(key) ?? null);
-      } catch {
-        return { ok: false, reason: 'empty' }; // storage refused to answer
-      }
-    },
-    save(state, savedAt): boolean {
+    load,
+    save(state, savedAt, slot = 'auto'): boolean {
       if (!storage) return false;
       try {
         // A save from a later version of the game is not ours to overwrite.
-        const existing = parseSave(storage.getItem(key));
+        const existing = parseSave(storage.getItem(keyOf(slot)));
         if (!existing.ok && existing.reason === 'newer') return false;
         // A state that is already in the hold bounds is what the game wrote; refuse to write nonsense over a good save.
         if (!sanitizeState(state) || holdUsed(state.hold) < 0) return false;
-        storage.setItem(key, serializeSave(state, savedAt));
+        storage.setItem(keyOf(slot), serializeSave(state, savedAt));
         return true;
       } catch {
         return false;
       }
     },
-    clear(): void {
+    clear(slot = 'auto'): void {
       try {
-        storage?.removeItem(key);
+        storage?.removeItem(keyOf(slot));
       } catch {
         /* nothing to clear */
       }
+    },
+    slots: () => SLOTS.map((slot) => ({ slot, result: load(slot) })),
+    latest(): { slot: SlotId; result: Extract<LoadResult, { ok: true }> } | null {
+      let best: { slot: SlotId; result: Extract<LoadResult, { ok: true }> } | null = null;
+      for (const slot of SLOTS) {
+        const result = load(slot);
+        if (!result.ok) continue;
+        if (!best || Date.parse(result.savedAt || '') > Date.parse(best.result.savedAt || '') || !Number.isFinite(Date.parse(best.result.savedAt || ''))) best = { slot, result };
+      }
+      return best;
     },
   };
 }

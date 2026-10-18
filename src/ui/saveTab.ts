@@ -1,14 +1,23 @@
 import type { SettingsHandlers } from './settings';
 
+/** One row of the "Kayıt" tab: a save slot. */
+export interface SaveSlotInfo {
+  slot: string;
+  label: string;
+  /** One line about what is in it (ship, gold, when); empty when the slot is empty. */
+  info: string;
+  canLoad: boolean;
+  /** The autosave cannot be written by hand. */
+  canSave: boolean;
+}
+
 /** What the "Kayıt" tab of the settings menu can do in the game it is opened over. */
 export interface SaveControls {
-  /** One line about the saved game, e.g. when and with which ship; empty when there is none. */
-  info(): string;
-  /** Write the run now; returns the message to show. */
-  save(): string;
-  /** Replace the run with the saved one; returns a message when it did not work (the game restarts on success). */
-  load(): string;
-  canLoad(): boolean;
+  slots(): SaveSlotInfo[];
+  /** Write the run to a slot now; returns the message to show. */
+  save(slot: string): string;
+  /** Replace the run with the one in a slot; returns a message when it did not work (the game restarts on success). */
+  load(slot: string): string;
 }
 
 type Tab = NonNullable<SettingsHandlers['extraTabs']>[number];
@@ -20,31 +29,36 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
   return node;
 }
 
-/** The "Kayıt" tab: save the run, load it back. The game also saves itself in port and every minute at sea. */
+/** The "Kayıt" tab: the autosave and five slots of your own, each to save into or load back. */
 export function saveTab(controls: SaveControls): Tab {
   return {
     id: 'save',
     label: 'Kayıt',
     build(body): { refresh(): void; dispose(): void } {
-      const info = el('p', 'settings-note');
+      const list = el('div', 'save-slots');
       const message = el('p', 'settings-note');
-      const row = el('div', 'settings-inline');
-      const save = el('button', undefined, 'Kaydet');
-      const load = el('button', undefined, 'Yükle');
-      save.type = 'button';
-      load.type = 'button';
-      save.addEventListener('click', () => {
-        message.textContent = controls.save();
-        refresh();
-      });
-      load.addEventListener('click', () => {
-        message.textContent = controls.load();
-      });
-      row.append(save, load);
-      body.append(info, row, message, el('p', 'settings-note', 'Oyun limana girince ve denizde her dakika kendini kaydeder.'));
+      body.append(list, message, el('p', 'settings-note', 'Oyun limana girince ve (savaş dışında) denizde her dakika Otomatik kayda yazar. Savaş sırasında kayıt alınamaz.'));
       const refresh = (): void => {
-        info.textContent = controls.info() || 'Kayıtlı oyun yok.';
-        load.disabled = !controls.canLoad();
+        list.replaceChildren();
+        for (const s of controls.slots()) {
+          const row = el('div', 'save-slot');
+          row.append(el('strong', undefined, s.label), el('span', 'save-info', s.info || 'boş'));
+          const save = el('button', undefined, 'Kaydet');
+          save.type = 'button';
+          save.disabled = !s.canSave;
+          save.addEventListener('click', () => {
+            message.textContent = controls.save(s.slot);
+            refresh();
+          });
+          const load = el('button', undefined, 'Yükle');
+          load.type = 'button';
+          load.disabled = !s.canLoad;
+          load.addEventListener('click', () => {
+            message.textContent = controls.load(s.slot);
+          });
+          row.append(save, load);
+          list.append(row);
+        }
       };
       refresh();
       return { refresh, dispose: () => undefined };

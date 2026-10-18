@@ -18,8 +18,8 @@ const saves = createGameSaves();
 
 function showGallery(selectedId?: string): void {
   mode?.dispose();
-  const saved = saves.load();
-  mode = startGalleryMode(root, selectedId, showSailing, saved.ok ? { label: describeSave(saved), run: () => showSailing(saved.state) } : undefined);
+  const saved = saves.latest(); // "Devam et" continues the newest save of any slot
+  mode = startGalleryMode(root, selectedId, showSailing, saved ? { label: describeSave(saved.result), run: () => showSailing(saved.result.state) } : undefined);
 }
 
 /** Start sailing: a new run with a ship, or a saved run's state. */
