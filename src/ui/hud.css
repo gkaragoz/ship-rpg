@@ -85,9 +85,14 @@
 }
 .hud-hurt.on { animation: hud-flash 0.55s ease-out; }
 .hud-hitmarker {
-  position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); font-size: 44px; color: #ffd34d; opacity: 0;
+  position: absolute; left: 50%; top: 108px; transform: translate(-50%, -50%); font-size: 30px; color: #ffd34d; opacity: 0;
   text-shadow: 0 0 6px #000;
 }
 .hud-hitmarker.on { animation: hud-mark 0.35s ease-out; }
 @keyframes hud-flash { from { opacity: 1; } to { opacity: 0; } }
 @keyframes hud-mark { 0% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); } }
+
+@media (max-width: 700px) {
+  .hud-prompt { left: 8px; right: auto; top: 56px; bottom: auto; transform: none; max-width: 55%; white-space: normal; font-size: 13px; padding: 4px 10px; }
+  .hud-hitmarker { top: 84px; }
+}

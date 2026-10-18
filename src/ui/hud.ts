@@ -3,6 +3,8 @@ import './hud.css';
 
 export interface Hud {
   update(view: GameView): void;
+  /** Show a short message (a setting changed, e.g. mute). */
+  notice(text: string): void;
   dispose(): void;
 }
 
@@ -96,6 +98,10 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   let lastClock = performance.now();
 
   return {
+    notice(text): void {
+      toast.textContent = text;
+      toastLeft = 1.8;
+    },
     update(view): void {
       const { ship, wind, nearestPort, docked, grounded } = view;
       const now = performance.now();

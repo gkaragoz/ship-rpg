@@ -38,8 +38,11 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
     audio.resume(); // browsers only start audio after a user gesture
     if (e.code === 'Escape') onExit();
     else if (e.code === MAP && !e.repeat) map.toggle();
-    else if (e.code === MUTE && !e.repeat) audio.toggleMute();
-    else if (e.code === AIM && !e.repeat) view.setAimVisible((aimOn = !aimOn));
+    else if (e.code === MUTE && !e.repeat) hud.notice(audio.toggleMute() ? 'Ses kapalı' : 'Ses açık');
+    else if (e.code === AIM && !e.repeat) {
+      view.setAimVisible((aimOn = !aimOn));
+      hud.notice(aimOn ? 'Nişan bölgeleri açık' : 'Nişan bölgeleri kapalı');
+    }
     else if (GAME_KEYS.includes(e.code)) e.preventDefault(); // keep arrows from scrolling the page
   };
   window.addEventListener('keydown', onKey);

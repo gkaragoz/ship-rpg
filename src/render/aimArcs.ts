@@ -3,10 +3,11 @@ import type { GameView } from '../core';
 import { waveHeight } from './waves';
 
 /** Grid resolution of each landing zone; vertices follow the waves so it never hides in a crest. */
+/** Dense across the band too (about 8 m cells), or a crest between two vertices hides part of the zone. */
 const NX = 12;
-const NZ = 4;
+const NZ = 12;
 /** Lift above the long swell: clears the short waves the shader fades out with distance. */
-const LIFT = 0.7;
+const LIFT = 0.9;
 /** Only waves at least this long are followed (see `waveHeight`). */
 const SWELL = 50;
 
