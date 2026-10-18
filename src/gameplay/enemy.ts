@@ -16,6 +16,12 @@ export interface Enemy {
   reload: { port: number; starboard: number };
   /** Seconds since it began to sink; -1 while afloat. */
   sinking: number;
+  /** Hull too damaged: breaks off and runs. Stays set. */
+  fleeing: boolean;
+  /** Seconds spent beyond `LOSE_RANGE` of the player. */
+  lostFor: number;
+  /** Gave up or got away: removed from play this step. */
+  gone: boolean;
 }
 
 /** The enemy fights on the same sailing model as the player, driven by `aiStep`. */
@@ -24,7 +30,7 @@ export function createEnemy(id: string, spec: ShipSpec, x: number, z: number, he
   ship.sailTarget = 1;
   ship.sailLevel = 1;
   const maxHp = Math.round(spec.stats.hp * ENEMY_HULL_FACTOR);
-  return { id, spec, ship, hp: maxHp, maxHp, reload: { port: COMBAT.enemyReload / 2, starboard: COMBAT.enemyReload / 2 }, sinking: -1 };
+  return { id, spec, ship, hp: maxHp, maxHp, reload: { port: COMBAT.enemyReload / 2, starboard: COMBAT.enemyReload / 2 }, sinking: -1, fleeing: false, lostFor: 0, gone: false };
 }
 
 /** A gunned ship whose hull strength is the closest to 80% of the player's. */
@@ -46,6 +52,20 @@ const FIRE_RANGE = 180;
 const PARALLEL_RANGE = 130;
 const CLOSE_IN = 300;
 const NO_GO = 0.75;
+/** Below this fraction of its hull an enemy breaks off. */
+export const FLEE_HULL = 0.25;
+/** Farther than this from the player counts as having lost him; after `LOSE_SECONDS` of it the enemy gives up. */
+export const LOSE_RANGE = 1500;
+export const LOSE_SECONDS = 30;
+
+/**
+ * Track whether the enemy has lost the player: call every step with the distance. Returns true
+ * once it has been out of range for `LOSE_SECONDS`; coming back into range starts the count over.
+ */
+export function lostTrack(e: Enemy, distance: number, dt: number): boolean {
+  e.lostFor = distance > LOSE_RANGE ? e.lostFor + dt : 0;
+  return e.lostFor >= LOSE_SECONDS;
+}
 
 export interface AiResult {
   controls: Controls;
@@ -62,8 +82,12 @@ export function aiStep(e: Enemy, player: Pick<PlayerShip, 'x' | 'z'>, wind: Wind
   // > 0: the player is on our port side.
   const rel = angleDiff(toPlayer, s.heading);
 
+  if (!e.fleeing && e.hp < e.maxHp * FLEE_HULL) e.fleeing = true;
+
   let desired = toPlayer;
-  if (dist < CLOSE_IN) {
+  if (e.fleeing) {
+    desired = toPlayer + Math.PI; // run directly away
+  } else if (dist < CLOSE_IN) {
     const closing = dist > PARALLEL_RANGE ? 0.45 : 0;
     desired = rel >= 0 ? toPlayer - (BROADSIDE_ANGLE - closing) : toPlayer + (BROADSIDE_ANGLE - closing);
   }
@@ -84,7 +108,7 @@ export function aiStep(e: Enemy, player: Pick<PlayerShip, 'x' | 'z'>, wind: Wind
   const sailStep = s.sailTarget < 1 ? 1 : 0;
 
   let fire: Side | null = null;
-  if (dist < FIRE_RANGE) {
+  if (!e.fleeing && dist < FIRE_RANGE) {
     if (Math.abs(rel - BROADSIDE_ANGLE) < FIRE_CONE && e.reload.port <= 0) fire = 'port';
     else if (Math.abs(rel + BROADSIDE_ANGLE) < FIRE_CONE && e.reload.starboard <= 0) fire = 'starboard';
   }

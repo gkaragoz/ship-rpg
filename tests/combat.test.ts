@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createRng, type WindView } from '../src/core';
 import { createGame } from '../src/gameplay';
 import { COMBAT, aimZone, ballHits, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball } from '../src/gameplay/combat';
-import { aiStep, createEnemy, pickEnemySpec } from '../src/gameplay/enemy';
+import { FLEE_HULL, LOSE_RANGE, LOSE_SECONDS, aiStep, createEnemy, lostTrack, pickEnemySpec } from '../src/gameplay/enemy';
 import { getShipSpec } from '../src/ships';
 
 const spec = (id: string) => {
@@ -349,5 +349,47 @@ describe('targetInZone edges', () => {
     const z = aimZone(brig, 0);
     expect(targetInZone(z, shooter, 'starboard', { x: -150, z: 0 }, 25)).toBe(false);
     expect(targetInZone(z, shooter, 'port', { x: 150, z: 0 }, 25)).toBe(false);
+  });
+});
+
+describe('enemy fleeing and losing track', () => {
+  const schooner = spec('schooner');
+
+  it('breaks off below the flee threshold and keeps running even if repaired', () => {
+    const e = createEnemy('e', schooner, 0, 0, 0);
+    e.hp = Math.floor(e.maxHp * FLEE_HULL); // 25% is still a fight only above this line
+    aiStep(e, { x: 0, z: -2000 }, northWind);
+    expect(e.fleeing).toBe(e.hp < e.maxHp * FLEE_HULL);
+
+    e.hp = Math.floor(e.maxHp * FLEE_HULL) - 1;
+    aiStep(e, { x: 0, z: -2000 }, northWind);
+    expect(e.fleeing).toBe(true);
+    e.hp = e.maxHp;
+    aiStep(e, { x: 0, z: -2000 }, northWind);
+    expect(e.fleeing).toBe(true);
+  });
+
+  it('runs away from the player instead of closing in, and does not fire', () => {
+    const e = createEnemy('e', schooner, 0, 0, 0); // heading east
+    e.hp = 10;
+    e.reload.port = 0;
+    e.reload.starboard = 0;
+    // Player 100 m due north (abeam to port): a healthy enemy would fire; this one turns south, away (a starboard turn).
+    const r = aiStep(e, { x: 0, z: -100 }, northWind);
+    expect(r.fire).toBeNull();
+    expect(r.controls.rudder).toBeGreaterThan(0.5);
+  });
+
+  it('gives up only after the player has been out of range for the full time', () => {
+    const e = createEnemy('e', schooner, 0, 0, 0);
+    const far = LOSE_RANGE + 100;
+    let lost = false;
+    for (let i = 0; i < 60 * (LOSE_SECONDS - 1); i++) lost = lostTrack(e, far, 1 / 60);
+    expect(lost).toBe(false);
+    // Closing back inside the range starts the count over.
+    expect(lostTrack(e, LOSE_RANGE - 100, 1 / 60)).toBe(false);
+    expect(e.lostFor).toBe(0);
+    for (let i = 0; i < 60 * LOSE_SECONDS + 1; i++) lost = lostTrack(e, far, 1 / 60);
+    expect(lost).toBe(true);
   });
 });

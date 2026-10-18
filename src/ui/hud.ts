@@ -149,7 +149,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
       for (const e of view.enemies) if (e.sinking < 0 && (!foe || e.distance < foe.distance)) foe = e;
       target.hidden = !foe || foe.distance > 900 || view.sunk;
       if (foe) {
-        targetName.textContent = `${foe.name} · ${Math.round(foe.distance)} m · ${bearing(foe.direction).toFixed(0).padStart(3, '0')}°`;
+        targetName.textContent = `${foe.name}${foe.fleeing ? ' (kaçıyor)' : ''} · ${Math.round(foe.distance)} m · ${bearing(foe.direction).toFixed(0).padStart(3, '0')}°`;
         targetBar.fill.style.width = pct(foe.hp / foe.maxHp);
       }
 
@@ -160,6 +160,9 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
       // Toast for a kill; the sunk screen for our own end.
       if (view.events.some((e) => e.type === 'sunk' && e.owner === 'enemy')) {
         toast.textContent = `Düşman gemisi battı! (${view.kills})`;
+        toastLeft = TOAST_SECONDS;
+      } else if (view.events.some((e) => e.type === 'escaped')) {
+        toast.textContent = 'Düşman gemisi gözden kayboldu';
         toastLeft = TOAST_SECONDS;
       }
       toastLeft = Math.max(0, toastLeft - dt);

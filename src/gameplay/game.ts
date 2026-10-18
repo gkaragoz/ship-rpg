@@ -4,7 +4,7 @@ import type { ShipSpec } from '../ships';
 import { PORTS, getPort, terrainHeight, windAt, type Port } from '../world';
 import { createExploration } from './exploration';
 import { COMBAT, aimZone, ballHits, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball, type Side } from './combat';
-import { aiStep, createEnemy, pickEnemySpec, type Enemy } from './enemy';
+import { aiStep, createEnemy, lostTrack, pickEnemySpec, type Enemy } from './enemy';
 import { SAILING, createPlayerShip, maxSpeed, stepPlayerShip } from './sailing';
 
 export interface Game {
@@ -166,6 +166,13 @@ export function createGame(spec: ShipSpec): Game {
       }
       const ai = aiStep(e, ship, wind);
       stepPlayerShip(e.ship, e.spec, wind, ai.controls, dt);
+      if (lostTrack(e, Math.hypot(e.ship.x - ship.x, e.ship.z - ship.z), dt)) {
+        // Out of sight for too long: the enemy gives up (or, damaged, got away).
+        e.gone = true;
+        events.push({ type: 'escaped', owner: 'enemy', x: e.ship.x, y: 0, z: e.ship.z });
+        respawnIn = RESPAWN;
+        continue;
+      }
       e.reload.port = Math.max(0, e.reload.port - dt);
       e.reload.starboard = Math.max(0, e.reload.starboard - dt);
       if (ai.fire && !sunk && !dockedAt) {
@@ -173,7 +180,7 @@ export function createGame(spec: ShipSpec): Game {
         e.reload[ai.fire] = COMBAT.enemyReload;
       }
     }
-    enemies = enemies.filter((e) => e.sinking < CONFIG.sinkSeconds);
+    enemies = enemies.filter((e) => !e.gone && e.sinking < CONFIG.sinkSeconds);
     if (!sunk && respawnIn > 0) respawnIn -= dt;
     if (!sunk && respawnIn <= 0 && !enemies.some((e) => e.sinking < 0)) spawnEnemy();
   };
@@ -234,6 +241,7 @@ export function createGame(spec: ShipSpec): Game {
         hp: e.hp,
         maxHp: e.maxHp,
         sinking: e.sinking,
+        fleeing: e.fleeing,
         distance: Math.hypot(e.ship.x - ship.x, e.ship.z - ship.z),
         direction: Math.atan2(-(e.ship.z - ship.z), e.ship.x - ship.x),
       }));

@@ -86,6 +86,8 @@ export interface EnemyView {
   maxHp: number;
   /** Seconds since it started sinking; -1 while afloat. */
   sinking: number;
+  /** Breaking off the fight. */
+  fleeing: boolean;
   /** Metres from the player. */
   distance: number;
   /** Direction from the player as a world angle (same convention as heading). */
@@ -102,7 +104,7 @@ export interface BallView {
 
 /** One-off things that happened since the previous `view()`: drives smoke, splashes and sound. */
 export interface GameEvent {
-  type: 'fire' | 'splash' | 'hit' | 'sunk';
+  type: 'fire' | 'splash' | 'hit' | 'sunk' | 'escaped';
   /** Hull points the hit took off (`hit` events only). */
   amount?: number;
   owner: Owner;

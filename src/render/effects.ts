@@ -109,7 +109,7 @@ export function createEffects(): Effects {
               color: 0x6b4a2b, life: 0.9, start: 0.7, end: 0.5, vx: jitter(9), vy: 3 + Math.random() * 6, vz: jitter(9), gravity: 14,
             });
           }
-        } else {
+        } else if (e.type === 'sunk') {
           for (let i = 0; i < 10; i++) {
             emit('smoke', e.x + jitter(8), 3 + i * 1.5, e.z + jitter(8), {
               color: 0x555555, life: 4.5, start: 6, end: 22, vx: jitter(2), vy: 2 + Math.random() * 2, vz: jitter(2), opacity: 0.8,

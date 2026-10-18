@@ -8,8 +8,8 @@ Browser-based 3D naval RPG in the spirit of Pirates of the Caribbean (2003) / Se
 - `npm run build` — production build
 
 ## Architecture (read `docs/ARCHITECTURE.md` first)
-- `src/core` loop/input/config · `render` three scene · `ships` specs+factory · `world` islands/wind · `gameplay` combat/trade · `ui` DOM HUD.
-- Allowed imports: `ships`, `world` → core · `render`, `gameplay` → core, ships, world · `ui` → core, gameplay · `app`/`main` → all (`app` holds one `Mode` per screen). `render` never imports `gameplay`; it reads state through view types defined in `core` (see `docs/ARCHITECTURE.md`). Enforced by eslint.
+- `src/core` loop/input/config · `render` three scene · `ships` specs+factory · `world` islands/wind · `gameplay` combat/trade · `ui` DOM HUD · `audio` procedural sound.
+- Allowed imports: `ships`, `world`, `audio` → core · `render`, `gameplay` → core, ships, world · `ui` → core, gameplay, world (static map data) · `app`/`main` → all (`app` holds one `Mode` per screen). `render` never imports `gameplay`; it reads state through view types defined in `core` (see `docs/ARCHITECTURE.md`). Enforced by eslint.
 - Import other modules only through their `index.ts`.
 - Data (e.g. `ships/specs`) is separate from behaviour. `render` reads game state, never writes it.
 - Keep files under ~300 lines. See `docs/CONVENTIONS.md`.
