@@ -76,6 +76,7 @@ export function reasonText(r: CommandResult): string {
     case 'no-stock': return 'Ambarda o kadar yok';
     case 'crew-full': return 'Gemide daha fazla yer yok';
     case 'no-crew': return 'O kadar tayfa yok';
+    case 'bad-good': return 'Böyle bir mal yok';
     case 'not-docked': return 'Limanda değilsin';
     default: return 'Olmadı';
   }

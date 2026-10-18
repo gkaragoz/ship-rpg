@@ -42,7 +42,7 @@ export function runCommand(st: GameState, spec: ShipSpec, portId: string | null,
   if (!(qty >= 1)) return fail('bad-qty');
   switch (cmd.type) {
     case 'buy': {
-      if (!getGood(cmd.good)) return fail('bad-qty');
+      if (!getGood(cmd.good)) return fail('bad-good');
       if (holdUsed(st.hold) + qty > spec.stats.hold) return fail('no-space');
       const cost = Math.ceil(tradePrice(st, portId, cmd.good, qty, 'buy', time) * qty);
       if (cost > st.captain.gold) return fail('no-gold');
@@ -52,6 +52,7 @@ export function runCommand(st: GameState, spec: ShipSpec, portId: string | null,
       return OK;
     }
     case 'sell': {
+      if (!getGood(cmd.good)) return fail('bad-good');
       if ((st.hold[cmd.good] ?? 0) < qty) return fail('no-stock');
       st.captain.gold += Math.floor(tradePrice(st, portId, cmd.good, qty, 'sell', time) * qty);
       st.hold[cmd.good] = (st.hold[cmd.good] ?? 0) - qty;
@@ -60,15 +61,17 @@ export function runCommand(st: GameState, spec: ShipSpec, portId: string | null,
       return OK;
     }
     case 'hire': {
-      if (qty > spec.stats.crew - st.crew) return fail('crew-full');
-      const cost = qty * TRADE.hirePrice;
+      const room = spec.stats.crew - st.crew;
+      if (room < 1) return fail('crew-full');
+      const hired = Math.min(qty, room); // asking for more than fits signs on as many as fit
+      const cost = hired * TRADE.hirePrice;
       if (cost > st.captain.gold) return fail('no-gold');
       st.captain.gold -= cost;
-      st.crew += qty;
+      st.crew += hired;
       return OK;
     }
     case 'discharge': {
-      if (qty > st.crew) return fail('no-crew');
+      if (qty > st.crew - 1) return fail('no-crew'); // somebody has to sail her
       st.crew -= qty;
       return OK;
     }

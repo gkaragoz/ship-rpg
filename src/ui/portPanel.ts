@@ -47,7 +47,10 @@ export function createPortPanel(host: HTMLElement, onCommand: (cmd: PortCommand)
   for (const t of tabs) {
     const b = el('button', undefined, t.label);
     b.type = 'button';
-    b.addEventListener('click', () => show(t.id));
+    b.addEventListener('click', () => {
+      status.textContent = '';
+      show(t.id);
+    });
     buttons.set(t.id, b);
     bar.append(b);
   }

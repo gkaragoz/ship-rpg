@@ -48,7 +48,7 @@ describe('buying and selling', () => {
     expect(runCommand(st, brig, 'douwesen', 0, { type: 'sell', good: 'rum', qty: 1 }).reason).toBe('no-stock');
     expect(runCommand(st, brig, null, 0, { type: 'buy', good: 'rum', qty: 1 }).reason).toBe('not-docked');
     expect(runCommand(st, brig, 'douwesen', 0, { type: 'buy', good: 'rum', qty: 0 }).reason).toBe('bad-qty');
-    expect(runCommand(st, brig, 'douwesen', 0, { type: 'buy', good: 'nope', qty: 1 }).ok).toBe(false);
+    expect(runCommand(st, brig, 'douwesen', 0, { type: 'buy', good: 'nope', qty: 1 }).reason).toBe('bad-good');
     expect(holdUsed(st.hold)).toBe(0);
     expect(st.captain.gold).toBe(1e9);
   });
@@ -104,7 +104,7 @@ describe('a trade run pays, within reason', () => {
     return (st.captain.gold - start) / cost;
   };
 
-  it('the best leg for each size of ship pays 10 to 50 per cent (two goods share the hold); a full galleon moves the price noticeably', () => {
+  it('the best leg for each size of ship pays 15 to 35 per cent (the big hulls less) (two goods share the hold); a full galleon moves the price noticeably', () => {
     const best = (spec: typeof brig): number => {
       let top = -1;
       for (const a of PORTS) {
@@ -117,11 +117,11 @@ describe('a trade run pays, within reason', () => {
       }
       return top;
     };
-    const floors: Record<string, number> = { tartane: 0.1, sloop: 0.1, brig: 0.1, galleon: 0.1, battleship: 0.05 };
+    const floors: Record<string, number> = { tartane: 0.15, sloop: 0.15, brig: 0.15, galleon: 0.05, battleship: 0.02 };
     for (const [id, floor] of Object.entries(floors)) {
       const m = best(getShipSpec(id)!);
       expect(m, id).toBeGreaterThan(floor);
-      expect(m, id).toBeLessThan(0.5);
+      expect(m, id).toBeLessThan(0.35);
     }
   });
 
@@ -140,10 +140,15 @@ describe('the tavern', () => {
     expect(st.captain.gold).toBe(100 - 10 * TRADE.hirePrice);
     expect(runCommand(st, brig, 'oxbay', 0, { type: 'hire', qty: 11 }).reason).toBe('no-gold');
     st.captain.gold = 1e6;
-    expect(runCommand(st, brig, 'oxbay', 0, { type: 'hire', qty: 51 }).reason).toBe('crew-full');
+    expect(runCommand(st, brig, 'oxbay', 0, { type: 'hire', qty: 80 })).toEqual({ ok: true }); // more than fits: as many as fit
+    expect(st.crew).toBe(160);
+    expect(runCommand(st, brig, 'oxbay', 0, { type: 'hire', qty: 1 }).reason).toBe('crew-full');
+    st.crew = 100;
     expect(runCommand(st, brig, 'oxbay', 0, { type: 'discharge', qty: 1000 }).reason).toBe('no-crew');
+    expect(runCommand(st, brig, 'oxbay', 0, { type: 'discharge', qty: 100 }).reason).toBe('no-crew'); // the last sailor stays
+    expect(runCommand(st, brig, 'oxbay', 0, { type: 'sell', good: 'constructor', qty: 1 }).reason).toBe('bad-good');
     expect(runCommand(st, brig, 'oxbay', 0, { type: 'discharge', qty: 10 }).ok).toBe(true);
-    expect(st.crew).toBe(100);
+    expect(st.crew).toBe(90);
   });
 });
 
