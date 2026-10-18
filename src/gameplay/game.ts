@@ -1,6 +1,6 @@
 import { stepCrashes } from './crashes';
 import { CONFIG, createRng } from '../core';
-import type { Controls, GameEvent, GameView, WindView } from '../core';
+import type { CommandResult, Controls, GameEvent, GameView, PortCommand, WindView } from '../core';
 import { getDeck, getShipSpec, type ShipSpec } from '../ships';
 import { DEFAULT_CLOCK, gustAt, hourAt, seaAmp, waveHeight, type ClockSettings, type Port, type Weather, type WeatherOverrides } from '../world';
 import { createExploration } from './exploration';
@@ -20,6 +20,7 @@ import { createPlayerShip, stepPlayerShip, type PlayerShip } from './sailing';
 import { cloneState, newGameState, startPose, type GameState } from './state';
 import { DOCK, ELEVATE_RATE, REPAIR_RATE, RESPAWN, STAGGER } from './tuning';
 import { restoreShip, boardingView, captainView, cargoView, companyView, snapshot } from './stateView';
+import { runCommand, servicesView } from './harbour';
 import { changeClock } from './clockState';
 import { createDesk } from './desk';
 import { awardXp, killXp } from './plunder';
@@ -27,6 +28,8 @@ import { awardXp, killXp } from './plunder';
 export interface Game {
   /** The ship the player sails now. */
   readonly spec: ShipSpec;
+  /** Buy, sell or hire in the port the ship is moored at (the port panel's buttons). */
+  command(cmd: PortCommand): CommandResult;
   /** A copy of everything a save needs (see `GameState`). */
   state(): GameState;
   update(dt: number, controls: Controls): void;
@@ -42,7 +45,7 @@ export interface Game {
     damageEnemies(fraction: number): void;
     /** Move the player's ship (it keeps heading and speed). */
     teleportPlayer(x: number, z: number): void;
-    /** Pretend this many enemies have been sunk: changes how many attack at once. */
+    /** Pretend this many enemies have been sunk this run: changes how many attack at once (the career count is unchanged). */
     setKills(n: number): void;
     /** Set the player's rigging health, 0…1. */
     setRigging(fraction: number): void;
@@ -233,6 +236,7 @@ export function createGame(init: ShipSpec | GameState): Game {
     get spec(): ShipSpec {
       return spec;
     },
+    command: (cmd) => runCommand(st, spec, dockedAt?.id ?? null, time, cmd),
     state(): GameState {
       return snapshot(st, { spec, hp, ship, dockedAt: dockedAt?.id ?? null, islands: explore.islands(), ports: explore.ports(), time });
     },
@@ -322,6 +326,7 @@ export function createGame(init: ShipSpec | GameState): Game {
         captain: captainView(st),
         cargo: cargoView(st, spec),
         company: companyView(st, spec),
+        port: dockedAt ? servicesView(st, spec, dockedAt.id, time) : null,
         boarding: boardingView(st, dockedAt || sunk ? null : desk.prize(ship, enemies), desk.cooldown()),
         ship: playerView(ship, spec, { hp, maxHp, reloadSeconds: desk.reloadSeconds(), reload, elevation, air: windVelocity(wind), wind: feel(ship), gust: gustAt(ship.x, ship.z, time, wind), armed: !dockedAt && !sunk }, afloat),
         nearestPort,

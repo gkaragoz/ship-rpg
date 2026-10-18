@@ -14,3 +14,5 @@ export { WEATHER_PRESETS, autoLightning, autoRain, weatherAt } from './weather';
 export type { Weather, WeatherOverrides } from './weather';
 export { GOODS, getGood } from './goods';
 export type { Good } from './goods';
+export { PORT_ECONOMY, TRADE, portMultiplier } from './economy';
+export type { PortEconomy } from './economy';

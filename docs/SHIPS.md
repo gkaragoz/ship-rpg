@@ -27,6 +27,7 @@ Source: GameFAQs "Pirates of the Caribbean – Data Tables" by DrdLord (v1.1, up
 ### Consistency notes (checked against the guide)
 - The class number is a **tier**, not a physical size: Barque, Yacht and Lugger are all class 6.
 - Stats are not monotonic in class; this is the original game's balance, kept as-is: Lugger (16) is as fast as a Corvette; Caravel has more cannons (32) than Brig or Pinnace (24) and more crew than Brig (240 vs 160); Galleon is joint-slowest (speed 7, with Tartane and Barque); in the guide's best Galleon yard its HP (5700) equals the Frigate's; Yacht carries 16 cannons; Tartane has none.
+- In play the `price` column is gold × 1000 (a Brig costs 80 000), `hold` is units of hold (one unit of any good takes one unit) and `crew` is the full ship's company; fewer sailors slow the guns (`docs/GAME_DESIGN.md`).
 - Cannon count drives the number of visible gun ports; `gunDecks` is a visual-only row count.
 - Gameplay balance may later be tuned independently of the original; keep this table as the reference.
 - Copyright: the guide is © its author and the game data © the game's publisher. Fine for a prototype; derive our own numbers before any public release.

@@ -57,7 +57,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   // Enemy ships: a model per id the game reports, created on first sight and dropped when gone.
   const enemyShips = new Map<string, Ship>();
   const map = createMapUi(host);
-  const portPanel = createPortPanel(host);
+  const portPanel = createPortPanel(host, (cmd) => game.command(cmd));
   const audio = createAudio();
   let paused = false;
   let lastView: GameView | null = null;

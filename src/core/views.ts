@@ -298,6 +298,38 @@ export interface BoardingView {
   cooldown: number;
 }
 
+/** One line of a port's market. */
+export interface MarketLineView {
+  good: string;
+  /** Gold per unit to buy and to sell now. */
+  buy: number;
+  sell: number;
+  /** Price now against the good's base price: above 1 is dear. */
+  trend: number;
+  /** Units in the hold. */
+  held: number;
+}
+
+/** What the docked port offers (the port panel's tabs). */
+export interface PortServicesView {
+  portId: string;
+  market: readonly MarketLineView[];
+  /** Gold to sign on a sailor, and how many the ship has room for. */
+  hirePrice: number;
+  room: number;
+}
+
+/** What the port panel asks the game to do. */
+export type PortCommand =
+  | { type: 'buy' | 'sell'; good: string; qty: number }
+  | { type: 'hire' | 'discharge'; qty: number };
+
+/** `reason` is a code the UI words: not-docked, bad-qty, no-gold, no-space, no-stock, crew-full, no-crew. */
+export interface CommandResult {
+  ok: boolean;
+  reason?: string;
+}
+
 export interface GameView {
   time: number;
   ship: ShipView;
@@ -314,6 +346,8 @@ export interface GameView {
   cargo: CargoView;
   company: CompanyView;
   boarding: BoardingView;
+  /** The docked port's market and tavern; null at sea. */
+  port: PortServicesView | null;
   /** Closest port (discovered or not), or null if none is within 1.5 km. */
   nearestPort: PortView | null;
   /** Id of the port the ship is docked at, if any. */

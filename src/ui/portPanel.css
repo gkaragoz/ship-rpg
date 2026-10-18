@@ -1,5 +1,5 @@
 .port-panel {
-  position: fixed; left: 50%; top: 18%; transform: translateX(-50%); width: min(420px, 90vw); padding: 14px 20px;
+  position: fixed; left: 50%; top: 18%; transform: translateX(-50%); width: min(560px, 94vw); padding: 14px 20px;
   background: rgba(11, 26, 36, 0.9); border: 1px solid #c9a227; border-radius: 6px; color: #f3ead2;
   font-family: Georgia, 'Times New Roman', serif; text-align: center;
 }
@@ -9,3 +9,23 @@
 .port-panel ul { list-style: none; margin: 0 0 10px; padding: 0; display: flex; justify-content: center; gap: 16px; font-size: 14px; }
 .port-panel li span { color: #9fb7c4; font-size: 12px; }
 .port-leave { font-size: 13px; color: #9fb7c4; }
+
+.port-blurb { font-size: 13px !important; color: #cfc6ad; }
+.port-purse { margin-bottom: 8px; font-size: 14px; color: #e0b840; }
+.port-tabs { display: flex; justify-content: center; gap: 6px; margin-bottom: 8px; }
+.port-tabs button, .port-actions button {
+  font: inherit; font-size: 13px; padding: 3px 9px; color: #f3ead2; background: rgba(40, 60, 76, 0.9);
+  border: 1px solid #5d7384; border-radius: 3px; cursor: pointer;
+}
+.port-tabs button.on { border-color: #e0b840; color: #e0b840; }
+.port-actions button:hover, .port-tabs button:hover { border-color: #e0b840; }
+.port-body { max-height: 46vh; overflow-y: auto; text-align: left; }
+.port-row { display: grid; grid-template-columns: 5.5em 3.2em 3.2em 3em 1fr; gap: 6px; align-items: center; padding: 2px 4px; font-size: 13px; }
+.port-row.port-head { color: #9fb7c4; font-size: 12px; }
+.port-row.cheap .port-name { color: #7bc96f; }
+.port-row.dear .port-name { color: #e8a13c; }
+.port-actions { display: flex; flex-wrap: wrap; gap: 3px; }
+.port-actions button { padding: 1px 6px; font-size: 12px; }
+.port-tavern { text-align: center; }
+.port-status { min-height: 1.3em; margin-top: 6px; font-size: 13px; color: #e8643c; }
+.port-soon { color: #9fb7c4; text-align: center; }

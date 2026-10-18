@@ -4,7 +4,7 @@ import type { ShipSpec } from '../ships';
 /**
  * Everything about a run that must survive a ship swap or a save: plain data, no functions or Maps,
  * so it can go through `JSON` unchanged. Transient things (enemies, balls, reload timers, patrols) are
- * not part of it: after a load the player starts without enemies.
+ * not part of it: after a load the first enemy is spawned afresh, away from the player.
  */
 export interface GameState {
   ship: { specId: string; hp: number; rigging: number; flooding: number; fire: number };

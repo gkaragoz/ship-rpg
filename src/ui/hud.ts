@@ -194,7 +194,9 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
       if (view.events.some((e) => e.type === 'hit' && e.owner === 'player')) restart(marker);
 
       // Toast for a kill; the sunk screen for our own end.
-      if (view.events.some((e) => e.type === 'sunk' && e.owner === 'enemy')) {
+      if (view.events.some((e) => e.type === 'boarded')) {
+        // The boarding message (shown by the captain rows) outranks the scuttled prize's kill toast.
+      } else if (view.events.some((e) => e.type === 'sunk' && e.owner === 'enemy')) {
         toast.textContent = `Düşman gemisi battı! (${view.kills})`;
         toastLeft = TOAST_SECONDS;
       } else if (view.events.some((e) => e.type === 'escaped')) {

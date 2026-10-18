@@ -4,7 +4,7 @@ export type { LoopHandlers } from './loop';
 export { clamp, lerp, smoothstep, wrapAngle, angleDiff } from './math';
 export { createInput } from './input';
 export type { Input } from './input';
-export type { AimZoneView, ApparentWindView, ArcPointView, Attitude, BoardingView, CaptainView, CargoView, CompanyView, TuningView, WeatherView, BallView, Condition, Controls, CrewAnim, CrewLook, CrewView, EnemyView, GameEvent, GameView, HitZone, OtherShipView, Owner, PortView, ShipView, WindView } from './views';
+export type { AimZoneView, ApparentWindView, ArcPointView, Attitude, BoardingView, CaptainView, CommandResult, MarketLineView, PortCommand, PortServicesView, CargoView, CompanyView, TuningView, WeatherView, BallView, Condition, Controls, CrewAnim, CrewLook, CrewView, EnemyView, GameEvent, GameView, HitZone, OtherShipView, Owner, PortView, ShipView, WindView } from './views';
 export { createRng } from './rng';
 export { HISTORY, createProfiler, frameColor } from './profiler';
 export type { Profiler, ProfilerStats } from './profiler';
