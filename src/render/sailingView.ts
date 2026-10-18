@@ -4,6 +4,7 @@ import type { GameView } from '../core';
 import { CONFIG, clamp } from '../core';
 import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR, createOcean } from './ocean';
 import { createAimArcs } from './aimArcs';
+import { createDamageNumbers } from './damageNumbers';
 import { createEffects } from './effects';
 import { createScenery } from './scenery';
 import { createSky } from './sky';
@@ -55,7 +56,8 @@ export function createSailingView(host: HTMLElement): SailingView {
   const scenery = createScenery();
   const effects = createEffects();
   const aim = createAimArcs();
-  scene.add(ocean.object, sky.mesh, scenery.group, aim.object, effects.group);
+  const numbers = createDamageNumbers();
+  scene.add(ocean.object, sky.mesh, scenery.group, aim.object, effects.group, numbers.group);
 
   const ballMesh = new THREE.InstancedMesh(
     new THREE.SphereGeometry(0.4, 8, 6),
@@ -85,6 +87,8 @@ export function createSailingView(host: HTMLElement): SailingView {
 
   let player: Actor | null = null;
   const actors = new Map<string, Actor>();
+  let shake = 0;
+  const shakeOffset = new THREE.Vector3();
   let lastHeading: number | null = null;
   let lastClock = performance.now();
   const lastPos = new THREE.Vector3();
@@ -178,6 +182,12 @@ export function createSailingView(host: HTMLElement): SailingView {
       aim.update(view, ampScale);
       effects.spawn(view.events);
       effects.update(dt);
+      numbers.spawn(view.events);
+      numbers.update(dt, camera);
+      // Being hit shakes the camera; the offset is undone after drawing so it never drifts.
+      for (const e of view.events) {
+        if (e.type === 'hit' && e.owner === 'enemy') shake = Math.min(1.2, shake + 0.25 + (e.amount ?? 0) / 600);
+      }
 
       // Chase camera: carry the camera with the ship and swing it with the turns.
       target.set(ship.x, dims.length * 0.12, ship.z);
@@ -197,7 +207,11 @@ export function createSailingView(host: HTMLElement): SailingView {
 
       ocean.update(camera, time, wind.from, ampScale);
       sky.update(camera);
+      shake = Math.max(0, shake - dt * 2.5);
+      shakeOffset.set((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)).multiplyScalar(shake * 1.6);
+      camera.position.add(shakeOffset);
       renderer.render(scene, camera);
+      camera.position.sub(shakeOffset);
     },
 
     dispose(): void {
@@ -208,6 +222,7 @@ export function createSailingView(host: HTMLElement): SailingView {
       scenery.dispose();
       effects.dispose();
       aim.dispose();
+      numbers.dispose();
       ballMesh.geometry.dispose();
       (ballMesh.material as THREE.Material).dispose();
       ballMesh.dispose();

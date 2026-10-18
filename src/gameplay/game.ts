@@ -124,7 +124,7 @@ export function createGame(spec: ShipSpec): Game {
         // A moored ship is safe in the harbour.
         if (!sunk && !dockedAt && ballHits(b, ship, spec)) {
           hp = Math.max(0, hp - b.damage);
-          events.push({ type: 'hit', owner: 'enemy', x: b.x, y: b.y, z: b.z });
+          events.push({ type: 'hit', owner: 'enemy', x: b.x, y: b.y, z: b.z, amount: b.damage });
           consumed = true;
           if (hp <= 0) {
             sunk = true;
@@ -136,7 +136,7 @@ export function createGame(spec: ShipSpec): Game {
         for (const e of enemies) {
           if (e.sinking >= 0 || !ballHits(b, e.ship, e.spec)) continue;
           e.hp = Math.max(0, e.hp - b.damage);
-          events.push({ type: 'hit', owner: 'player', x: b.x, y: b.y, z: b.z });
+          events.push({ type: 'hit', owner: 'player', x: b.x, y: b.y, z: b.z, amount: b.damage });
           consumed = true;
           if (e.hp <= 0) {
             e.sinking = 0;

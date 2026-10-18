@@ -103,6 +103,8 @@ export interface BallView {
 /** One-off things that happened since the previous `view()`: drives smoke, splashes and sound. */
 export interface GameEvent {
   type: 'fire' | 'splash' | 'hit' | 'sunk';
+  /** Hull points the hit took off (`hit` events only). */
+  amount?: number;
   owner: Owner;
   x: number;
   y: number;

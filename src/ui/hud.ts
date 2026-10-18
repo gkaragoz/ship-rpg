@@ -19,6 +19,13 @@ const bearing = (angle: number): number => (((Math.PI / 2 - angle) * DEG) % 360 
 const pct = (v: number): string => `${Math.round(Math.min(Math.max(v, 0), 1) * 100)}%`;
 const TOAST_SECONDS = 3.5;
 
+/** Replay a CSS animation from the start, even if it is already running. */
+function restart(node: HTMLElement): void {
+  node.classList.remove('on');
+  void node.offsetWidth;
+  node.classList.add('on');
+}
+
 /** A labelled thin bar; `fill` is the inner element whose width is set. */
 function bar(className = ''): { root: HTMLElement; fill: HTMLElement } {
   const root = el('div', `hud-bar ${className}`.trim());
@@ -77,10 +84,12 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
   prompt.hidden = true;
   const toast = el('div', 'hud-toast');
   toast.hidden = true;
+  const hurt = el('div', 'hud-hurt');
+  const marker = el('div', 'hud-hitmarker', '✕');
   const sunk = el('div', 'hud-sunk');
   sunk.hidden = true;
   sunk.append(el('h2', undefined, 'Gemin battı'), el('p', undefined, 'R: yeniden başla'));
-  root.append(panel, help, target, prompt, toast, sunk);
+  root.append(panel, help, target, prompt, toast, hurt, marker, sunk);
   host.appendChild(root);
 
   let toastLeft = 0;
@@ -137,6 +146,10 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
         targetName.textContent = `${foe.name} · ${Math.round(foe.distance)} m · ${bearing(foe.direction).toFixed(0).padStart(3, '0')}°`;
         targetBar.fill.style.width = pct(foe.hp / foe.maxHp);
       }
+
+      // Hit feedback: a red flash when we are hit, a marker when our shot lands.
+      if (view.events.some((e) => e.type === 'hit' && e.owner === 'enemy')) restart(hurt);
+      if (view.events.some((e) => e.type === 'hit' && e.owner === 'player')) restart(marker);
 
       // Toast for a kill; the sunk screen for our own end.
       if (view.events.some((e) => e.type === 'sunk' && e.owner === 'enemy')) {

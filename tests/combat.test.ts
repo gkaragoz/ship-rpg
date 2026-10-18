@@ -202,12 +202,16 @@ describe('createGame combat', () => {
   it('lets the enemy hunt an unarmed ship to death, then restarts cleanly', () => {
     const game = createGame(spec('tartane'));
     let sunkAt = -1;
+    let sawHit = 0;
     for (let i = 0; i < 60 * 900 && sunkAt < 0; i++) {
       game.update(DT, { rudder: 0, sailStep: 0 });
-      if (game.view().sunk) sunkAt = i / 60;
+      const view = game.view();
+      for (const e of view.events) if (e.type === 'hit' && e.owner === 'enemy') sawHit = e.amount ?? 0;
+      if (view.sunk) sunkAt = i / 60;
     }
     expect(sunkAt).toBeGreaterThan(0);
     const dead = game.view();
+    expect(sawHit).toBe(30); // a Lugger's 12 lb shot: 12 × 2.5 hull points per ball
     expect(dead.ship.hp).toBe(0);
 
     game.update(DT, { rudder: 0, sailStep: 0, restart: true }); // too soon: must watch it sink first

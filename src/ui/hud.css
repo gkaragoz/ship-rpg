@@ -78,3 +78,16 @@
   .hud-target { top: 8px; width: 180px; }
 }
 .hud-gun.hot > div { background: #6dff8f; box-shadow: 0 0 6px #6dff8f; }
+
+.hud-hurt {
+  position: absolute; inset: 0; opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(200, 20, 10, 0) 45%, rgba(200, 20, 10, 0.55) 100%);
+}
+.hud-hurt.on { animation: hud-flash 0.55s ease-out; }
+.hud-hitmarker {
+  position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); font-size: 44px; color: #ffd34d; opacity: 0;
+  text-shadow: 0 0 6px #000;
+}
+.hud-hitmarker.on { animation: hud-mark 0.35s ease-out; }
+@keyframes hud-flash { from { opacity: 1; } to { opacity: 0; } }
+@keyframes hud-mark { 0% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); } }

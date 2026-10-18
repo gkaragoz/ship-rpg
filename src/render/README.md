@@ -5,6 +5,7 @@ three.js scenes. Depends on `core` types, `ships`-free (it receives plain `THREE
 - `galleryView.ts` orbit stage for browsing ships, frames the model in the area not covered by panels
 - `sailingView.ts` open-sea scene: ocean, sky, island scenery, chase camera; the player's ship and enemy actors (`addActor`/`removeActor`) ride the waves and sink; cannonballs are one instanced mesh
 - `aimArcs.ts` gun landing zones on the sea (from `GameView.ship.aim`/`inRange`), draped on the long swell
+- `damageNumbers.ts` floating damage numbers (`mergeHits` merges a volley into one number per target)
 - `effects.ts` pooled sprite particles for muzzle smoke, splashes, hits and sinking, spawned from `GameView.events`
 - `waves.ts` the sea surface definition: `waveHeight` on the CPU and `waveGlsl` for the vertex shader come from the same table, keep them together; short waves fade with distance (`lod`)
 - `ocean.ts` fine near mesh + coarse far mesh to the horizon, shallows and shore foam from a baked depth texture (`FOG_NEAR`/`FOG_FAR`, `SUN_DIR`, `HORIZON_COLOR`), `sky.ts` gradient dome
