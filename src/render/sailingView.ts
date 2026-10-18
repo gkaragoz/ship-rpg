@@ -6,7 +6,7 @@ import type { Ship, ShipLod } from '../ships';
 import { createCrewRenderer } from './crew';
 import { createFleet } from './fleet';
 import { createEnvironment } from './environment';
-import { createPipeline } from './pipeline';
+import { createPipeline, excludeFromOcclusion } from './pipeline';
 import { enableShadows } from './shadows';
 import { QUALITIES } from './quality';
 import type { GraphicsSettings } from '../settings';
@@ -81,6 +81,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
   const aim = createAimArcs();
   const numbers = createDamageNumbers();
   scene.add(scenery.group, aim.object, effects.group, numbers.group);
+  for (const layer of [effects.group, aim.object, numbers.group]) excludeFromOcclusion(layer);
   enableShadows(scenery.group, false); // the terrain only receives: ships cast onto it in port
 
   const ballMesh = new THREE.InstancedMesh(

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { createSkyLight } from './gi';
+import { excludeFromOcclusion } from './pipeline';
 import { createOcean } from './ocean';
 import type { Quality } from './quality';
 import { FOG_FAR, FOG_NEAR, HORIZON_COLOR, SUN_DIR, lookFor, type SeaLook } from './seaLook';
@@ -55,6 +57,8 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
   const sky = createSky();
   const look = lookFor(0);
   const shadows = createShadows(renderer, scene, sun);
+  const skyLight = createSkyLight(renderer, scene);
+  let skyGi = false;
   let texels = quality.wake;
   let viewDistance = 1;
   let shadowScale = 1;
@@ -64,6 +68,8 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
   const horizontal = Math.hypot(cast.dirX, cast.dirZ) || 1;
   cast.dirX /= horizontal;
   cast.dirZ /= horizontal;
+  excludeFromOcclusion(ocean.object);
+  excludeFromOcclusion(sky.mesh);
   scene.add(hemi, sun, ocean.object, sky.mesh);
   const fog = scene.fog as THREE.Fog;
 
@@ -78,6 +84,8 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
       shadows.apply(g);
       viewDistance = g.viewDistance;
       shadowScale = g.shadowDistance;
+      skyGi = g.globalIllumination !== 'off';
+      if (!skyGi) skyLight.disable();
       if (g.textures !== textures) {
         textures = g.textures;
         ocean.setTextures(textures, renderer.capabilities.getMaxAnisotropy());
@@ -92,7 +100,9 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
       fog.near = look.fogNear;
       fog.far = look.fogFar;
       sun.intensity = look.sun;
-      hemi.intensity = look.hemi;
+      // With the sky probe lighting the standard materials, the flat hemisphere light only fills in.
+      hemi.intensity = look.hemi * (skyGi ? 0.3 : 1);
+      if (skyGi) skyLight.update(look, f.time, f.windFrom, f.seaState, 0.9 * (look.hemi / 1.4));
       wake.update(renderer, f.dt, f.camera, f.stamps);
       ocean.setWake(wake, texels);
       ocean.update(f.camera, f.time, f.windFrom, seaAmp(f.seaState), f.seaState, look);
@@ -109,6 +119,7 @@ export function createEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sc
       sky.dispose();
       wake.dispose();
       shadows.dispose();
+      skyLight.dispose();
       scene.remove(hemi, sun, ocean.object, sky.mesh);
     },
   };

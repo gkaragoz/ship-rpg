@@ -124,6 +124,7 @@ function labelSprite(text: string): THREE.Sprite {
   texture.colorSpace = THREE.SRGBColorSpace;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, fog: false, depthWrite: false }));
   sprite.scale.set(70, 13, 1);
+  sprite.layers.set(1); // labels stay out of the occlusion pass (see pipeline.ts)
   return sprite;
 }
 

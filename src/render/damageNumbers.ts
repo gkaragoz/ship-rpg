@@ -59,6 +59,7 @@ export function createDamageNumbers(): DamageNumbers {
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false, depthWrite: false, fog: false }));
     sprite.visible = false;
     sprite.renderOrder = 10;
+    sprite.layers.set(1); // sprites stay out of the occlusion pass (see pipeline.ts)
     group.add(sprite);
     pool.push({ sprite, age: LIFE });
   }

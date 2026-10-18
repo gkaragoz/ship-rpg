@@ -15,6 +15,7 @@ uniform vec3 uSun;
 uniform float uCover;
 uniform float uStorm;
 uniform vec2 uDrift;
+uniform vec3 uGround;
 varying vec3 vDir;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -50,6 +51,8 @@ void main() {
     lit *= 0.82 + 0.3 * s;
     col = mix(col, mix(lit, uHorizon, 0.25), dens * 0.92);
   }
+  // Below the horizon is the sea: only seen in the light probe (the real sea covers it on screen).
+  col = mix(col, uGround, smoothstep(0.0, 0.3, -d.y));
   gl_FragColor = vec4(col, 1.0);
   #include <colorspace_fragment>
 }`;
@@ -76,6 +79,7 @@ export function createSky(): Sky {
       uCover: { value: 0.3 },
       uStorm: { value: 0 },
       uDrift: { value: new THREE.Vector2() },
+      uGround: { value: new THREE.Color(0x1a5a72) },
     },
   });
   const mesh = new THREE.Mesh(geometry, material);
@@ -90,6 +94,7 @@ export function createSky(): Sky {
       (u.uZenith!.value as THREE.Color).copy(look.zenith);
       u.uCover!.value = look.cover;
       u.uStorm!.value = look.storm;
+      (u.uGround!.value as THREE.Color).copy(look.deep).lerp(look.shallow, 0.4).multiplyScalar(1.4);
       // clouds blow the way the wind blows
       // (the offset is added to the lookup, so the pattern moves the other way: with the wind)
       (u.uDrift!.value as THREE.Vector2).set(-Math.cos(windFrom + Math.PI) * time * 0.004, Math.sin(windFrom + Math.PI) * time * 0.004);

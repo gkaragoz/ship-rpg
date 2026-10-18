@@ -85,6 +85,18 @@ export const CONTROLS: readonly Control[] = [
     set: (v) => ({ graphics: { exposure: v } }),
   },
   {
+    tab: 'graphics', kind: 'select', label: 'Küresel aydınlatma', hint: 'Gökyüzü: canlı gökyüzü ışığı (ortam haritası); Ekran uzayı: ek olarak yüzeyler arası bir ışık sıçraması (pahalı, deneysel).',
+    options: [['off', 'Kapalı'], ['sky', 'Gökyüzü ışığı'], ['ssgi', 'Gökyüzü + ekran uzayı']],
+    get: (s) => s.graphics.globalIllumination,
+    set: (v) => ({ graphics: { globalIllumination: v as Settings['graphics']['globalIllumination'] } }),
+  },
+  {
+    tab: 'graphics', kind: 'select', label: 'Ortam tıkanıklığı (AO)', hint: 'Köşelerde ve temas yerlerinde gölgelenme: SSAO ucuz, GTAO daha kaliteli. Ekran uzayı aydınlatma GTAO kullanır.',
+    options: [['off', 'Kapalı'], ['ssao', 'SSAO'], ['gtao', 'GTAO']],
+    get: (s) => s.graphics.ambientOcclusion,
+    set: (v) => ({ graphics: { ambientOcclusion: v as Settings['graphics']['ambientOcclusion'] } }),
+  },
+  {
     tab: 'graphics', kind: 'select', label: 'Gölgeler', hint: 'Gemilerin ve adaların gölgesi; denizde gemi gölgesi de buna bağlı.',
     options: [['off', 'Kapalı'], ['low', 'Düşük'], ['medium', 'Orta'], ['high', 'Yüksek']],
     get: (s) => s.graphics.shadows,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { msaaSamples, needsComposer } from '../src/render/pipeline';
+import { effectiveOcclusion, msaaSamples, needsComposer } from '../src/render/pipeline';
 import { DEFAULTS, PRESETS, merge } from '../src/settings';
 
 describe('pipeline helpers', () => {
@@ -20,5 +20,13 @@ describe('pipeline helpers', () => {
     for (const name of ['low', 'medium', 'high'] as const) {
       expect(needsComposer(merge(DEFAULTS, { graphics: PRESETS[name] }).graphics)).toBe(true);
     }
+  });
+
+  it('runs GTAO whenever screen-space bounce light is on, and the chosen AO otherwise', () => {
+    const g = (gi: 'off' | 'sky' | 'ssgi', ao: 'off' | 'ssao' | 'gtao') => merge(DEFAULTS, { graphics: { globalIllumination: gi, ambientOcclusion: ao } }).graphics;
+    expect(effectiveOcclusion(g('ssgi', 'off'))).toBe('gtao');
+    expect(effectiveOcclusion(g('ssgi', 'ssao'))).toBe('gtao');
+    expect(effectiveOcclusion(g('sky', 'ssao'))).toBe('ssao');
+    expect(effectiveOcclusion(g('off', 'off'))).toBe('off');
   });
 });

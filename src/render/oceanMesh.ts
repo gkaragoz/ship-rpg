@@ -83,6 +83,7 @@ export function createSeaMesh(q: Quality, material: THREE.Material): SeaMesh {
     mesh.scale.set(cell, 1, cell);
     mesh.frustumCulled = false; // vertices are displaced in the shader
     mesh.renderOrder = -(i + 1); // coarse levels first: the finer level wins where the two overlap
+    mesh.layers.set(1); // not part of the occlusion pass (see pipeline.ts)
     group.add(mesh);
     levels.push({ mesh, cell });
   }
