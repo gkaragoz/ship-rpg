@@ -300,7 +300,7 @@ export function createGame(spec: ShipSpec): Game {
 
       stepEnemies(dt);
       // Ships that share the sea run into each other.
-      const crash = stepCrashes({ ship, spec, maxHp, active: !dockedAt && !sunk }, enemies, npcs.view(wind));
+      const crash = stepCrashes({ ship, spec, maxHp, active: !dockedAt && !sunk }, enemies, npcs.view(wind), (id, dx, dz, dyaw) => npcs.nudge(id, dx, dz, dyaw));
       events.push(...crash.events);
       crash.apply(
         (lost) => ((hp = Math.max(0, hp - lost)), checkPlayerSunk()),

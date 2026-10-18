@@ -34,6 +34,8 @@ export const hullMass = (spec: ShipSpec): number => spec.length * spec.beam * sp
 
 /** One hull in the crash resolver. A `fixed` hull (a patrol on its rails) carries a velocity and is never pushed. */
 export interface Hull {
+  /** Hulls of one group never collide with each other (the patrols, which cross each other's rails). */
+  group?: string;
   ship: Pick<PlayerShip, 'x' | 'z' | 'heading' | 'speed'> & Partial<PlayerShip>;
   spec: ShipSpec;
   maxHp: number;
@@ -163,6 +165,7 @@ export function collideAll(hulls: readonly Hull[]): Impact[] {
     for (let j = i + 1; j < hulls.length; j++) {
       const a = hulls[i]!;
       const b = hulls[j]!;
+      if (a.group !== undefined && a.group === b.group) continue;
       if (Math.hypot(a.ship.x - b.ship.x, a.ship.z - b.ship.z) > (a.spec.length + b.spec.length) * 0.6) continue;
       const r = collide(a, b);
       if (!r) continue;

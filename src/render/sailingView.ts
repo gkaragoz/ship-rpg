@@ -15,6 +15,7 @@ import { createAimArcs } from './aimArcs';
 import { createDamageNumbers } from './damageNumbers';
 import { createEffects } from './effects';
 import { createImpacts } from './impacts';
+import { SHAKE, addShake, decayShake } from './shake';
 import { rideWaves } from './ride';
 import { emitShipEffects } from './shipEffects';
 import { createScenery } from './scenery';
@@ -240,11 +241,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       numbers.spawn(view.events);
       numbers.update(dt, camera);
       // Being hit shakes the camera; the offset is undone after drawing so it never drifts.
-      for (const e of view.events) {
-        if (e.type === 'hit' && e.owner === 'enemy') shake = Math.min(1.2, shake + 0.25 + (e.amount ?? 0) / 600);
-        if (e.type === 'fire' && e.owner === 'player') shake = Math.min(1.2, shake + 0.04);
-        if (e.type === 'collision' && e.owner === 'player') shake = Math.min(1.5, shake + 0.3 + (e.speed ?? 0) / 8);
-      }
+      shake = addShake(shake, view.events);
 
       // Chase camera: carry the camera with the ship and swing it with the turns.
       target.set(ship.x, dims.length * 0.12, ship.z);
@@ -285,8 +282,8 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       lamps.update(env.look.lamps, hung, camera);
       fleet.update(view, camera, ampScale);
       crew?.update(view.crew, camera);
-      shake = Math.max(0, shake - dt * 2.5);
-      shakeOffset.set((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)).multiplyScalar(shake * 1.6);
+      shake = decayShake(shake, dt);
+      shakeOffset.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * SHAKE.offset * 2);
       camera.position.add(shakeOffset);
       try {
         pipeline.render();
