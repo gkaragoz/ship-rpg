@@ -17,7 +17,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 # The open Blender keeps imported modules between runs (and between worktrees): drop ours so this folder's code is used.
 for _name in ("shipkit", "hullmath", "shipbuilder", "shipdetails", "pbrship", "pbrao", "pbrbody", "pbrbow", "pbrcastle", "pbrdeck",
-              "pbrguns", "pbrhull", "pbrlayout", "pbrmat", "pbrmesh", "pbrrig", "pbrtex"):
+              "pbrguns", "pbrhull", "pbrlayout", "pbrmat", "pbrmesh", "pbrrig", "pbrsail", "pbrtex"):
     sys.modules.pop(_name, None)
 import shipkit  # noqa: E402
 import shipbuilder  # noqa: E402

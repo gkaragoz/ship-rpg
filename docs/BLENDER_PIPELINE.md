@@ -78,7 +78,7 @@ A rig the builder does not know needs a new builder in `shipbuilder.py` (and `tr
 | `pbrlayout.py` | atlas regions, swatch list, gun ports, wales, plank width: the one source of truth for texture **and** geometry |
 | `pbrtex.py`, `pbrhull.py` | numpy texture synthesis (noise, planks, wood and sail tiles; hull/deck/swatch atlas painted in hull coordinates, normals from height fields). No `bpy`: `python -c "import pbrhull"` works for quick previews (`write_png`) |
 | `pbrmesh.py` | `PM` mesh builder in **game** coordinates (box, tube, revolve, ellipsoid, grid) with per-vertex colour, tiling UVs in metres and atlas UVs |
-| `pbrbody.py`, `pbrcastle.py`, `pbrbow.py`, `pbrdeck.py`, `pbrguns.py`, `pbrrig.py` | hull/deck/bulwarks/wales, castles + stern gallery + balustrades, stem/figurehead/anchors/rudder, deck furniture/boats/lanterns, ports and cannons, masts/rigging/sails |
+| `pbrbody.py`, `pbrcastle.py`, `pbrbow.py`, `pbrdeck.py`, `pbrguns.py`, `pbrrig.py`, `pbrsail.py` | hull/deck/bulwarks/wales, castles + stern gallery + balustrades, stem/figurehead/anchors/rudder, deck furniture/boats/lanterns, ports and cannons, masts/rigging/jibs/flags, sail groups (cloth, yards, boltropes) |
 | `pbrao.py` | baked vertex ambient occlusion (BVH ray casts) |
 | `pbrmat.py` | images from numpy arrays and glTF-friendly materials (albedo × vertex colour, normal map, ORM with the `glTF Material Output` occlusion group) |
 | `pbrship.py` | LOD configs, assembly, validation, export (`export_glb(..., pbr=True)`: WebP textures + meshopt) |

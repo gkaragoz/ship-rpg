@@ -20,6 +20,7 @@ import pbrlayout as LAY
 import pbrmat
 import pbrmesh
 import pbrrig
+import pbrsail
 import pbrtex
 from pbrmesh import PM
 from shipbuilder import B, Mast
@@ -105,7 +106,7 @@ def build_lod(level, spec, masts, mats, root, A, seed):
         pm.weld()
     groups = []
     for i, mast in enumerate(masts):
-        for kind, sail, spar in pbrrig.sail_groups(kit, mast):
+        for kind, sail, spar in pbrsail.sail_groups(kit, mast):
             sail.weld()
             spar.weld()
             groups.append((i, kind, sail, spar))
