@@ -1,3 +1,4 @@
+import { createAudio } from '../audio';
 import { angleDiff, createInput, type Controls } from '../core';
 import { createGame } from '../gameplay';
 import { createSailingView } from '../render';
@@ -15,6 +16,7 @@ const FIRE_STARBOARD = 'KeyE';
 const RESTART = 'KeyR';
 const MAP = 'KeyM';
 const AIM = 'KeyG';
+const MUTE = 'KeyN';
 const GAME_KEYS = [...PORT, ...STARBOARD, ...MORE_SAIL, ...LESS_SAIL];
 
 /** Free sailing on the open sea with the chosen ship. Esc returns via `onExit`. */
@@ -29,11 +31,14 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
   const enemyShips = new Map<string, Ship>();
   const map = createMapUi(host);
   const portPanel = createPortPanel(host);
+  const audio = createAudio();
 
   let aimOn = true;
   const onKey = (e: KeyboardEvent): void => {
+    audio.resume(); // browsers only start audio after a user gesture
     if (e.code === 'Escape') onExit();
     else if (e.code === MAP && !e.repeat) map.toggle();
+    else if (e.code === MUTE && !e.repeat) audio.toggleMute();
     else if (e.code === AIM && !e.repeat) view.setAimVisible((aimOn = !aimOn));
     else if (GAME_KEYS.includes(e.code)) e.preventDefault(); // keep arrows from scrolling the page
   };
@@ -99,6 +104,8 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
       hud.update(v);
       map.update(v);
       portPanel.update(v);
+      audio.play(v.events, v.ship);
+      audio.ambience(v.wind.speed, v.ship.speed);
       if (updated) {
         input.endFrame(); // keep unconsumed presses if no update ran this frame
         updated = false;
@@ -113,6 +120,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
       hud.dispose();
       map.dispose();
       portPanel.dispose();
+      audio.dispose();
       view.dispose();
       ship.dispose();
       for (const es of enemyShips.values()) es.dispose();

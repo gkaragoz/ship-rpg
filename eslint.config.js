@@ -1,7 +1,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
-const MODULES = ['core', 'ships', 'world', 'render', 'gameplay', 'ui'];
+const MODULES = ['core', 'ships', 'world', 'render', 'gameplay', 'ui', 'audio'];
 
 /** Allowed imports per module; mirrors docs/ARCHITECTURE.md. */
 const ALLOWED = {
@@ -11,6 +11,7 @@ const ALLOWED = {
   render: ['core', 'ships', 'world'],
   gameplay: ['core', 'ships', 'world'],
   ui: ['core', 'gameplay', 'world'],
+  audio: ['core'],
 };
 
 const forbiddenFor = (mod) =>

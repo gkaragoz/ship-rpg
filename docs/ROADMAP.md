@@ -24,10 +24,10 @@
   - [ ] tests: HUD bearing maths now also cover the nearest-port bearing; `createGame` dock speed limit; reachability of every anchorage for the deepest keel
 - [ ] 5. Combat, trade, RPG layer, in slices (each ends with tests, docs, QA and a commit):
   - [x] 5a. Broadside cannons and one enemy ship. Done when: the player can fire either broadside (Q/E) with a visible reload, see balls, smoke and splashes, damage an enemy that hunts and fires back, sink it, be sunk, and restart (R); docking is F and a moored ship is safe and repairs.
-  - [ ] 5a.1 player feedback, in three sub-slices (QA once at the end, a commit after each):
+  - [x] 5a.1 player feedback, in three sub-slices (QA once at the end, a commit after each):
     - [x] 5a.1a aim aid: translucent landing zones on the sea beside the ship (from the same ballistics the balls use: near/far range, span along the hull, drift from ship speed), gold when loaded, green when an enemy is inside (and the HUD bar glows), dim while reloading, a line from the hull to the far edge; `G` toggles them; camera can zoom out to 14 ship lengths
     - [x] 5a.1b hit feedback: floating damage numbers, a hit marker when you hit, a red flash and camera shake when you are hit
-    - [ ] 5a.1c sound: synthesized WebAudio (cannon, hit, splash, sinking, sea and wind), spatial mix by distance and bearing with speed-of-sound delay, `N` mutes; new `audio` module (imports `core` only)
+    - [x] 5a.1c sound: synthesized WebAudio (cannon, hit, splash, sinking, sea and wind), spatial mix by distance and bearing with speed-of-sound delay, `N` mutes; new `audio` module (imports `core` only)
   - [ ] 5a.2 enemy behaviour: flee when badly damaged, several enemies, enemy flags/nationality, escape rules
   - [ ] 5a.3 damage model: sail and rigging damage reduce speed and turning, leaks, fire
   - [ ] 5a.4 balance (runtime QA: an even Brig-vs-Schooner fight was lost twice, hits cost the target only 2–13% hull; handicap added, needs measuring): headless duel table per ship pairing (win rates), tune reload, damage, spawn; Tartane vs Lugger is a guaranteed loss unless it docks
