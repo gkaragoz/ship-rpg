@@ -43,7 +43,7 @@
     - [x] 5a.3a hit zones and rigging: where a ball strikes decides what it damages (waterline / hull / rigging by its height); rigging hits wreck sails, which cut speed and turning for both sides; repair is slow at sea and fast in harbour
     - [x] 5a.3b leaks: waterline hits open leaks that flood the ship (hull points drain, speed drops) until pumped out or repaired
     - [x] 5a.3c fire: hits can start fires that burn hull and sails until they burn out, are put out, or the ship docks
-    - [x] 5a.3d visuals: torn sails, a ship sitting low and listing when flooded, flames and smoke on the model, HUD condition icons, enemy condition in the target panel
+    - [x] 5a.3d visuals: torn sails, a ship sitting low and listing when flooded, flames and smoke on the model, HUD Su/Yangın rows, the enemy's rigging bar and its flooding/fire in the target panel
     - [ ] 5a.3e balance: the duel simulator uses the same damage model; re-measure, adjust the guard windows, regenerate `docs/BALANCE.md`
   - [x] 5a.4 balance (runtime QA: an even Brig-vs-Schooner fight was lost twice, a Frigate needed ~5 min for one Pinnace; squadron composition and the escape asymmetry also live here), in four sub-slices (QA once at the end, a commit after each):
     - [x] 5a.4a measure (see also: targets are written down in docs/BALANCE.md and enforced by tests/balance.test.ts): a headless duel simulator (`gameplay/duel.ts`: two AI ships on the real sailing, ballistics and damage code, seeded, fast time step) and `npm run balance` that prints win rates, duration and remaining hull for every player ship against its squadron

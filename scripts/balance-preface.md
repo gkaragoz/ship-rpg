@@ -55,7 +55,7 @@ The simulator itself needed fixing before it measured anything: the wind and the
 
 ## What the bot does not model
 
-A human (aim zones, hit feedback, reading the wind by hand); more than one enemy at a time (the game sends up to three, so ranks 1 and 2 are harder in play than in the table); boarding; repair in harbour; the 25 s respawn; sail changes (both sides are fully rigged); anything but open water. Both sides use the enemy AI's fire rule (within ±20° of abeam and 180 m). The bot is better at positioning than a beginner and worse than a good player. The 20 Hz step was checked against 60 Hz (40 seeds, four pairings): win rates agree within 2–5 points and durations to the second.
+A human (aim zones, hit feedback, reading the wind by hand); more than one enemy at a time (the game sends up to three, so ranks 1 and 2 are harder in play than in the table); boarding; repair in harbour; the 25 s respawn; sail changes; repairing rigging and pumping (the bot never docks); anything but open water. Both sides use the enemy AI's fire rule (within ±20° of abeam and 180 m). The bot is better at positioning than a beginner and worse than a good player. The 20 Hz step was checked against 60 Hz (40 seeds, four pairings): win rates agree within 2–5 points and durations to the second.
 
 ## How to read the tables
 

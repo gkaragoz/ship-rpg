@@ -169,7 +169,7 @@ export function createHud(host: HTMLElement, shipName: string): Hud {
       if (foe) {
         const nation = getNation(foe.nation);
         targetChip.style.background = `#${nation.flag.toString(16).padStart(6, '0')}`;
-        targetText.textContent = `${nation.name} ${foe.name}${foe.fleeing ? ' (kaçıyor)' : ''} · ${Math.round(foe.distance)} m · ${bearing(foe.direction).toFixed(0).padStart(3, '0')}°`;
+        targetText.textContent = `${nation.name} ${foe.name}${foe.fleeing ? ' (kaçıyor)' : ''}${foe.fire > 0.005 ? ' 🔥' : ''}${foe.flooding > 0.15 ? ' 💧' : ''} · ${Math.round(foe.distance)} m · ${bearing(foe.direction).toFixed(0).padStart(3, '0')}°`;
         targetBar.fill.style.width = pct(foe.hp / foe.maxHp);
         targetRig.fill.style.width = pct(foe.rigging);
       }
