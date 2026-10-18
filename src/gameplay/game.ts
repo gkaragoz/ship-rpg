@@ -13,6 +13,8 @@ import { ballViews, enemyView, playerView, portView } from './enemyView';
 import { aiStep, desiredEnemies, lostTrack, spawnFor, type Enemy } from './enemy';
 import { gunScatter, seaEffects, stepBody } from './buoyancy';
 import { createCrew, crewCountFor } from './crew';
+import { crewLayout } from './crewLayout';
+import { createShipCrews } from './shipCrews';
 import { createDevHooks } from './devHooks';
 import { createNpcFleet } from './npcShips';
 import { createWeatherState } from './weatherState';
@@ -91,9 +93,10 @@ export function createGame(init: ShipSpec | GameState): Game {
   const feel = (s: { x: number; z: number }): WindView => ({ from: wind.from, speed: wind.speed * gustAt(s.x, s.z, time, wind) });
   const crewFor = (s: ShipSpec): ReturnType<typeof createCrew> | null => {
     const deck = getDeck(s.id); // only ships with a walkable GLB deck carry a visible crew
-    return deck ? createCrew(deck, crewCountFor(s.length)) : null;
+    return deck ? createCrew(deck, crewCountFor(s.length), 1, crewLayout(s, deck)) : null;
   };
   let crew = crewFor(spec);
+  const shipCrews = createShipCrews(); // the sailors of the ships nearby, for show
   const npcs = createNpcFleet({ x: ship.x, z: ship.z }); // patrols around the start, on open water
   let dockedAt: Port | null = null;
 
@@ -188,7 +191,7 @@ export function createGame(init: ShipSpec | GameState): Game {
     if (hp > 0 || sunk) return;
     sunk = true;
     sinkTime = 0;
-    events.push({ type: 'sunk', owner: 'player', x: ship.x, y: 0, z: ship.z });
+    events.push({ type: 'sunk', owner: 'player', x: ship.x, y: 0, z: ship.z, length: spec.length });
   };
 
   const checkEnemySunk = (e: Enemy, boarded = false): void => {
@@ -198,7 +201,7 @@ export function createGame(init: ShipSpec | GameState): Game {
     threat++;
     st.captain.kills++;
     respawnIn = RESPAWN;
-    events.push({ type: 'sunk', owner: 'enemy', x: e.ship.x, y: 0, z: e.ship.z });
+    events.push({ type: 'sunk', owner: 'enemy', x: e.ship.x, y: 0, z: e.ship.z, length: e.spec.length });
   };
 
   /** Fly the balls: three sub-steps a frame (a ball moves 1.5 m a step, narrow targets are not skipped), drag and wind included. */
@@ -316,7 +319,10 @@ export function createGame(init: ShipSpec | GameState): Game {
       }
       stepPlayerShip(ship, spec, feel(ship), controls, dt, seaEffects(spec, ship.heading, wind.from, sea));
       stepBody(ship.body, ship, spec, time, wind.from, sea, dt, !!dockedAt, weather.tuning);
+      crew?.helm(ship.rudder);
+      crew?.sails(ship.sailTarget);
       crew?.update(dt);
+      shipCrews.update(dt);
       npcs.update(dt);
 
       reload.port = Math.max(0, reload.port - dt);
@@ -326,6 +332,7 @@ export function createGame(init: ShipSpec | GameState): Game {
       if (side && !dockedAt && reload[side] <= 0 && cannonsPerSide(spec) > 0) {
         fire('player', ship, spec, side, () => !sunk, elevation);
         reload[side] = desk.reloadSeconds();
+        crew?.fire(side, reload[side]);
       }
       if (dockedAt) hp = Math.min(maxHp, hp + maxHp * REPAIR_RATE * dt);
       hp = Math.max(0, hp - stepAffliction(ship, maxHp, !!dockedAt, dt));
@@ -348,7 +355,15 @@ export function createGame(init: ShipSpec | GameState): Game {
       if (dockedAt) syncShip(); // the yard's prices depend on the hull
       const n = nearest();
       const nearestPort = n && portView(n, ship, !dockedAt && canDock(n.port), insidePortZone(n.port, ship.x, ship.z));
-      const enemyViews = enemies.map((e) => enemyView(e, ship, feel(e.ship)));
+      const enemyViews = enemies.map((e) => {
+        const v = enemyView(e, ship, feel(e.ship));
+        const crewView = shipCrews.view(`e:${e.id}`, { specId: e.spec.id, rudder: e.ship.rudder, sailTarget: e.ship.sailTarget, reload: e.reload, reloadSeconds: COMBAT.enemyReload }, v.distance);
+        return crewView ? { ...v, crew: crewView } : v;
+      });
+      const others = npcs.view(wind).map((o) => {
+        const crewView = shipCrews.view(`o:${o.id}`, { specId: o.specId, rudder: 0, sailTarget: o.sailLevel }, Math.hypot(o.x - ship.x, o.z - ship.z));
+        return crewView ? { ...o, crew: crewView } : o;
+      });
       const afloat = enemies.filter((e) => e.sinking < 0);
       const drained = events;
       events = [];
@@ -358,7 +373,7 @@ export function createGame(init: ShipSpec | GameState): Game {
         hour: hourAt(time, clock),
         weather: weatherState.view(weather),
         seaState: sea,
-        others: npcs.view(wind),
+        others,
         crew: crew?.view() ?? [],
         captain: captainView(st),
         cargo: cargoView(st, spec),

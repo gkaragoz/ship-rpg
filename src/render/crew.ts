@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { enableShadows } from './shadows';
+import { POSED, applyPose, findBones, type PoseBones } from './crewPoses';
 import type { CrewAnim, CrewLook, CrewView } from '../core';
 
 /** Body types in asset order: 0-2 male, 3-5 female (docs/CREW.md). */
@@ -57,6 +58,7 @@ interface Actor {
   materials: THREE.Material[];
   pending: number;
   tick: number;
+  bones: PoseBones | null;
 }
 
 export interface CrewRenderer {
@@ -109,7 +111,7 @@ function spawn(view: CrewView, k: CrewKit): Actor | null {
   mixer.update((view.id * 0.37) % 2); // de-synchronise the idle sway
   return {
     root, mixer, actions, current: 'Idle', lods: [0, 1, 2].map((l) => root.getObjectByName(`LOD${l}`)), lod: -1,
-    materials: [...cloned.values()], pending: 0, tick: view.id,
+    materials: [...cloned.values()], pending: 0, tick: view.id, bones: findBones(root),
   };
 }
 
@@ -122,6 +124,21 @@ function switchAnim(a: Actor, to: CrewAnim): void {
   next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).play();
   prev.crossFadeTo(next, FADE, false);
   a.current = to;
+}
+
+/** A random sailor's looks from the loaded palette (for swimmers), or null before the assets have loaded. */
+export function randomLook(rand: () => number): CrewLook | null {
+  const k = kit;
+  if (!k) return null;
+  const pick = (n: number): number => Math.floor(rand() * n);
+  const variant = pick(VARIANT_FILES.length);
+  const female = variant >= 3;
+  return {
+    variant, skin: pick(k.palette.skin.length), shirt: pick(k.palette.shirt.length), pants: pick(k.palette.pants.length),
+    hair: pick(k.palette.hair.length), hat: pick(k.palette.hat.length),
+    hairStyle: female ? (rand() < 0.65 ? 'long' : 'short') : rand() < 0.75 ? 'short' : 'none',
+    hatStyle: (['wide', 'bandana', 'cap', 'none'] as const)[pick(4)] ?? 'none', beard: !female && rand() < 0.45,
+  };
 }
 
 /** Animated sailors with tinted clothes, drawn from `CrewView` state. Returns null without assets. */
@@ -151,6 +168,15 @@ export function createCrewRenderer(): CrewRenderer | null {
     update(views, camera): void {
       if (!host) return;
       const dt = Math.min(clock.getDelta(), 0.1);
+      // sailors that are no longer reported (swimmers that drowned) are taken off
+      if (actors.size > views.length) {
+        const ids = new Set(views.map((v) => v.id));
+        for (const [id, a] of actors) {
+          if (ids.has(id)) continue;
+          drop(a);
+          actors.delete(id);
+        }
+      }
       for (const v of views) {
         let a = actors.get(v.id);
         if (!a) {
@@ -161,8 +187,10 @@ export function createCrewRenderer(): CrewRenderer | null {
           host.add(a.root);
         }
         a.root.position.set(v.x, v.y, v.z);
-        a.root.rotation.y = Math.atan2(Math.cos(v.heading), Math.sin(v.heading)); // models face +Z
-        switchAnim(a, v.anim);
+        a.root.rotation.order = 'YXZ';
+        a.root.rotation.set(v.pitch ?? 0, Math.atan2(Math.cos(v.heading), Math.sin(v.heading)), v.roll ?? 0); // models face +Z
+        const posed = POSED.has(v.anim);
+        switchAnim(a, posed || v.anim === 'Idle' ? 'Idle' : (v.anim as 'Walk' | 'Run'));
 
         a.root.getWorldPosition(world);
         const d = world.distanceTo(camera.position);
@@ -178,6 +206,7 @@ export function createCrewRenderer(): CrewRenderer | null {
           a.mixer.update(a.pending);
           a.pending = 0;
         }
+        if (posed && a.bones) applyPose(a.bones, v.anim, v.clock, v.lean, v.id);
       }
     },
 

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createEnvironment } from './environment';
+import { createCrewRenderer, type CrewRenderer } from './crew';
+import type { CrewView } from '../core';
 import { createPipeline, type RenderStats } from './pipeline';
 import { LAMP_LIGHTS, createLamps } from './lamps';
 import { enableShadows } from './shadows';
@@ -22,6 +24,8 @@ export interface GalleryView {
   /** The hour of the gallery's day now, and a way to set it. */
   hour(): number;
   setHour(hour: number): void;
+  /** Show these sailors on the ship (dev: `?pose=` in the gallery); null removes them. */
+  setCrew(views: readonly CrewView[] | null): void;
   /** Camera orbit and zoom speed, 1 is the default. */
   setCameraSensitivity(factor: number): void;
   /** Apply the graphics settings: the same as at sea. */
@@ -91,6 +95,8 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
   resize();
 
   let subject: THREE.Object3D | null = null;
+  let crew: CrewRenderer | null = null;
+  let crewViews: readonly CrewView[] | null = null;
   let dims = { length: 12, beam: 4 };
   let elapsed = 0;
   let overrides: WeatherOverrides = { ...GALLERY_WEATHER };
@@ -108,6 +114,7 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
       subject = next;
       if (!next) return;
       pivot.add(next);
+      crew?.attach(next);
       enableShadows(next);
       lamps.register(next);
       pivot.updateMatrixWorld(true); // the framing below measures the ship where it stands in the world
@@ -130,6 +137,13 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
       controls.target.copy(center);
       camera.position.copy(center).add(new THREE.Vector3(0.55, 0.28, 0.9).normalize().multiplyScalar(distance));
       controls.update();
+    },
+    setCrew(views): void {
+      crewViews = views;
+      if (views && !crew) {
+        crew = createCrewRenderer();
+        if (subject) crew?.attach(subject);
+      }
     },
     setCameraSensitivity(factor): void {
       controls.rotateSpeed = factor;
@@ -198,6 +212,7 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
         tuning: w.tuning, cloud: w.cloud, fog: w.fog, rain: w.rain, flash: flash * (0.65 + 0.35 * Math.sin(flash * 34)),
       });
       lamps.update(env.look.lamps, subject ? [{ root: subject, length: dims.length }] : [], camera);
+      if (crew && crewViews) crew.update(crewViews, camera);
       pipeline.render();
       pipeline.endFrame();
     },
@@ -205,6 +220,7 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
     dispose(): void {
       observer.disconnect();
       controls.dispose();
+      crew?.dispose();
       lamps.dispose();
       env.dispose();
       pipeline.dispose();

@@ -16,7 +16,7 @@ import { FLAG_V0, PENNANT_V } from './flagArt';
  */
 const CACHE = 'flagAnalysis';
 /** Flags are drawn this much larger than the model's strips, so a nation's colours read from the chase camera. */
-const FLAG_SCALE = 1.6;
+const FLAG_SCALE = 1.1;
 
 /** Add the flag attributes to a geometry made of strips streaming towards −x. Returns the strip count. */
 export function prepareFlag(geometry: THREE.BufferGeometry, seed = 0): number {

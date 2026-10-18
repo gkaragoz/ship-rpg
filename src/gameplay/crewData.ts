@@ -27,3 +27,22 @@ export const CREW = {
   minCount: 3,
   maxCount: 10,
 } as const;
+
+/** Timings of the crew's visible work (seconds, metres): all of it is for show. */
+export const JOBS = {
+  /** Masts that get hands when the sails change. */
+  maxMasts: 3,
+  /** Share of the mast height a climber goes up (capped at `climbMax`, so the tall ships stay watchable). */
+  climbTop: 0.45,
+  climbMax: 9,
+  /** Seconds up (and down), and aloft. */
+  climbTime: 3.2,
+  aloftTime: 2.6,
+  haulTime: 4.2,
+  /** Seconds between two sail jobs. */
+  sailCooldown: 6,
+  /** Gunners sent to a side that fires, the time they stand at the shot, and the longest they load. */
+  gunners: 3,
+  fireTime: 0.7,
+  maxLoad: 8,
+} as const;

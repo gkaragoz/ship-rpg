@@ -133,6 +133,8 @@ export interface ShipView extends Condition, Attitude {
 
 export interface EnemyView extends Condition, Attitude {
   id: string;
+  /** The sailors on its deck, while it is close enough to see them (empty otherwise). */
+  crew?: CrewView[];
   apparent: ApparentWindView;
   specId: string;
   name: string;
@@ -171,6 +173,8 @@ export interface GameEvent {
   won?: boolean;
   gold?: number;
   level?: number;
+  /** `sunk` events: the length of the ship that went down (m), for the sailors it spills. */
+  length?: number;
   /** Hull points the hit took off (`hit` events), or the crew lost (`boarded`). */
   amount?: number;
   /** Where the ball struck (`hit` events only). */
@@ -201,6 +205,8 @@ export interface PortView {
 /** Another ship at sea; kinematic and shown at a distance-dependent level of detail. */
 export interface OtherShipView {
   id: number;
+  /** The sailors on its deck while it is close (see `EnemyView.crew`). */
+  crew?: CrewView[];
   /** Which ship spec (and model) to draw. */
   specId: string;
   /** Nation id of its flag (see `world/nations.ts`); free when absent. */
@@ -213,7 +219,8 @@ export interface OtherShipView {
   apparent: ApparentWindView;
 }
 
-export type CrewAnim = 'Idle' | 'Walk' | 'Run';
+/** `Idle`, `Walk` and `Run` are authored clips; the others are poses the renderer adds on the idle clip (helm, haul, climb, aloft, load, fire) or whole-body states of a swimmer (`Fly`, `Swim`, `Drown`). */
+export type CrewAnim = 'Idle' | 'Walk' | 'Run' | 'Helm' | 'Haul' | 'Climb' | 'Aloft' | 'Load' | 'Fire' | 'Fly' | 'Swim' | 'Drown';
 
 /** Appearance choices; palette entries are indices into the crew asset's palette. */
 export interface CrewLook {
@@ -241,6 +248,12 @@ export interface CrewView {
   heading: number;
   anim: CrewAnim;
   look: CrewLook;
+  /** Seconds in this animation (the poses' clock) and its parameter: 0…1 progress (climb, fire) or −1…1 (the helm's wheel). */
+  clock: number;
+  lean: number;
+  /** A swimmer's tumble about the sideways and the forward axis (rad); upright when absent. */
+  pitch?: number;
+  roll?: number;
 }
 
 /** The sea's wave tuning (see `world/sea.ts`), as render needs it. */

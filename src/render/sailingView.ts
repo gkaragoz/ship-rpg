@@ -4,6 +4,8 @@ import type { GameView } from '../core';
 import { CONFIG } from '../core';
 import type { Ship, ShipLod } from '../ships';
 import { createCrewRenderer } from './crew';
+import { createShipCrewRenderers } from './shipCrews';
+import { createSwimmers } from './swimmers';
 import { createFleet } from './fleet';
 import { createEnvironment } from './environment';
 import { LAMP_LIGHTS, createLamps } from './lamps';
@@ -78,6 +80,10 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
 
   const fleet = createFleet(scene);
   const crew = createCrewRenderer();
+  const swimmers = createSwimmers(scene); // sailors thrown overboard by hits and sinkings, swimming and drowning
+  // In dev: __swimmers.spawn([{ type: 'sunk', owner: 'enemy', x, y: 0, z, length: 30 }]) spills sailors into the sea.
+  if (import.meta.env.DEV) (window as unknown as { __swimmers?: typeof swimmers }).__swimmers = swimmers;
+  const shipCrews = createShipCrewRenderers(); // the sailors of the enemies and patrols nearby
   const stamps: Stamp[] = [];
   const lamps = createLamps();
   lamps.setCount(LAMP_LIGHTS[graphics.lights]);
@@ -239,6 +245,9 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       aim.update(view, ampScale);
       portZones.update(view, ampScale);
       impacts.spawn(view.events);
+      swimmers.spawn(view.events);
+      const splashed = swimmers.update(dt, camera, (x, z) => waveHeight(x, z, time, wind.from, ampScale, 0, view.weather.tuning));
+      if (splashed.length) impacts.spawn(splashed);
       effects.update(dt);
       impacts.update(dt, (x, z) => waveHeight(x, z, time, wind.from, ampScale, 0, view.weather.tuning), -Math.cos(wind.from) * wind.speed, Math.sin(wind.from) * wind.speed);
       numbers.spawn(view.events);
@@ -285,6 +294,9 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       lamps.update(env.look.lamps, hung, camera);
       fleet.update(view, camera, ampScale);
       crew?.update(view.crew, camera);
+      for (const e of view.enemies) shipCrews.update(`e:${e.id}`, actors.get(e.id)?.model, e.crew, camera);
+      for (const o of view.others) shipCrews.update(`o:${o.id}`, fleetShips[o.id]?.root, o.crew, camera);
+      shipCrews.endFrame();
       shake = decayShake(shake, dt);
       shakeOffset.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * SHAKE.offset * 2);
       camera.position.add(shakeOffset);
@@ -300,6 +312,8 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       observer.disconnect();
       fleet.dispose();
       crew?.dispose();
+      shipCrews.dispose();
+      swimmers.dispose();
       controls.dispose();
       lamps.dispose();
       env.dispose();

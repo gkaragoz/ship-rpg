@@ -2,9 +2,13 @@ import { SHIP_SPECS, createShip, type Ship, type ShipSpec } from '../ships';
 import { createGalleryView } from '../render';
 import { getSettings } from '../settings';
 import { createGalleryUI, createSettingsUI, weatherTab, type GalleryItem, type GalleryUI } from '../ui';
+import type { CrewAnim } from '../core';
 import { renderLines } from './debugLines';
 import { applyGameSettings } from './gameSettings';
 import type { Mode } from './mode';
+
+/** Where the `?pose=` sailors stand (ship-local x, z). */
+const POSE_SPOTS = [{ x: -1.5, z: 0.5 }, { x: 0.6, z: -0.6 }, { x: 2, z: 0.4 }, { x: -0.5, z: -0.9 }];
 
 const toItem = (s: ShipSpec): GalleryItem => ({
   id: s.id,
@@ -74,10 +78,17 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
   const query = new URLSearchParams(window.location.search);
   const heldLevel = query.has('sail') ? Number(query.get('sail')) : undefined;
   const heldWind = Number(query.get('windrel') ?? 1.2);
+  // ?pose=Helm|Haul|Climb|Aloft|Load|Fire|Fly|Swim|Drown puts a few sailors on the deck in that pose, to look at it
+  const pose = query.get('pose') as CrewAnim | null;
+  let poseClock = 0;
 
   return {
     debugInfo: () => renderLines(view.stats(), store.get().graphics),
     update: (dt) => {
+      if (pose) {
+        poseClock += dt;
+        view.setCrew(POSE_SPOTS.map((spot, id) => ({ id, ...spot, y: 2.2, heading: 0, anim: pose, clock: poseClock, lean: Math.sin(poseClock), look: { variant: id % 6, skin: 0, shirt: id, pants: 0, hair: 0, hat: 0, hairStyle: 'short', hatStyle: 'none', beard: false } })));
+      }
       if (heldLevel !== undefined && Number.isFinite(heldLevel) && current) current.setSailTrim(heldWind, heldLevel);
       view.update(dt);
     },

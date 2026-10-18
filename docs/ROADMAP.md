@@ -26,10 +26,11 @@
   - [ ] measure frame rate on a real browser/GPU (the embedded pane throttles rAF, so 60 fps is unverified; the sea is now a clip-map of ~26k / 47k / 104k triangles on low / medium / high, see 3b)
 - [x] 4. Islands, ports, navigation (11 ports on 8 islands, grounding, docking, fog-of-war chart and minimap)
   - [x] port entry zones: a gold rectangle with posts and an anchor sign marks where a ship may dock; the HUD says when you are inside and must slow down (`PORT_ZONE`, `render/portZones.ts`, `tests/portZone.test.ts`)
-  - [x] nation ensigns on every ship (Union Jack red ensign, Bourbon white, Cross of Burgundy, Prinsenvlag, Jolly Roger, free captain), 1.6x larger flags; ambient patrol ships fly a nation too (`flagArt.ts`, `tests/ensign.test.ts`)
+  - [x] nation ensigns on every ship (Union Jack red ensign, Bourbon white, Cross of Burgundy, Prinsenvlag, Jolly Roger, free captain), 1.1x larger flags; ambient patrol ships fly a nation too (`flagArt.ts`, `tests/ensign.test.ts`)
   - [x] game speed `+`/`-` (1, 2, 3, 5, 10x): extra fixed steps per update, held at 1x near enemies, shots, boarding, grounding and sinking (`app/timeScale.ts`, `tests/timeScale.test.ts`)
   - [x] sails in folded states: fold field below the grid's sampling limit, bounded fold normals, jibs offset in z (`docs/SHIPS.md`)
   - [x] sea chart redone as an old parchment chart (zoom/pan, fog, grid, rose, route, tinted islands) in `ui/chart/`
+  - [x] crews on every ship (enemies, patrols), work on deck (helm, climbing, hauling, loading and firing), sailors flung overboard by hits and spilled by sinkings that swim and drown (`docs/CREW.md`; `tests/crewJobs.test.ts`, `tests/swimmers.test.ts`)
   - [ ] polish: harbour town detail (forts, docks, ships at anchor), beach waves
   - [ ] polish: coast sounding/depth warning on the HUD
   - [x] save/load of discovered map and position (5f)
