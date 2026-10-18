@@ -1,4 +1,5 @@
 import type { OtherShipView } from '../core';
+import { terrainHeight } from '../world';
 
 /** An elliptical patrol around (cx, cz): semi-axes a (x) and b (z), starting phase, direction. */
 interface Patrol {
@@ -32,6 +33,43 @@ export const PATROLS: readonly Patrol[] = [
   { specId: 'battleship', cx: -50, cz: 100, a: 820, b: 640, phase: 4.6, dir: -1 },
 ];
 
+/** The sea floor must be deeper than this under every point of a patrol. */
+const CLEAR_DEPTH = -4;
+const LAND_SAMPLES = 96;
+
+const landPoints = (p: Patrol): number => {
+  let n = 0;
+  for (let i = 0; i < LAND_SAMPLES; i++) {
+    const f = (i / LAND_SAMPLES) * 2 * Math.PI;
+    if (terrainHeight(p.cx + p.a * Math.cos(f), p.cz + p.b * Math.sin(f)) > CLEAR_DEPTH) n++;
+  }
+  return n;
+};
+
+/**
+ * Put the patrols around `origin` (where the player starts) on open water: each keeps its shape and
+ * moves to the nearest centre, searched outwards in rings, whose whole ellipse is clear of land and
+ * shoals. If none is, the least-obstructed candidate wins.
+ */
+export function placePatrols(origin: { x: number; z: number }): Patrol[] {
+  return PATROLS.map((p) => {
+    let best = { ...p, cx: origin.x + p.cx, cz: origin.z + p.cz };
+    let bestLand = landPoints(best);
+    for (let ring = 1; ring <= 24 && bestLand > 0; ring++) {
+      for (let k = 0; k < 12 && bestLand > 0; k++) {
+        const ang = (k / 12) * 2 * Math.PI + ring;
+        const c = { ...p, cx: origin.x + p.cx + Math.cos(ang) * ring * 120, cz: origin.z + p.cz + Math.sin(ang) * ring * 120 };
+        const land = landPoints(c);
+        if (land < bestLand) {
+          best = c;
+          bestLand = land;
+        }
+      }
+    }
+    return best;
+  });
+}
+
 /** Cruising speed of a patrol in m/s. */
 export const PATROL_SPEED = 5;
 
@@ -44,14 +82,15 @@ export interface NpcFleet {
  * Kinematic patrol ships on closed ellipses. Positions are an analytic function of time, so the
  * fleet is deterministic and needs no collision or steering yet.
  */
-export function createNpcFleet(): NpcFleet {
+export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }): NpcFleet {
+  const patrols = placePatrols(origin);
   let time = 0;
   return {
     update(dt): void {
       time += dt;
     },
     view(): OtherShipView[] {
-      return PATROLS.map((p, id) => {
+      return patrols.map((p, id) => {
         const omega = (p.dir * PATROL_SPEED) / ((p.a + p.b) / 2);
         const phi = p.phase + omega * time;
         // d/dt of (cx + a cos φ, cz + b sin φ) gives the velocity; heading follows (cos ψ, -sin ψ).

@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { createCrew, crewCountFor } from '../src/gameplay/crew';
 import { CREW, CREW_PALETTE_SIZES, CREW_VARIANTS } from '../src/gameplay/crewData';
-import { createNpcFleet, PATROLS } from '../src/gameplay/npcShips';
+import { createNpcFleet, placePatrols } from '../src/gameplay/npcShips';
+import { getPort, terrainHeight } from '../src/world';
 import { SHIP_SPECS, createDeck, type ShipModelMeta } from '../src/ships';
 
 const read = (rel: string): string =>
@@ -95,13 +96,29 @@ describe('palette sizes match the crew asset', () => {
 });
 
 describe('npc fleet', () => {
+  it('sails open water around the start (no patrol runs over an island)', () => {
+    const port = getPort('douwesen');
+    if (!port) throw new Error('no start port');
+    const origin = { x: port.anchor.x + Math.cos(port.outward) * 70, z: port.anchor.z + Math.sin(port.outward) * 70 };
+    for (const p of placePatrols(origin)) {
+      let land = 0;
+      for (let i = 0; i < 200; i++) {
+        const f = (i / 200) * 2 * Math.PI;
+        if (terrainHeight(p.cx + p.a * Math.cos(f), p.cz + p.b * Math.sin(f)) > -4) land++;
+      }
+      expect(land / 200, p.specId).toBeLessThan(0.03);
+    }
+  });
+
+
   it('is deterministic and keeps each patrol on its ellipse', () => {
     const a = createNpcFleet();
     const b = createNpcFleet();
     for (let i = 0; i < 600; i++) { a.update(DT); b.update(DT); }
     expect(a.view()).toEqual(b.view());
+    const placed = placePatrols({ x: 0, z: 0 });
     a.view().forEach((v, i) => {
-      const p = PATROLS[i];
+      const p = placed[i];
       if (!p) throw new Error('missing patrol');
       expect(((v.x - p.cx) / p.a) ** 2 + ((v.z - p.cz) / p.b) ** 2).toBeCloseTo(1, 6);
       expect(v.specId).toBe(p.specId);
