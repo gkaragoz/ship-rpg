@@ -130,8 +130,8 @@ vec3 flutterField(float u, float v, float aspect, float flutter, float seed, flo
 
 // Static ruching folds: (0..1, d/du, d/dv) per unit of the normalised sheet.
 vec3 foldField(float u, float v) {
-  float f = 0.5 + 0.5 * sin(v * 20.0 + u * 5.0);
-  vec3 analytic = vec3(f, 2.5 * cos(v * 20.0 + u * 5.0), 10.0 * cos(v * 20.0 + u * 5.0));
+  float f = 0.5 + 0.5 * sin(v * 12.0 + u * 2.0);
+  vec3 analytic = vec3(f, cos(v * 12.0 + u * 2.0), 6.0 * cos(v * 12.0 + u * 2.0));
   return mix(analytic, bakeAt(192.0, vec2(u, v)), step(0.5, uBakeInfo.x));
 }
 
@@ -146,7 +146,8 @@ void jibDeform(inout vec3 p, inout vec3 n) {
   float baked = clothA.w;
   p.xy = tack + (p.xy - tack) * (1.0 - g);
   vec3 fl = flutterField(clothA.z, clothA.y, 1.0, uFlutter.y, seed + 0.27 * jib, L, L) * uDetail;
-  p.z += (k - 1.0) * baked + L * fl.x * (1.0 - g);
+  // each jib stands a few cm off the one before it, so overlapping jibs never share a plane (no z-fighting in irons)
+  p.z += (k - 1.0) * baked + L * fl.x * (1.0 - g) + 0.06 * jib * (1.0 - clothA.y);
   n = normalize(vec3(n.xy * k, n.z));
 }
 
@@ -200,7 +201,7 @@ void clothDeform(inout vec3 p, inout vec3 n) {
   float da = (k - 1.0) * baked + wob;
   // Normal: the baked one tilted by the slopes of the displaced surface (axis offset over the two in-plane directions).
   float sh = fl.y + foldAmp * fo.y / W;
-  float sy = (fl.z + foldAmp * fo.z / H) / max(keep, 0.04);
+  float sy = clamp((fl.z + foldAmp * fo.z / H) / max(keep, 0.04), -2.5, 2.5);   // bounded: a bunched sail must not shade as razors
   vec3 axis = aft ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
   vec3 hdir = aft ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 0.0, 1.0);
   float na = dot(n, axis);

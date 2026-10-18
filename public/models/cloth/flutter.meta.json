@@ -20,6 +20,6 @@
   "flagAspect": 0.25,
   "seed": 1707,
   "bytes": 394752,
-  "hash": "f1de8b89",
+  "hash": "50b7a06c",
   "layout": "layer = (band * 2 + level) * frames + frame for sails; foldLayer: static folds; flagFirst + level * frames + frame for flags. texel = (z, dz/dx, dz/dy, 0)"
 }

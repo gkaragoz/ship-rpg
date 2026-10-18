@@ -68,9 +68,17 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
   const first = ORDERED.find((s) => s.id === selectedId) ?? ORDERED[0];
   if (first) ui.select(first.id);
 
+  // ?sail=0…1 (and ?windrel=radians from the bow) holds the gallery ship's sails at a trim, to inspect furled cloth.
+  const query = new URLSearchParams(window.location.search);
+  const heldLevel = query.has('sail') ? Number(query.get('sail')) : undefined;
+  const heldWind = Number(query.get('windrel') ?? 1.2);
+
   return {
     debugInfo: () => renderLines(view.stats(), store.get().graphics),
-    update: (dt) => view.update(dt),
+    update: (dt) => {
+      if (heldLevel !== undefined && Number.isFinite(heldLevel) && current) current.setSailTrim(heldWind, heldLevel);
+      view.update(dt);
+    },
     render: () => view.render(),
     dispose(): void {
       window.removeEventListener('keydown', onKey);

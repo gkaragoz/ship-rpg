@@ -180,7 +180,8 @@ function texels(z: Float64Array, wp: number, hp: number, out: Float32Array, offs
 function foldTexels(out: Float32Array, offset: number): void {
   const rand = rng(SEED + 99);
   const p = rand();
-  const f = (u: number, v: number): number => 0.5 + 0.5 * psin(TAU * (3.2 * v + 0.16 * psin(TAU * (2.3 * u + p)) + 0.05 * psin(TAU * (7 * u)) + p));
+  // Under the sampling limit of the 16 x 12 texels and of the 10-row sail grids: ~2 creases, one gentle sideways warp.
+  const f = (u: number, v: number): number => 0.5 + 0.5 * psin(TAU * (1.9 * v + 0.1 * psin(TAU * (1.1 * u + p)) + p));
   const e = 0.01;
   for (let j = 0; j < GRID_H; j++) {
     for (let i = 0; i < GRID_W; i++) {
