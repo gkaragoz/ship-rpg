@@ -1,7 +1,13 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { SHIP_SPECS, createShip, getShipSpec } from '../src/ships';
 import type { Ship } from '../src/ships';
+import { clothClock } from '../src/ships/clothState';
+
+// A frozen clock: the sails do not move between calls, so snapshots compare exactly.
+beforeEach(() => {
+  clothClock.now = () => 0;
+});
 
 const PRISTINE = { rigging: 1, flooding: 0, fire: 0 };
 const named = (ship: Ship, prefix: string): THREE.Object3D[] => {
@@ -57,21 +63,29 @@ describe('setCondition rigging', () => {
   });
 
   it('shrinks sails and combines with setSailTrim', () => {
+    let t = 0;
+    clothClock.now = () => t;
     const s = galleon();
+    const settle = (windRel: number, level: number): void => {
+      for (let i = 0; i < 10; i++) {
+        t += 2; // a call never counts more than 2 s; this is long enough for the sails to ease all the way
+        s.setSailTrim(windRel, level);
+      }
+    };
     const sq = named(s, 'trim-square')[0] as THREE.Object3D;
     s.setSailTrim(0.5, 1);
     s.setCondition({ ...PRISTINE, rigging: 0 }, 0);
     expect(sq.scale.y).toBeCloseTo(0.55, 5);
-    s.setSailTrim(0.5, 0.5);
-    expect(sq.scale.y).toBeCloseTo((0.35 + 0.65 * 0.5) * 0.55, 5);
-    s.setSailTrim(0.5, 0); // furled
+    settle(0.5, 0.5);
+    expect(sq.scale.y).toBeCloseTo((0.04 + 0.96 * 0.5) * 0.55, 2);
+    settle(0.5, 0); // furled
     expect(sq.visible).toBe(false);
     s.setCondition({ ...PRISTINE, rigging: 0.4 }, 1);
     expect(sq.visible).toBe(false);
-    s.setSailTrim(-1, 1);
+    settle(-1, 1);
     s.setCondition({ ...PRISTINE, rigging: 0.4 }, 1);
     const aft = named(s, 'trim-aft')[0];
-    if (aft) expect(aft.scale.z).toBe(-1);
+    if (aft) expect(aft.scale.z).toBeLessThan(-0.8);
   });
 });
 

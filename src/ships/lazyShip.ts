@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Condition } from '../core';
+import type { WindInput } from './clothState';
 import type { Ship } from './factory';
 import type { ShipLod } from './lod';
 
@@ -16,6 +17,8 @@ export function createUpgradingShip(placeholder: Ship, load: () => Promise<Ship 
   let inner = placeholder;
   let disposed = false;
   let trim: [number, number] | undefined;
+  const wind: WindInput = { angle: 0, speed: 8, gust: 1 };
+  let windSet = false;
   let condition: [Condition, number] | undefined;
   let lod: ShipLod = 0;
 
@@ -26,6 +29,7 @@ export function createUpgradingShip(placeholder: Ship, load: () => Promise<Ship 
         real.dispose();
         return;
       }
+      if (windSet) real.setWind?.(wind);
       if (trim) real.setSailTrim(...trim);
       if (condition) real.setCondition(...condition);
       real.setLod?.(lod);
@@ -42,6 +46,13 @@ export function createUpgradingShip(placeholder: Ship, load: () => Promise<Ship 
     setSailTrim(windRel, level): void {
       trim = [windRel, level];
       inner.setSailTrim(windRel, level);
+    },
+    setWind(next): void {
+      windSet = true;
+      wind.angle = next.angle;
+      wind.speed = next.speed;
+      wind.gust = next.gust;
+      inner.setWind?.(next);
     },
     setCondition(c, time): void {
       condition = [c, time];

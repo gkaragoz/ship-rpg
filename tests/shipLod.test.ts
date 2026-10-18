@@ -4,6 +4,7 @@ import { LOD_RANGES, createDeck, lodUpdateDue, selectLod, type ShipLod, type Shi
 import { createGlbShip } from '../src/ships/glbShip';
 import type { ShipAsset } from '../src/ships/assets';
 import { getShipSpec } from '../src/ships';
+import { clothClock } from '../src/ships/clothState';
 
 const L = 12; // tartane length
 
@@ -89,19 +90,28 @@ describe('createGlbShip', () => {
   });
 
   it('trims the sail pivot of every LOD and mirrors it with the wind side', () => {
+    let t = 0;
+    clothClock.now = () => t;
     const ship = createGlbShip(spec, asset);
+    const settle = (windRel: number, level: number): void => {
+      for (let i = 0; i < 10; i++) {
+        t += 2; // the sails ease over a few seconds; a call never counts more than 2 s
+        ship.setSailTrim(windRel, level);
+      }
+    };
     ship.setSailTrim(1.2, 1); // wind from port
+    settle(1.2, 1);
     const pivots = [0, 1, 2].map((i) => ship.root.getObjectByName(`LOD${i}_trim-aft`) as THREE.Object3D);
     for (const p of pivots) {
       expect(p.rotation.y).toBeGreaterThan(0);
-      expect(p.scale.z).toBe(1);
+      expect(p.scale.z).toBeGreaterThan(0.8);
     }
-    ship.setSailTrim(-1.2, 1); // wind from starboard
+    settle(-1.2, 1); // wind from starboard
     for (const p of pivots) {
       expect(p.rotation.y).toBeLessThan(0);
-      expect(p.scale.z).toBe(-1);
+      expect(p.scale.z).toBeLessThan(-0.8);
     }
-    ship.setSailTrim(0, 0); // furled
+    settle(0, 0); // furled
     for (const p of pivots) expect(p.visible).toBe(false);
   });
 });

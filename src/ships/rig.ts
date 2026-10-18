@@ -3,6 +3,7 @@ import type { MastSpec, ShipSpec } from './types';
 import type { ShipMaterials } from './materials';
 import { bulwark, deckHeight, halfBeam, sectionPoint } from './hullShape';
 import { cylinderBetween, gridSail } from './parts';
+import { flagStrip, prepareFlag } from './flagCloth';
 
 const V = (x: number, y: number, z = 0): THREE.Vector3 => new THREE.Vector3(x, y, z);
 const BILLOW_FORWARD = V(1, 0, 0);
@@ -182,13 +183,11 @@ function addLateenSail(g: THREE.Group, spec: ShipSpec, m: MastSpec, mats: ShipMa
 
 function pennant(height: number, mats: ShipMaterials): THREE.Mesh {
   const len = Math.max(1.2, height * 0.12);
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([0, height, 0, -len, height - len * 0.15, 0, 0, height - len * 0.35, 0], 3),
-  );
-  geometry.setIndex([0, 1, 2]);
-  return new THREE.Mesh(geometry, mats.flag);
+  const strip = flagStrip(len, len * 0.35, 0.9, 6, 2);
+  prepareFlag(strip, 0.2);
+  const mesh = new THREE.Mesh(strip, mats.flag); // the flag shader waves it (see flagCloth.ts)
+  mesh.position.y = height;
+  return mesh;
 }
 
 function buildBowsprit(spec: ShipSpec, mats: ShipMaterials): THREE.Group {
