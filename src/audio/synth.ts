@@ -67,6 +67,21 @@ export function hit(bus: Bus, out: AudioNode, when: number, gain: number): void 
   tone(bus, out, when, 0.22, 'triangle', 150, 55, gain * 0.8);
 }
 
+/** Sails and cordage shot through: a cloth rip with a quick pitch-down, a rope snap, a faint wood creak. */
+export function riggingHit(bus: Bus, out: AudioNode, when: number, gain: number): void {
+  burst(bus, out, when, 0.26, 'bandpass', 4200, 900, gain * 0.8);
+  burst(bus, out, when, 0.08, 'highpass', 3200, 1400, gain * 0.5);
+  tone(bus, out, when, 0.06, 'square', 950, 220, gain * 0.25);
+  tone(bus, out, when + 0.05, 0.35, 'sawtooth', 210, 120, gain * 0.1);
+}
+
+/** A ball into the waterline: a dull deep thud and a gush of water. */
+export function waterlineHit(bus: Bus, out: AudioNode, when: number, gain: number): void {
+  tone(bus, out, when, 0.3, 'sine', 80, 32, gain);
+  burst(bus, out, when, 0.18, 'lowpass', 600, 120, gain * 0.9);
+  burst(bus, out, when + 0.05, 0.7, 'lowpass', 1300, 200, gain * 0.55);
+}
+
 /** A column of water coming down. */
 export function splash(bus: Bus, out: AudioNode, when: number, gain: number): void {
   burst(bus, out, when, 0.5, 'highpass', 1400, 500, gain * 0.7);

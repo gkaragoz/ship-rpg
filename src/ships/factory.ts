@@ -5,6 +5,8 @@ import { buildHull } from './hull';
 import { buildCastles } from './castles';
 import { buildGunPorts, buildLanterns, buildOars, buildSternFlag, buildSternWindows } from './details';
 import { buildRig } from './rig';
+import { createConditionRig } from './condition';
+import type { Condition } from '../core';
 
 const clamp = (v: number, min: number, max: number): number => Math.min(Math.max(v, min), max);
 const smoothstep = (a: number, b: number, x: number): number => {
@@ -21,6 +23,13 @@ export interface Ship {
    * origin (+ = wind from port); `level` is sail deployment 0 (furled) … 1 (full).
    */
   setSailTrim(windRel: number, level: number): void;
+  /**
+   * Show battle damage: sails scorch, shrink and lose upper tiers (rigging), the hull sits low
+   * and lists (flooding), flames burn on deck (fire). `time` is game seconds, for flicker.
+   * Cheap and idempotent; `{rigging: 1, flooding: 0, fire: 0}` restores the pristine look.
+   * Moves an inner pivot, never `root`.
+   */
+  setCondition(condition: Condition, time: number): void;
   /** Frees geometries and materials created for this ship. */
   dispose(): void;
 }
@@ -34,9 +43,12 @@ export function createShip(spec: ShipSpec, options: ShipOptions = {}): Ship {
   const mats = createMaterials(spec, options.flag);
   const root = new THREE.Group();
   root.name = spec.id;
-  root.add(buildHull(spec, mats), ...buildCastles(spec, mats), buildRig(spec, mats), buildSternFlag(spec, mats));
+  const pivot = new THREE.Group(); // condition (sinking, listing) moves this, not root
+  pivot.name = 'pivot';
+  root.add(pivot);
+  pivot.add(buildHull(spec, mats), ...buildCastles(spec, mats), buildRig(spec, mats), buildSternFlag(spec, mats));
   for (const part of [buildGunPorts(spec, mats), buildOars(spec, mats), buildSternWindows(spec, mats), buildLanterns(spec, mats)]) {
-    if (part) root.add(part);
+    if (part) pivot.add(part);
   }
   const square: THREE.Object3D[] = [];
   const aft: THREE.Object3D[] = [];
@@ -44,6 +56,16 @@ export function createShip(spec: ShipSpec, options: ShipOptions = {}): Ship {
     if (o.name === 'trim-square') square.push(o);
     else if (o.name === 'trim-aft') aft.push(o);
   });
+
+  // Wind trim and damage both scale the sails' height; the product is applied.
+  let trimSide = 1;
+  let trimHeight = 1;
+  const applyScale = (): void => {
+    const height = trimHeight * condition.sailHeight();
+    for (const o of square) o.scale.set(1, height, 1);
+    for (const o of aft) o.scale.set(1, height, trimSide);
+  };
+  const condition = createConditionRig(spec, mats, pivot, applyScale);
 
   return {
     spec,
@@ -56,19 +78,23 @@ export function createShip(spec: ShipSpec, options: ShipOptions = {}): Ship {
       const sheet = 0.08 + 1.02 * downwind;
       const lv = clamp(level, 0, 1);
       const shown = lv > 0.05;
-      const height = 0.35 + 0.65 * lv;
+      trimHeight = 0.35 + 0.65 * lv;
+      trimSide = side; // aft sails are mirrored so the sail always bellies to leeward
       for (const o of square) {
         o.visible = shown;
         o.rotation.y = side * brace;
-        o.scale.set(1, height, 1);
       }
       for (const o of aft) {
         o.visible = shown;
         o.rotation.y = side * sheet;
-        o.scale.set(1, height, side); // mirrored so the sail always bellies to leeward
       }
+      applyScale();
+    },
+    setCondition(c, time): void {
+      condition.apply(c, time);
     },
     dispose(): void {
+      condition.dispose();
       root.traverse((o) => {
         if (o instanceof THREE.Mesh) o.geometry.dispose();
         if (o instanceof THREE.InstancedMesh) o.dispose(); // instance matrix buffer

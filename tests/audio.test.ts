@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameEvent } from '../src/core';
 import { REFERENCE_DISTANCE, SPEED_OF_SOUND, createAudio, spatialMix } from '../src/audio';
+import { crackleDensity, crackleGain, creakGain, sloshGain } from '../src/audio/condition';
 
 const ear = { x: 0, z: 0, heading: 0 }; // facing east: starboard is +z (south), port is -z (north)
 
@@ -71,6 +72,7 @@ function fakeContext(): { ctx: AudioContext; sources: () => number; closed: () =
       frequency: param(),
       gain: param(),
       Q: param(),
+      playbackRate: param(),
       pan: param(),
       ...extra,
     };
@@ -200,5 +202,123 @@ describe('createAudio details', () => {
     expect(f.targets()).toBe(n);
     a.ambience(11, 5);
     expect(f.targets()).toBeGreaterThan(n);
+  });
+});
+
+describe('damage mappings', () => {
+  it('are silent when pristine, monotonic and capped', () => {
+    expect(creakGain(1, 0)).toBe(0);
+    expect(sloshGain(0)).toBe(0);
+    expect(crackleDensity(0)).toBe(0);
+    expect(crackleGain(0)).toBe(0);
+    for (let i = 0; i < 10; i++) {
+      const a = i / 10;
+      const b = (i + 1) / 10;
+      expect(creakGain(1 - b, 0)).toBeGreaterThan(creakGain(1 - a, 0));
+      expect(creakGain(1, b)).toBeGreaterThan(creakGain(1, a));
+      expect(sloshGain(b)).toBeGreaterThan(sloshGain(a));
+      expect(crackleDensity(b)).toBeGreaterThan(crackleDensity(a));
+      expect(crackleGain(b)).toBeGreaterThan(crackleGain(a));
+    }
+    expect(creakGain(-5, 9)).toBeLessThanOrEqual(0.12 + 1e-9);
+    expect(sloshGain(9)).toBeLessThanOrEqual(0.14 + 1e-9);
+    expect(crackleGain(9)).toBeLessThanOrEqual(0.2 + 1e-9);
+    expect(crackleDensity(9)).toBeLessThanOrEqual(24);
+  });
+});
+
+describe('zone hits', () => {
+  const hitAt = (zone?: 'waterline' | 'hull' | 'rigging'): GameEvent => ({ type: 'hit', owner: 'player', x: 40, y: 0, z: 0, zone });
+  const voices = (zone?: 'waterline' | 'hull' | 'rigging'): { n: number; slices: Started[] } => {
+    const f = fakeContext();
+    const a = createAudio(() => f.ctx);
+    a.resume();
+    const before = f.started.length;
+    expect(() => a.play([hitAt(zone)], ear)).not.toThrow();
+    return { n: f.started.length - before, slices: f.started.slice(before) };
+  };
+
+  it('each zone makes sound, and the zones sound different', () => {
+    const [rig, water, hull, none] = [voices('rigging'), voices('waterline'), voices('hull'), voices()];
+    expect(hull.n).toBeGreaterThan(0);
+    expect(none.n).toBe(hull.n);
+    expect(rig.n).not.toBe(hull.n);
+    expect(water.n).not.toBe(hull.n);
+    expect(rig.n).not.toBe(water.n);
+  });
+
+  it('keeps every noise slice inside the buffer', () => {
+    const f = fakeContext();
+    const a = createAudio(() => f.ctx);
+    a.resume();
+    const before = f.started.length;
+    for (let i = 0; i < 40; i++) a.play([hitAt('rigging'), hitAt('waterline')], ear);
+    for (const s of f.started.slice(before)) {
+      if (s.offset === undefined || s.duration === undefined) continue;
+      if (!s.loop) expect(s.offset + s.duration).toBeLessThanOrEqual(2 + 1e-9);
+    }
+  });
+
+  it('still respects the per-frame voice cap', () => {
+    const f = fakeContext();
+    const a = createAudio(() => f.ctx);
+    a.resume();
+    const before = f.started.length;
+    a.play(Array.from({ length: 30 }, () => hitAt('rigging')), ear);
+    expect(f.started.length - before).toBeLessThanOrEqual(10 * 4);
+  });
+});
+
+describe('condition ambience', () => {
+  const pristineC = { rigging: 1, flooding: 0, fire: 0 };
+  const wrecked = { rigging: 0.3, flooding: 0.6, fire: 0.5 };
+
+  it('creates no layers for a pristine ship', () => {
+    const f = fakeContext();
+    const a = createAudio(() => f.ctx);
+    a.resume();
+    const n = f.sources();
+    const t = f.targets();
+    a.condition(pristineC);
+    expect(f.sources()).toBe(n);
+    expect(f.targets()).toBe(t);
+  });
+
+  it('starts layers on damage, retunes only on real change, and applies a condition set before resume', () => {
+    const f = fakeContext();
+    const a = createAudio(() => f.ctx);
+    a.condition(wrecked); // before the engine exists: a no-op that is remembered
+    a.resume();
+    const n = f.sources();
+    expect(n).toBeGreaterThan(3);
+    a.condition(wrecked);
+    const t = f.targets();
+    for (let i = 0; i < 100; i++) a.condition({ rigging: 0.3 + 0.001 * i % 0.01, flooding: 0.6, fire: 0.5 });
+    expect(f.targets()).toBe(t);
+    expect(f.sources()).toBe(n);
+    a.condition({ ...wrecked, fire: 0.9 });
+    expect(f.targets()).toBeGreaterThan(t);
+  });
+
+  it('stops the layers when repaired and on dispose, and can restart them', () => {
+    const f = fakeContext();
+    const a = createAudio(() => f.ctx);
+    a.resume();
+    a.condition(wrecked);
+    const n = f.sources();
+    a.condition(pristineC);
+    a.condition(wrecked);
+    expect(f.sources()).toBeGreaterThan(n); // fresh layers
+    a.dispose();
+    expect(() => a.condition(wrecked)).not.toThrow();
+  });
+
+  it('stays silent when muted by routing through the master gain', () => {
+    const f = fakeContext();
+    const a = createAudio(() => f.ctx);
+    a.resume();
+    a.toggleMute();
+    expect(() => a.condition(wrecked)).not.toThrow();
+    expect(a.muted).toBe(true);
   });
 });

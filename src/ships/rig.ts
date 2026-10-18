@@ -114,10 +114,13 @@ function addSquareSails(g: THREE.Group, spec: ShipSpec, m: MastSpec, mats: ShipM
     y += h;
     const wb = courseWidth * 0.82 ** k;
     const wt = wb * 0.82;
-    g.add(
+    const tier = new THREE.Group();
+    tier.name = `sail-tier-${k}`; // hidden in steps by Ship.setCondition
+    tier.add(
       gridSail((u, v) => V(0, yb + (yt - yb) * v, (u - 0.5) * (wb + (wt - wb) * v)), BILLOW_FORWARD, wb * 0.1, mats.sail),
       cylinderBetween(V(0, yt, -wt * 0.54), V(0, yt, wt * 0.54), 0.08 + 0.004 * m.height, mats.wood),
     );
+    g.add(tier);
   });
 }
 
