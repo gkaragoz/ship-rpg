@@ -1,4 +1,5 @@
 import { angleDiff, clamp } from '../core';
+import { terrainHeight } from '../world';
 import type { Controls, WindView } from '../core';
 import { SHIP_SPECS, type ShipSpec } from '../ships';
 import { COMBAT, type Side } from './combat';
@@ -106,6 +107,17 @@ export function aiStep(
     desired = rel >= 0 ? toPlayer - (BROADSIDE_ANGLE - closing) : toPlayer + (BROADSIDE_ANGLE - closing);
   }
 
+  // Keep clear of the nearest other enemy if it is too close: head away from it. This comes first, so the
+  // wind and shoal checks below still have the last word and the turn never takes us into either.
+  let nearest: { x: number; z: number; d2: number } | null = null;
+  for (const o of others) {
+    const ox = s.x - o.x;
+    const oz = s.z - o.z;
+    const d2 = ox * ox + oz * oz;
+    if (d2 < SEPARATION * SEPARATION && (!nearest || d2 < nearest.d2)) nearest = { x: ox, z: oz, d2 };
+  }
+  if (nearest) desired = Math.atan2(-nearest.z, nearest.x);
+
   // Never sail into the wind: bear off to whichever side is closer.
   const offWind = angleDiff(desired, wind.from);
   if (Math.abs(offWind) < NO_GO) desired = wind.from + (offWind >= 0 ? 1 : -1) * (NO_GO + 0.1);
@@ -118,16 +130,6 @@ export function aiStep(
     desired = s.heading + (leftClear ? 0.9 : -0.9);
   }
 
-  // Keep clear of other enemies: head away from one that is too close.
-  for (const o of others) {
-    const ox = s.x - o.x;
-    const oz = s.z - o.z;
-    if (ox * ox + oz * oz < SEPARATION * SEPARATION) {
-      desired = Math.atan2(-oz, ox);
-      break;
-    }
-  }
-
   const rudder = clamp(angleDiff(s.heading, desired) * 2.5, -1, 1);
   const sailStep = s.sailTarget < 1 ? 1 : 0;
 
@@ -137,4 +139,29 @@ export function aiStep(
     else if (Math.abs(rel + BROADSIDE_ANGLE) < FIRE_CONE && e.reload.starboard <= 0) fire = 'starboard';
   }
   return { controls: { rudder, sailStep }, fire };
+}
+
+/** Enemies appear this far from the player. */
+export const SPAWN_DISTANCE = 650;
+
+/**
+ * A place for a new enemy: open water deep enough for its keel, about `SPAWN_DISTANCE` from the
+ * player (first try dead ahead, then random directions) and clear of the enemies already there.
+ * Returns null if 16 tries find nothing.
+ */
+export function findSpawn(
+  player: { x: number; z: number; heading: number },
+  spec: ShipSpec,
+  rng: () => number,
+  others: readonly { x: number; z: number }[],
+): { x: number; z: number; angle: number } | null {
+  for (let k = 0; k < 16; k++) {
+    const angle = k === 0 ? player.heading : rng() * Math.PI * 2;
+    const x = player.x + Math.cos(angle) * SPAWN_DISTANCE;
+    const z = player.z - Math.sin(angle) * SPAWN_DISTANCE;
+    if (terrainHeight(x, z) < -(spec.draft + 8) && others.every((o) => Math.hypot(o.x - x, o.z - z) > SEPARATION * 2)) {
+      return { x, z, angle };
+    }
+  }
+  return null;
 }

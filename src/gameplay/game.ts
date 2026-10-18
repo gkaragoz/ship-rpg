@@ -4,7 +4,7 @@ import type { ShipSpec } from '../ships';
 import { PORTS, getPort, terrainHeight, windAt, type Port } from '../world';
 import { createExploration } from './exploration';
 import { COMBAT, aimZone, ballHits, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball, type Side } from './combat';
-import { MAX_ENEMIES, aiStep, createEnemy, desiredEnemies, lostTrack, pickEnemySpec, type Enemy } from './enemy';
+import { MAX_ENEMIES, aiStep, createEnemy, desiredEnemies, findSpawn, lostTrack, pickEnemySpec, type Enemy } from './enemy';
 import { SAILING, createPlayerShip, maxSpeed, stepPlayerShip } from './sailing';
 
 export interface Game {
@@ -19,8 +19,7 @@ export const DOCK = { range: 80, maxSpeed: 2.5 } as const;
 const START_PORT = 'douwesen';
 /** Start this far off the anchorage, facing open water. */
 const START_OFFSET = 70;
-/** Enemies appear this far from the player; a replacement comes after `RESPAWN` seconds. */
-const SPAWN_DISTANCE = 650;
+/** A replacement comes this many seconds after a kill or an escape. */
 const RESPAWN = 25;
 /** Seconds between one enemy arriving and the next of a group. */
 const STAGGER = 12;
@@ -80,19 +79,12 @@ export function createGame(spec: ShipSpec): Game {
   };
 
   // --- enemies -----------------------------------------------------------------------------
-  /** Place a new enemy in open water about SPAWN_DISTANCE away, preferring the player's heading. */
   const spawnEnemy = (): void => {
     const enemySpec = pickEnemySpec(spec, enemyCounter % MAX_ENEMIES); // a squadron of up to three different types
-    const preferred = ship.heading;
-    for (let k = 0; k < 16; k++) {
-      const angle = k === 0 ? preferred : rng() * Math.PI * 2;
-      const x = ship.x + Math.cos(angle) * SPAWN_DISTANCE;
-      const z = ship.z - Math.sin(angle) * SPAWN_DISTANCE;
-      if (terrainHeight(x, z) < -(enemySpec.draft + 8)) {
-        enemies.push(createEnemy(`e${++enemyCounter}`, enemySpec, x, z, angle + Math.PI, ENEMY_NATIONS[(enemyCounter - 1) % ENEMY_NATIONS.length]));
-        return;
-      }
-    }
+    const at = findSpawn(ship, enemySpec, rng, enemies.filter((e) => e.sinking < 0).map((e) => e.ship));
+    if (!at) return; // no room right now: the caller tries again after STAGGER
+    const nation = ENEMY_NATIONS[enemyCounter % ENEMY_NATIONS.length];
+    enemies.push(createEnemy(`e${++enemyCounter}`, enemySpec, at.x, at.z, at.angle + Math.PI, nation));
   };
 
   const reset = (): void => {
@@ -106,6 +98,7 @@ export function createGame(spec: ShipSpec): Game {
     kills = 0;
     dockedAt = null;
     enemies = [];
+    enemyCounter = 0; // a fresh run starts with the closest match and the first nation again
     balls = [];
     events = [];
     respawnIn = 0;

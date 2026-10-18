@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { createRng, type WindView } from '../src/core';
 import { createGame } from '../src/gameplay';
 import { COMBAT, aimZone, ballHits, cannonsPerSide, fireBroadside, stepBall, targetInZone, type Ball } from '../src/gameplay/combat';
-import { FLEE_HULL, LOSE_RANGE, LOSE_SECONDS, MAX_ENEMIES, aiStep, createEnemy, desiredEnemies, lostTrack, pickEnemySpec } from '../src/gameplay/enemy';
+import { FLEE_HULL, LOSE_RANGE, LOSE_SECONDS, MAX_ENEMIES, SPAWN_DISTANCE, aiStep, createEnemy, desiredEnemies, findSpawn, lostTrack, pickEnemySpec } from '../src/gameplay/enemy';
+import { SHIP_SPECS } from '../src/ships';
+import { terrainHeight } from '../src/world';
 import { getShipSpec } from '../src/ships';
 
 const spec = (id: string) => {
@@ -356,15 +358,18 @@ describe('enemy fleeing and losing track', () => {
   const schooner = spec('schooner');
 
   it('breaks off below the flee threshold and keeps running even if repaired', () => {
+    const atLine = Math.ceil(schooner.stats.hp * 0.7 * FLEE_HULL); // enemy hull is 70% of the listed value
     const e = createEnemy('e', schooner, 0, 0, 0);
-    e.hp = Math.floor(e.maxHp * FLEE_HULL); // 25% is still a fight only above this line
+    expect(e.maxHp * FLEE_HULL).toBeLessThanOrEqual(atLine);
+    e.hp = atLine; // at or just above 25%: still fighting
     aiStep(e, { x: 0, z: -2000 }, northWind);
-    expect(e.fleeing).toBe(e.hp < e.maxHp * FLEE_HULL);
+    expect(e.fleeing).toBe(false);
 
-    e.hp = Math.floor(e.maxHp * FLEE_HULL) - 1;
+    e.hp = atLine - 1; // just below: breaks off
     aiStep(e, { x: 0, z: -2000 }, northWind);
     expect(e.fleeing).toBe(true);
-    e.hp = e.maxHp;
+
+    e.hp = e.maxHp; // repaired: still running
     aiStep(e, { x: 0, z: -2000 }, northWind);
     expect(e.fleeing).toBe(true);
   });
@@ -386,6 +391,7 @@ describe('enemy fleeing and losing track', () => {
     let lost = false;
     for (let i = 0; i < 60 * (LOSE_SECONDS - 1); i++) lost = lostTrack(e, far, 1 / 60);
     expect(lost).toBe(false);
+    expect(e.lostFor).toBeGreaterThan(LOSE_SECONDS - 1.1); // it really was counting
     // Closing back inside the range starts the count over.
     expect(lostTrack(e, LOSE_RANGE - 100, 1 / 60)).toBe(false);
     expect(e.lostFor).toBe(0);
@@ -420,5 +426,53 @@ describe('several enemies', () => {
     expect(Math.abs(crowded.controls.rudder)).toBeGreaterThan(Math.abs(calm.controls.rudder));
     const farAway = aiStep(e, player, { from: Math.PI, speed: 8 }, [{ x: 500, z: 0 }]);
     expect(farAway.controls.rudder).toBe(calm.controls.rudder);
+  });
+});
+
+describe('squadrons for every ship', () => {
+  it.each(SHIP_SPECS.map((p) => [p.id, p] as const))('%s faces three distinct armed ships, closest match first', (_id, player) => {
+    const squad = [0, 1, 2].map((r) => pickEnemySpec(player, r));
+    expect(new Set(squad.map((s) => s.id)).size).toBe(3);
+    for (const s of squad) expect(s.stats.cannons).toBeGreaterThanOrEqual(8);
+    const gap = (s: { stats: { hp: number } }): number => Math.abs(s.stats.hp - player.stats.hp * 0.8);
+    expect(gap(squad[0]!)).toBeLessThanOrEqual(gap(squad[1]!));
+    expect(gap(squad[1]!)).toBeLessThanOrEqual(gap(squad[2]!));
+    const armed = SHIP_SPECS.filter((x) => x.stats.cannons >= 8).length;
+    expect(pickEnemySpec(player, armed).id).toBe(squad[0]!.id); // ranks wrap around the armed list
+  });
+});
+
+describe('findSpawn', () => {
+  const player = { x: 40000, z: 40000, heading: 0.4 }; // open sea, far from every island
+  const rng = createRng(3);
+
+  it('first tries dead ahead, at the spawn distance, in water deep enough', () => {
+    const at = findSpawn(player, spec('schooner'), rng, [])!;
+    expect(at.angle).toBe(player.heading);
+    expect(Math.hypot(at.x - player.x, at.z - player.z)).toBeCloseTo(SPAWN_DISTANCE, 5);
+    expect(terrainHeight(at.x, at.z)).toBeLessThan(-spec('schooner').draft - 8);
+  });
+
+  it('moves to another bearing rather than spawn on top of an enemy already there', () => {
+    const ahead = findSpawn(player, spec('schooner'), createRng(1), [])!;
+    const second = findSpawn(player, spec('schooner'), createRng(1), [{ x: ahead.x + 20, z: ahead.z }])!;
+    expect(second.angle).not.toBe(player.heading);
+    expect(Math.hypot(second.x - ahead.x, second.z - ahead.z)).toBeGreaterThan(100);
+  });
+
+  it('returns null when no water is deep enough for the keel', () => {
+    const impossible = { ...spec('schooner'), draft: 100 }; // deeper than any sea in the world (60 m)
+    expect(findSpawn(player, impossible, createRng(1), [])).toBeNull();
+  });
+});
+
+describe('separation never overrides the wind', () => {
+  it('still bears off the wind when the way away from a neighbour points into it', () => {
+    const e = createEnemy('e', spec('schooner'), 0, 0, 0); // heading east
+    const eastWind: WindView = { from: 0, speed: 8 }; // wind from the east: east is dead into it
+    const player = { x: -3000, z: 0 }; // far to the west
+    // Neighbour 40 m to the west: away from it is east, straight into the wind.
+    const r = aiStep(e, player, eastWind, [{ x: -40, z: 0 }]);
+    expect(Math.abs(r.controls.rudder)).toBeGreaterThan(0.2);
   });
 });

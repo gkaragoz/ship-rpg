@@ -148,7 +148,7 @@ export function createMapUi(host: HTMLElement): MapUi {
       }
     }
 
-    // Enemy ships afloat, as red triangles (radar: shown on the minimap, not the chart).
+    // Enemy ships afloat, as triangles in their flag colour (radar: shown on the minimap, not the chart).
     if (!labels) {
       for (const e of view.enemies) {
         if (e.sinking >= 0) continue;

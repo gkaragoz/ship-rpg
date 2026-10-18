@@ -8,6 +8,6 @@ Public API: `createGame(spec)` → `{ update(dt, controls), view() }`; `view()` 
 - `game.ts` orchestration: ports (nearest, docking range `DOCK`), docking, discovery, start position, firing, balls, enemies, sinking and restart; `view()` drains one-off `events` (fire, splash, hit, sunk) for effects.
 - `exploration.ts` fog of war and nearest-port lookup
 - `combat.ts` broadside ballistics and hit test (`COMBAT` constants, `fireBroadside`, `stepBall`, `ballHits`) and the aim aid: `aimZone` (where a broadside lands, from the same ballistics) and `targetInZone` (is a ship inside it). `hit` events carry `amount`, the hull points taken off.
-- `enemy.ts` enemy ships on the same sailing model driven by `aiStep`; `pickEnemySpec`.
+- `enemy.ts` enemy ships on the same sailing model driven by `aiStep` (hunt, broadside, flee below 25% hull, wind and shoal avoidance, separation); `lostTrack` (gives up after 30 s beyond 1.5 km), `desiredEnemies` (1 + one per 2 kills, max 3), `pickEnemySpec(player, rank)` (a mixed squadron), `findSpawn` (deep water, 650 m away, clear of other enemies). Enemies carry a nation id (see `world/nations.ts`); an `escaped` event marks one that got away or gave up.
 
 Fixed-step only (see `core/loop.ts`); no wall-clock time. Boarding, trade and quests will live here (phase 5b+). Randomness comes from the seeded `core/rng`.
