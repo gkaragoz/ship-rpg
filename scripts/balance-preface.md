@@ -11,7 +11,7 @@ BALANCE_SEEDS=60 npm run balance > docs/BALANCE.md
 | Check | Window |
 |---|---|
 | a bot player against each of its three enemies | wins at least 40%, typically 60–100% |
-| fights left undecided after 420 s | at most 15% |
+| fights left undecided after 420 s | at most 15% in the 60-seed report; the 10-seed test allows 25% (one duel is 10 points) |
 | median time to a decision | 40–260 s (the tables show 60–160 s) |
 | a mirror match (same ship on both sides) | 25–75% for each side (the table shows 42–58%) |
 | enemy speed | at most 1.2× the player's |
@@ -52,6 +52,10 @@ elev        dmg/lb  ehull espread ereload | mirror: s  decisive  hit | bot: win 
 | `CONFIG.giveUpRange/Seconds` | 1500 m / 30 s | 1000 m / 20 s | An enemy is now at most 1.2× faster, so the gap grows slowly; 1.5 km took minutes to open. |
 
 The simulator itself needed fixing before it measured anything: the wind and the AI's tie-breaks favoured whichever side started in the west (a mirror match was 100/0). Each pairing is now fought half and half from each side, with a small random sideways offset, heading and wind phase per seed. A first version of this report also counted a ship that broke off at 25% hull as "undecided", which made fights look far slower than they are; breaking off now counts as a loss, as it is in the game.
+
+## The damage model (slice 5a.3e)
+
+Hit zones, rigging, leaks and fire (`gameplay/damage.ts`) went in after the tuning above, and the duel simulator uses them, so the report below was re-measured with them. The picture barely moved: rigging hits cost the target hull points at 30% of a full hit and slow it, so duels are a little longer and the odds shift a little toward the side that keeps its sails. Only one pairing moved visibly (Lugger against Yacht, rank 1: the bot's win rate fell from 82% to 62% and 13% of duels run out the clock, because a fast ship with torn sails cannot get its broadside to bear). Mirror matches stayed at 45–55%, the escape table is unchanged, and no constant was retuned. The damage constants (`DAMAGE`) were chosen for feel, not fitted to these tables; a human playtest should confirm them.
 
 ## What the bot does not model
 
