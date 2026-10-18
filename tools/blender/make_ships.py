@@ -1,8 +1,8 @@
 """Build GLB ships (3 LODs each) from tools/blender/ships.json into public/models/ships.
 
 Run inside Blender (see docs/BLENDER_PIPELINE.md). The wrapper may set `IDS` (a list of ship ids) in
-the globals it passes to exec(); the default is every ship except the hand-tuned tartane
-(make_tartane.py). Each ship is built in a scratch scope: nothing of the open scene is touched.
+the globals it passes to exec(); the default is all 16 ships (make_tartane.py is the legacy
+hand-tuned tartane, kept as a reference only). Each ship is built in a scratch scope: nothing of the open scene is touched.
 
 Node contract (docs/SHIP_ASSETS.md): `<id>` root > `LOD0|1|2` > `LODn_Body`, `LODn_m<i>_trim-square|aft`
 pivots (sails as children), `LOD0_Glass` (emissive windows and lanterns).
@@ -27,7 +27,6 @@ from shipbuilder import B, LOD_CFG, Mast  # noqa: E402
 REPO = HERE.parents[1]
 OUT = REPO / "public" / "models" / "ships"
 SPECS = {s['id']: s for s in json.loads((HERE / "ships.json").read_text(encoding="utf-8"))}
-HAND_MADE = {"tartane"}
 
 
 def budgets(length):
@@ -160,7 +159,7 @@ def build_ship(spec_id):
     return meta
 
 
-IDS = globals().get("IDS") or [i for i in SPECS if i not in HAND_MADE]
+IDS = globals().get("IDS") or list(SPECS)
 BUILT = {}
 for _id in IDS:
     BUILT[_id] = build_ship(_id)

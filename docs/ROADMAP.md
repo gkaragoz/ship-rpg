@@ -6,7 +6,8 @@
 - [x] 2c. Crew: 6 rigged body types, 3 LODs, Idle/Walk/Run, tintable; wandering on the player's deck; 4 NPC patrol ships with distance LOD (`docs/CREW.md`, `docs/BLENDER_PIPELINE.md`)
 - [x] 2d. All 16 ships as Blender GLBs with 3 LODs, generated through Llama from `ShipSpec` JSON (`tools/blender/shipbuilder.py`); NPC patrols (see 2e)
 - [x] 2e. Hero details on LOD0 (muzzles, rudder, anchors, ratlines, hatch, smooth sails) and a 12-ship NPC fleet
-- [ ] 2f. Per-ship polish (figureheads, boats, stern galleries; tartane parity: regenerate it with smooth sails and ratlines), lazy GLB loading, NPC steering instead of fixed ellipses (patrols can currently overlap)
+- [x] 2g. Quality parity: all 16 ships come from the generic builder with the same LOD0 extras (tartane regenerated; deck seams, plank lines, rivets, barrels, lantern post added to every ship).
+- [ ] 2f. Per-ship polish (figureheads, boats, stern galleries), lazy GLB loading, NPC steering instead of fixed ellipses (patrols can currently overlap)
 - [ ] 3. Ocean + wind + playable ship
 - [ ] 4. Islands, ports, navigation
 - [ ] 5. Combat, trade, RPG layer

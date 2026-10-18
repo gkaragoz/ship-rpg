@@ -411,4 +411,10 @@ def build_glass(mb, s):
             p = (-s['length'] / 2 + size, y, side * half_beam(s, 0) * 0.8)
             first = first or p
             gbox(mb, p, (size, size * 1.4, size), 'dark')
+    else:
+        # no sterncastle: one lantern on the post that shipdetails.build_lantern_pole raises
+        size = max(0.3, s['length'] * 0.01)
+        p = (-s['length'] / 2 + 0.3, deck_height(s, 0) - bulwark(s) + 1.5 + size * 0.85, 0.0)
+        first = p
+        gbox(mb, p, (size * 1.2, size * 1.4, size * 1.2), 'dark')
     return first

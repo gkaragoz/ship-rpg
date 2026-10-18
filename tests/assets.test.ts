@@ -57,74 +57,6 @@ function stats(g: Gltf, root: number): { tris: number; meshes: number; materials
 
 const NAME_OK = /^[A-Za-z0-9_.-]+$/;
 
-describe('tartane.glb (ship contract)', () => {
-  const { gltf: g, bytes } = readGlb('ships/tartane.glb');
-  const spec = getShipSpec('tartane');
-  if (!spec) throw new Error('tartane spec missing');
-  const budgets = [2000, 450, 130];
-
-  it('has a root and three LOD groups with no-dot, no-space names', () => {
-    expect(find(g, 'tartane')).toBeGreaterThanOrEqual(0);
-    for (const n of g.nodes) expect(n.name ?? '', n.name).toMatch(NAME_OK);
-    for (const l of [0, 1, 2]) {
-      const i = find(g, `LOD${l}`);
-      expect(i, `LOD${l}`).toBeGreaterThanOrEqual(0);
-      expect(g.nodes[i]?.children?.length).toBeGreaterThan(0);
-    }
-  });
-
-  it('keeps every LOD inside its triangle and draw-call budget, strictly decreasing', () => {
-    const tris = [0, 1, 2].map((l) => stats(g, find(g, `LOD${l}`)));
-    tris.forEach((s, l) => {
-      expect(s.tris, `LOD${l} tris`).toBeLessThanOrEqual(budgets[l] ?? 0);
-      expect(s.tris).toBeGreaterThan(0);
-      expect(s.meshes, `LOD${l} meshes`).toBeLessThanOrEqual(l === 0 ? 4 : 2);
-    });
-    expect(tris[0]?.tris).toBeGreaterThan(tris[1]?.tris ?? 0);
-    expect(tris[1]?.tris).toBeGreaterThan(tris[2]?.tris ?? 0);
-  });
-
-  it('uses at most two materials (shared atlas + emissive lantern) and one image', () => {
-    expect(g.materials.length).toBeLessThanOrEqual(2);
-    expect(g.images?.length).toBe(1);
-    expect(g.materials.filter((m) => m.emissiveFactor)).toHaveLength(1);
-  });
-
-  it('has a sail pivot per LOD that carries the sail mesh', () => {
-    for (const l of [0, 1, 2]) {
-      const p = find(g, `LOD${l}_trim-aft`);
-      expect(p, `LOD${l}_trim-aft`).toBeGreaterThanOrEqual(0);
-      expect(stats(g, p).meshes).toBeGreaterThanOrEqual(1);
-      expect(g.nodes[p]?.translation?.[0]).toBeCloseTo(0.96, 2); // on the mast axis
-    }
-  });
-
-  it('matches the spec dimensions (length incl. bowsprit/rudder, beam)', () => {
-    const lo = [Infinity, Infinity, Infinity];
-    const hi = [-Infinity, -Infinity, -Infinity];
-    const root = stats(g, find(g, 'LOD0'));
-    expect(root.meshes).toBeGreaterThan(0);
-    for (const n of g.nodes) {
-      if (n.mesh === undefined || !(n.name ?? '').startsWith('LOD0_Body')) continue;
-      for (const p of g.meshes[n.mesh]?.primitives ?? []) {
-        const a = g.accessors[p.attributes.POSITION ?? -1];
-        a?.min?.forEach((v, k) => (lo[k] = Math.min(lo[k] ?? v, v)));
-        a?.max?.forEach((v, k) => (hi[k] = Math.max(hi[k] ?? v, v)));
-      }
-    }
-    const length = (hi[0] ?? 0) - (lo[0] ?? 0);
-    const beam = (hi[2] ?? 0) - (lo[2] ?? 0);
-    expect(length).toBeGreaterThanOrEqual(spec.length);
-    expect(length).toBeLessThanOrEqual(spec.length * 1.3);
-    expect(beam).toBeCloseTo(spec.beam, 0);
-    expect(lo[1] ?? 0).toBeLessThan(0); // keel below the waterline
-  });
-
-  it('stays small', () => {
-    expect(bytes).toBeLessThan(300_000);
-  });
-});
-
 interface ShipMeta {
   id: string;
   length: number;
@@ -133,30 +65,6 @@ interface ShipMeta {
   deck: { columns: string[]; stations: number[][] };
   obstacles: { type: string; x?: number; z?: number; r?: number; x0?: number; x1?: number; z0?: number; z1?: number }[];
 }
-
-describe('tartane.meta.json', () => {
-  const meta = readJson<ShipMeta>('ships/tartane.meta.json');
-  const { gltf: g } = readGlb('ships/tartane.glb');
-
-  it('reports the same triangle counts as the GLB', () => {
-    for (const l of [0, 1, 2]) {
-      expect(meta.lods[`LOD${l}`]?.tris).toBe(stats(g, find(g, `LOD${l}`)).tris);
-    }
-  });
-
-  it('has an ordered deck profile and sane obstacles', () => {
-    expect(meta.deck.columns).toEqual(['x', 'y', 'halfWidth']);
-    const xs = meta.deck.stations.map((s) => s[0] ?? 0);
-    expect(xs).toEqual([...xs].sort((a, b) => a - b));
-    for (const s of meta.deck.stations) {
-      expect(s[1]).toBeGreaterThan(0.5);
-      expect(s[2]).toBeGreaterThanOrEqual(0); // 0 at the bow tip: too narrow to stand
-    }
-    expect(Math.max(...meta.deck.stations.map((s) => s[2] ?? 0))).toBeGreaterThan(1.5);
-    expect(meta.obstacles.length).toBeGreaterThan(3);
-    expect(meta.trimPivot[0]).toBeCloseTo(0.96, 2);
-  });
-});
 
 describe('crew GLBs', () => {
   const variants = ['Male_Standard', 'Male_Broad', 'Male_Stout', 'Female_Standard', 'Female_Sturdy', 'Female_Stout'];
@@ -214,7 +122,7 @@ function fnv1a(text: string): string {
   return h.toString(16).padStart(8, '0');
 }
 
-describe.each(SHIP_SPECS.filter((s) => s.id !== 'tartane').map((s) => s.id))('%s (generic ship builder)', (id) => {
+describe.each(SHIP_SPECS.map((s) => s.id))('%s (generic ship builder)', (id) => {
   const spec = getShipSpec(id);
   if (!spec) throw new Error(`no spec for ${id}`);
   const { gltf: g, bytes } = readGlb(`ships/${id}.glb`);
@@ -278,7 +186,10 @@ describe.each(SHIP_SPECS.filter((s) => s.id !== 'tartane').map((s) => s.id))('%s
       expect(s[1]).toBeGreaterThan(0.3);
       expect(s[2]).toBeGreaterThanOrEqual(0);
     }
-    expect(meta.obstacles.filter((o) => o.type === 'circle')).toHaveLength(spec.masts.length);
+    // one per mast plus up to three cargo barrels (full-quality extras)
+    const circles = meta.obstacles.filter((o) => o.type === 'circle').length;
+    expect(circles).toBeGreaterThanOrEqual(spec.masts.length);
+    expect(circles).toBeLessThanOrEqual(spec.masts.length + 3);
     // one rect per castle plus the hatch coaming added to the full-quality model (needs a mast to place it)
     const hatch = spec.masts.length > 0 ? 1 : 0;
     expect(meta.obstacles.filter((o) => o.type === 'rect')).toHaveLength((spec.forecastle ? 1 : 0) + (spec.sterncastle ? 1 : 0) + hatch);
@@ -304,6 +215,6 @@ describe.each(SHIP_SPECS.filter((s) => s.id !== 'tartane').map((s) => s.id))('%s
   });
 
   it('stays small enough to load quickly', () => {
-    expect(bytes).toBeLessThan(450_000);
+    expect(bytes).toBeLessThan(500_000);
   });
 });
