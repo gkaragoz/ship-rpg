@@ -61,7 +61,17 @@ export interface AimZoneView {
   spread: number;
 }
 
-export interface ShipView extends Condition {
+/** How a hull rides the waves: the game's spring model (`gameplay/buoyancy.ts`), which render only draws. */
+export interface Attitude {
+  /** Height of the hull above the mean sea level (m). */
+  heave: number;
+  /** Bow-up positive, radians. */
+  pitch: number;
+  /** Roll the waves give the hull, radians; subtract it from the wind's heel (to starboard positive) when drawing. */
+  waveRoll: number;
+}
+
+export interface ShipView extends Condition, Attitude {
   x: number;
   z: number;
   heading: number;
@@ -90,7 +100,7 @@ export interface ShipView extends Condition {
   inRange: { port: boolean; starboard: boolean };
 }
 
-export interface EnemyView extends Condition {
+export interface EnemyView extends Condition, Attitude {
   id: string;
   specId: string;
   name: string;
@@ -192,7 +202,7 @@ export interface GameView {
   time: number;
   ship: ShipView;
   wind: WindView;
-  /** How rough the sea is, 0 (glassy) … 1 (storm): drives the waves, the sky and how the ships handle. */
+  /** How rough the sea is, 0 (glassy) … 1 (storm): drives the waves, the sky, the ships' motion and how they handle. */
   seaState: number;
   /** Ambient ships sailing their patrols (distinct from `enemies`, which fight). */
   others: OtherShipView[];

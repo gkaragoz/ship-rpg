@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import type { Attitude } from '../core';
 import { waveHeight } from './waves';
 
-export interface RideState {
+export interface RideState extends Partial<Attitude> {
   x: number;
   z: number;
   heading: number;
@@ -13,7 +14,8 @@ const euler = new THREE.Euler(0, 0, 0, 'YZX');
 
 /**
  * Float a ship model on the waves: height from the mean of four samples (bow, stern, both
- * sides), pitch and roll from their slopes. `detail = false` (distant ships) takes one sample
+ * sides), pitch and roll from their slopes. A ship the game simulates (`heave`, `pitch` and `waveRoll` in its view)
+ * is drawn with that motion instead. `detail = false` (distant ships) takes one sample
  * and skips pitch/roll, which are not visible at that range.
  */
 export function rideWaves(
@@ -27,6 +29,13 @@ export function rideWaves(
   /** 0…1: a sinking ship pitches bow-up, lists and settles by this fraction of its length. */
   sink = 0,
 ): void {
+  if (s.heave !== undefined && s.pitch !== undefined && s.waveRoll !== undefined) {
+    // the game's spring model (gameplay/buoyancy.ts): heave, pitch and the roll the waves give
+    euler.set(s.roll - s.waveRoll + sink * 0.6, s.heading, s.pitch - sink * 0.35);
+    model.position.set(s.x, s.heave - sink * dims.length * 0.45, s.z);
+    model.setRotationFromEuler(euler);
+    return;
+  }
   const sample = (dx: number, dz: number): number => waveHeight(s.x + dx, s.z + dz, time, windFrom, ampScale);
   if (!detail) {
     model.position.set(s.x, sample(0, 0), s.z);

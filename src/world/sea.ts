@@ -122,14 +122,14 @@ const GALE_WIND = 14;
 
 /**
  * How rough the sea is, 0 (glassy) … 1 (storm). A pure function of game time and wind speed: the wind
- * builds it, and a slow, rare "storm cell" (about every 12 to 30 minutes, lasting a few) piles more on.
+ * builds it, and a slow, rare "storm cell" piles more on: the first comes after about 17 minutes of play, and storms then make up roughly a tenth of the time.
  */
 export function seaStateAt(time: number, windSpeed: number): number {
   const wind = clamp((windSpeed - CALM_WIND) / (GALE_WIND - CALM_WIND), 0, 1);
-  const a = 0.5 + 0.5 * Math.sin((time * 2 * Math.PI) / 760 + 0.8);
-  const b = 0.5 + 0.5 * Math.sin((time * 2 * Math.PI) / 1930 + 2.1);
+  const a = 0.5 + 0.5 * Math.sin((time * 2 * Math.PI) / 760 - 1.9);
+  const b = 0.5 + 0.5 * Math.sin((time * 2 * Math.PI) / 1930 - 1.9);
   const storm = smoothstep(0.55, 0.93, 0.55 * a + 0.45 * b);
-  return clamp(wind * 0.8 + storm * 0.55, 0, 1);
+  return clamp(wind * 0.65 + storm * 0.6, 0, 1);
 }
 
 /** Amplitude scale of the waves for a sea state: ≈ 0.5 in a calm, 1 in a fresh breeze, 2.6 in a storm. */

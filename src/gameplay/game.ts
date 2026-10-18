@@ -1,15 +1,17 @@
 import { CONFIG, createRng } from '../core';
-import type { BallView, Controls, GameEvent, GameView, PortView } from '../core';
+import type { Controls, GameEvent, GameView } from '../core';
 import { getDeck, type ShipSpec } from '../ships';
 import { PORTS, getPort, seaStateAt, terrainHeight, windAt, type Port } from '../world';
 import { createExploration } from './exploration';
 import { COMBAT, ballHitZone, cannonsPerSide, fireBroadside, stepBall, type Ball, type Side } from './combat';
 import { stepAffliction, strike } from './damage';
-import { enemyView, playerView } from './enemyView';
+import { ballViews, enemyView, playerView, portView } from './enemyView';
 import { MAX_ENEMIES, aiStep, createEnemy, desiredEnemies, findSpawn, lostTrack, pickEnemySpec, type Enemy } from './enemy';
+import { gunScatter, seaEffects, stepBody } from './buoyancy';
 import { createCrew, crewCountFor } from './crew';
+import { createDevHooks } from './devHooks';
 import { createNpcFleet } from './npcShips';
-import { createPlayerShip, stepPlayerShip } from './sailing';
+import { createPlayerShip, stepPlayerShip, type PlayerShip } from './sailing';
 
 export interface Game {
   readonly spec: ShipSpec;
@@ -71,6 +73,7 @@ export function createGame(spec: ShipSpec): Game {
   let time = 0;
   let wind = windAt(time);
   let seaOverride: number | null = null;
+  let sea = seaOverride ?? seaStateAt(time, wind.speed); // how rough the sea is this step
   const deck = getDeck(spec.id); // only ships with a walkable GLB deck carry a visible crew
   const crew = deck ? createCrew(deck, crewCountFor(spec.length)) : null;
   const npcs = createNpcFleet({ x: ship.x, z: ship.z }); // patrols around the start, on open water
@@ -129,8 +132,10 @@ export function createGame(spec: ShipSpec): Game {
   };
 
   // --- combat ------------------------------------------------------------------------------
-  const fire = (owner: 'player' | 'enemy', hull: { x: number; z: number; heading: number; speed: number }, s: ShipSpec, side: Side): void => {
-    const shot = fireBroadside(owner, hull, s, side, rng, () => ++ballCounter);
+  const fire = (owner: 'player' | 'enemy', hull: PlayerShip, s: ShipSpec, side: Side): void => {
+    // A hull rolling in a rough sea shoots wider.
+    const spread = (owner === 'enemy' ? COMBAT.enemySpread : 1) * gunScatter(hull.body, sea);
+    const shot = fireBroadside(owner, hull, s, side, rng, () => ++ballCounter, spread);
     balls.push(...shot.balls);
     events.push(...shot.events);
   };
@@ -195,7 +200,8 @@ export function createGame(spec: ShipSpec): Game {
         continue;
       }
       const ai = aiStep(e, ship, wind, enemies.filter((o) => o !== e && o.sinking < 0).map((o) => o.ship));
-      stepPlayerShip(e.ship, e.spec, wind, ai.controls, dt);
+      stepPlayerShip(e.ship, e.spec, wind, ai.controls, dt, seaEffects(e.spec, e.ship.heading, wind.from, sea));
+      stepBody(e.ship.body, e.ship, e.spec, time, wind.from, sea, dt);
       e.hp = Math.max(0, e.hp - stepAffliction(e.ship, e.maxHp, false, dt));
       checkEnemySunk(e);
       if (e.sinking >= 0) continue;
@@ -226,35 +232,21 @@ export function createGame(spec: ShipSpec): Game {
 
   return {
     spec,
-    dev: {
-      damageEnemies(fraction): void {
-        for (const e of enemies) if (e.sinking < 0) e.hp = Math.max(1, Math.round(e.maxHp * fraction));
-      },
-      teleportPlayer(x, z): void {
-        ship.x = x;
-        ship.z = z;
-        explore.discover();
-      },
-      setKills(n): void {
-        kills = n;
-      },
-      setRigging(fraction): void {
-        ship.rigging = Math.min(Math.max(fraction, 0), 1);
-      },
-      setSea(state): void {
-        seaOverride = state === null ? null : Math.min(Math.max(state, 0), 1);
-      },
-      setAffliction(flooding, fire): void {
-        ship.flooding = Math.min(Math.max(flooding, 0), 1);
-        ship.fire = Math.min(Math.max(fire, 0), 1);
-      },
-    },
+    dev: createDevHooks({
+      ship: () => ship,
+      enemies: () => enemies,
+      setKills: (n) => (kills = n),
+      setSea: (state) => (seaOverride = state),
+      discover: () => explore.discover(),
+    }),
     update(dt, controls): void {
       time += dt;
       wind = windAt(time);
+      sea = seaOverride ?? seaStateAt(time, wind.speed);
       if (sunk) {
         sinkTime += dt;
         ship.speed *= 1 - 0.4 * dt;
+        stepBody(ship.body, ship, spec, time, wind.from, sea, dt);
         stepBalls(dt);
         // A restart asked for during the first moments of sinking is honoured once the screen shows.
         if (controls.restart) restartAsked = true;
@@ -262,7 +254,8 @@ export function createGame(spec: ShipSpec): Game {
         return;
       }
       if (controls.interact) toggleDock();
-      stepPlayerShip(ship, spec, wind, controls, dt);
+      stepPlayerShip(ship, spec, wind, controls, dt, seaEffects(spec, ship.heading, wind.from, sea));
+      stepBody(ship.body, ship, spec, time, wind.from, sea, dt, !!dockedAt);
       crew?.update(dt);
       npcs.update(dt);
 
@@ -284,22 +277,15 @@ export function createGame(spec: ShipSpec): Game {
 
     view(): GameView {
       const n = nearest();
-      const nearestPort: PortView | null = n && {
-        id: n.port.id,
-        name: n.port.name,
-        distance: n.distance,
-        direction: Math.atan2(-(n.port.anchor.z - ship.z), n.port.anchor.x - ship.x),
-        dockable: !dockedAt && canDock(n.distance),
-      };
+      const nearestPort = n && portView(n, ship, !dockedAt && canDock(n.distance));
       const enemyViews = enemies.map((e) => enemyView(e, ship));
-      const ballViews: BallView[] = balls.map((b) => ({ id: b.id, owner: b.owner, x: b.x, y: b.y, z: b.z }));
       const afloat = enemies.filter((e) => e.sinking < 0);
       const drained = events;
       events = [];
       return {
         time,
         wind,
-        seaState: seaOverride ?? seaStateAt(time, wind.speed),
+        seaState: sea,
         others: npcs.view(),
         crew: crew?.view() ?? [],
         ship: playerView(ship, spec, { hp, maxHp, reload }, afloat),
@@ -309,7 +295,7 @@ export function createGame(spec: ShipSpec): Game {
         discoveredIslands: explore.islands(),
         discoveredPorts: explore.ports(),
         enemies: enemyViews,
-        balls: ballViews,
+        balls: ballViews(balls),
         events: drained,
         sunk,
         sinkTime,

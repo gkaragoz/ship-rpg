@@ -172,7 +172,7 @@ export function startSailingMode(host: HTMLElement, spec: ShipSpec, onExit: () =
       map.update(v);
       portPanel.update(v);
       audio.play(v.events, v.ship);
-      audio.ambience(v.wind.speed, v.ship.speed);
+      audio.ambience(v.wind.speed + 6 * v.seaState, v.ship.speed); // a rough sea is louder than the wind alone
       audio.condition(v.ship);
       if (perf) {
         frames++;

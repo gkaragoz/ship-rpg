@@ -125,7 +125,7 @@ export function createSailingView(host: HTMLElement, quality: QualityName = 'med
   /** Put a ship on the waves under it, heeling with `roll` and sinking by `sinkTime` (−1 = afloat). */
   const place = (
     actor: Actor,
-    st: { x: number; z: number; heading: number; roll: number },
+    st: { x: number; z: number; heading: number; roll: number; heave: number; pitch: number; waveRoll: number },
     sinkTime: number,
     time: number,
     windFrom: number,

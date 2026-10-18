@@ -1,4 +1,6 @@
-import type { EnemyView, ShipView } from '../core';
+import type { BallView, EnemyView, PortView, ShipView } from '../core';
+import type { Port } from '../world';
+import type { Ball } from './combat';
 import type { ShipSpec } from '../ships';
 import { COMBAT, aimZone, cannonsPerSide, targetInZone } from './combat';
 import type { Enemy } from './enemy';
@@ -16,6 +18,9 @@ export function enemyView(e: Enemy, from: PlayerShip): EnemyView {
     heading: e.ship.heading,
     speed: e.ship.speed,
     roll: e.ship.roll,
+    heave: e.ship.body.heave,
+    pitch: e.ship.body.pitch,
+    waveRoll: e.ship.body.waveRoll,
     sailLevel: e.ship.sailLevel,
     hp: e.hp,
     maxHp: e.maxHp,
@@ -49,6 +54,9 @@ export function playerView(
     sailTarget: ship.sailTarget,
     efficiency: ship.efficiency,
     roll: ship.roll,
+    heave: ship.body.heave,
+    pitch: ship.body.pitch,
+    waveRoll: ship.body.waveRoll,
     hp: state.hp,
     maxHp: state.maxHp,
     rigging: ship.rigging,
@@ -63,3 +71,16 @@ export function playerView(
     reload: { port: state.reload.port / COMBAT.playerReload, starboard: state.reload.starboard / COMBAT.playerReload },
   };
 }
+
+/** The closest port as the HUD sees it, from the player's ship. */
+export function portView(n: { port: Port; distance: number }, from: PlayerShip, dockable: boolean): PortView {
+  return {
+    id: n.port.id,
+    name: n.port.name,
+    distance: n.distance,
+    direction: Math.atan2(-(n.port.anchor.z - from.z), n.port.anchor.x - from.x),
+    dockable,
+  };
+}
+
+export const ballViews = (balls: readonly Ball[]): BallView[] => balls.map((b) => ({ id: b.id, owner: b.owner, x: b.x, y: b.y, z: b.z }));
