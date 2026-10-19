@@ -1,7 +1,8 @@
 import type { CommandResult, MarketLineView, PortCommand, PortServicesView } from '../core';
 import { questsView, runQuestCommand } from './quests';
 import type { ShipSpec } from '../ships';
-import { GOODS, TRADE, getGood, portMultiplier } from '../world';
+import { GOODS, TRADE, getGood, getPort, portMultiplier } from '../world';
+import { priceFactor } from './reputation';
 import { shipyardView } from './shipyard';
 import { holdUsed, type GameState } from './state';
 
@@ -23,7 +24,7 @@ export function tradePrice(st: GameState, portId: string, goodId: string, qty: n
   const sign = side === 'buy' ? 1 : -1;
   const avg = 1 + p + (sign * qty) / (2 * TRADE.depth); // the mean of the price before and after the trade
   const mid = (getGood(goodId)?.base ?? 0) * portMultiplier(portId, goodId) * Math.max(0.1, avg);
-  return mid * (1 + sign * TRADE.spread);
+  return mid * (1 + sign * TRADE.spread) * priceFactor(st, getPort(portId), side);
 }
 
 const clampPressure = (p: number): number => Math.min(TRADE.pressureMax, Math.max(TRADE.pressureMin, p));

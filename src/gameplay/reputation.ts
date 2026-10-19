@@ -17,6 +17,9 @@ export const REP = {
   fadeEvery: 300,
 } as const;
 
+/** How standing moves a navy port's prices: friends are treated better, a hated captain pays more and is paid less. */
+export const PRICE = { friend: 40, buyFriend: 0.95, sellFriend: 1.02, buyHostile: 1.1, sellHostile: 0.95 } as const;
+
 /** The captain's standing with a nation, -100 … 100. */
 export const standing = (st: GameState, nation: string): number => st.reputation[nation] ?? 0;
 
@@ -64,3 +67,12 @@ export function fadeStanding(st: GameState, clock: { t: number }, dt: number): v
 
 /** Whether two flags are at war, re-exported for the rules that need only that. */
 export { atWar };
+
+/** The factor on what a port pays or charges for goods, from the captain's standing with its nation (pirate and free ports: 1). */
+export function priceFactor(st: GameState, port: Pick<Port, 'nation'> | undefined, side: 'buy' | 'sell'): number {
+  if (!port || !(NAVIES as readonly string[]).includes(port.nation)) return 1;
+  const v = standing(st, port.nation);
+  if (v >= PRICE.friend) return side === 'buy' ? PRICE.buyFriend : PRICE.sellFriend;
+  if (v <= REP.hostile) return side === 'buy' ? PRICE.buyHostile : PRICE.sellHostile;
+  return 1;
+}

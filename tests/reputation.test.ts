@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createGame } from '../src/gameplay';
-import { REP, addStanding, enemyNationFor, fadeStanding, portClosed, recordKill, standing } from '../src/gameplay/reputation';
+import { tradePrice } from '../src/gameplay/harbour';
+import { PRICE, REP, addStanding, enemyNationFor, fadeStanding, portClosed, recordKill, standing } from '../src/gameplay/reputation';
 import { parseSave, sanitizeState, serializeSave } from '../src/gameplay/save';
 import { newGameState } from '../src/gameplay/state';
 import { NAVIES, NATIONS, PORTS, REPUTATION, START_REPUTATION, atWar, enemiesOf } from '../src/world';
@@ -138,5 +139,35 @@ describe('standing in a save', () => {
     expect(dirty?.reputation.dutch).toBe(START_REPUTATION.dutch);
     expect(dirty?.reputation.martian).toBeUndefined();
     expect(sanitizeState({ ...st, reputation: 'nonsense' })?.reputation).toEqual(START_REPUTATION);
+  });
+});
+
+describe('standing moves prices', () => {
+  const dutch = PORTS.find((p) => p.nation === 'dutch')!;
+  const pirate = PORTS.find((p) => p.nation === 'pirate')!;
+
+  it('treats a friend better and a hated captain worse in a navy port, and nobody differently in a pirate port', () => {
+    const st = fresh();
+    const base = (side: 'buy' | 'sell') => tradePrice(st, dutch.id, 'rum', 1, side, 0);
+    const neutral = { buy: base('buy'), sell: base('sell') };
+    st.reputation.dutch = PRICE.friend;
+    expect(base('buy')).toBeCloseTo(neutral.buy * PRICE.buyFriend, 6);
+    expect(base('sell')).toBeCloseTo(neutral.sell * PRICE.sellFriend, 6);
+    st.reputation.dutch = REP.hostile;
+    expect(base('buy')).toBeCloseTo(neutral.buy * PRICE.buyHostile, 6);
+    expect(base('sell')).toBeCloseTo(neutral.sell * PRICE.sellHostile, 6);
+    const pirates = tradePrice(st, pirate.id, 'rum', 1, 'buy', 0);
+    st.reputation.pirate = -90;
+    expect(tradePrice(st, pirate.id, 'rum', 1, 'buy', 0)).toBe(pirates);
+  });
+
+  it('never lets a round trip in one port make money, whatever the standing', () => {
+    const st = fresh();
+    for (const v of [-45, -20, 0, 39, 40, 100]) {
+      st.reputation.dutch = v;
+      const buy = tradePrice(st, dutch.id, 'silk', 1, 'buy', 0);
+      const sell = tradePrice(st, dutch.id, 'silk', 1, 'sell', 0);
+      expect(sell, `standing ${v}`).toBeLessThan(buy);
+    }
   });
 });

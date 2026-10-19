@@ -13,6 +13,9 @@ Each port multiplies the base price of a few goods: **produced** goods cost 0.82
 - **Pressure** keeps the market honest: every unit bought raises the good's price in that port by `1/20 000`, every unit sold lowers it (clamped to −50 %…+100 %), and it fades by half every 600 game seconds. A lot is priced at the mean of the price before and after it, so a full galleon hold moves a single good by ~10 %. State per port and good is `{ p, t }` in `GameState.market`; prices are computed on demand from it and the game time (nothing runs per frame, and a save is just that JSON).
 - The best run of one full hold of a single good between a port that makes it and one that wants it earns about 26 % (Tartane), 22 % (Sloop), 17 % (Brig), 4 % (Galleon) and loses a little for a Battleship: the big hulls saturate the market, so they split the hold across goods (`tests/trade.test.ts` pins 15–35 % for the Tartane…Brig and a floor for the rest, with two goods sharing the hold). Neighbouring ports are a minute or two of sailing apart.
 
+## Standing
+A navy port's prices follow the captain's standing with its nation (`PRICE` in `gameplay/reputation.ts`: friends -5% on what they buy, +2% on what they sell; hunted captains +10% and -5%); see `GAME_DESIGN.md`.
+
 ## Crew
 The tavern signs on sailors at 10 gold each, up to the ship's `stats.crew` (asking for more signs on as many as fit), and discharges them (the last sailor stays). Crew speeds up the guns (`GAME_DESIGN.md`), so hiring after a fight is how a battered ship gets back to its full rate of fire.
 
