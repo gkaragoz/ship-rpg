@@ -26,6 +26,8 @@ export interface GalleryView {
   setHour(hour: number): void;
   /** Show these sailors on the ship (dev: `?pose=` in the gallery); null removes them. */
   setCrew(views: readonly CrewView[] | null): void;
+  /** Dev: look closely at the deck from `distance` metres (the ship's centre, 2 m up). */
+  closeUp(distance: number): void;
   /** Camera orbit and zoom speed, 1 is the default. */
   setCameraSensitivity(factor: number): void;
   /** Apply the graphics settings: the same as at sea. */
@@ -144,6 +146,16 @@ export function createGalleryView(host: HTMLElement, getInsets: () => Insets, gr
         crew = createCrewRenderer();
         if (subject) crew?.attach(subject);
       }
+    },
+    closeUp(distance): void {
+      if (!subject) return;
+      const box = new THREE.Box3().setFromObject(subject);
+      const c = box.getCenter(new THREE.Vector3());
+      c.y = box.min.y + 3;
+      controls.minDistance = 1;
+      controls.target.copy(c);
+      camera.position.copy(c).add(new THREE.Vector3(0.3, 0.5, 1).normalize().multiplyScalar(distance));
+      controls.update();
     },
     setCameraSensitivity(factor): void {
       controls.rotateSpeed = factor;

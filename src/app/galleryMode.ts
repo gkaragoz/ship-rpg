@@ -39,6 +39,8 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
 
   // ?ensign=english|french|spanish|dutch|pirate|free shows that nation's flag on the gallery ship
   const ensign = new URLSearchParams(window.location.search).get('ensign') ?? 'free';
+  // ?closeup=metres: the camera close to the deck (with ?pose=, to check a pose)
+  const closeUp = Number(new URLSearchParams(window.location.search).get('closeup') ?? 0);
   let current: Ship | null = null;
   const ui = createGalleryUI(host, ORDERED.map(toItem), {
     onSelect(id) {
@@ -48,6 +50,7 @@ export function startGalleryMode(host: HTMLElement, selectedId: string | undefin
       current?.dispose();
       current = createShip(spec, { ensign });
       view.setSubject(current.root);
+      if (closeUp > 0) view.closeUp(closeUp);
     },
     onAutoRotate: (on) => view.setAutoRotate(on),
     onSail(id) {
