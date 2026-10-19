@@ -19,6 +19,7 @@ import { crewLayout } from './crewLayout';
 import { createShipCrews } from './shipCrews';
 import { shipViews } from './shipViews';
 import { createMerchantBook, plunderMerchant } from './merchants';
+import { saveBall } from './seaState';
 import { createDevHooks } from './devHooks';
 import { createNpcFleet } from './npcShips';
 import { createWeatherState } from './weatherState';
@@ -237,6 +238,11 @@ export function createGame(init: ShipSpec | GameState): Game {
   dockedAt = restoreShip(ship, st);
   if (dockedAt) fleet.moor(time);
   if (dockedAt) st.crew = Math.max(st.crew, Math.ceil(spec.stats.crew * COMPANY.volunteers)); // a port finds crew for a ship loaded moored, too
+  if (!dockedAt && st.sea) {
+    // a game saved at sea goes on where it was: the same enemies, the same balls in flight
+    director.restore(st.sea);
+    balls = st.sea.balls.map((b) => ({ ...b, id: ++ballCounter }));
+  }
   explore.discover();
 
   return {
@@ -252,7 +258,11 @@ export function createGame(init: ShipSpec | GameState): Game {
     },
     state(): GameState {
       fleet.sync();
-      return snapshot(st, { spec, hp, ship, dockedAt: dockedAt?.id ?? null, islands: explore.islands(), ports: explore.ports(), time });
+      const saved = snapshot(st, { spec, hp, ship, dockedAt: dockedAt?.id ?? null, islands: explore.islands(), ports: explore.ports(), time });
+      // at sea the enemies and the balls in the air go with it; moored, a fresh enemy is met on casting off
+      if (!dockedAt && !sunk) saved.sea = { ...director.save(), balls: balls.slice(0, 64).map(saveBall) };
+      else delete saved.sea;
+      return saved;
     },
     dev: createDevHooks({
       ship: () => ship,

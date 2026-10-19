@@ -1,6 +1,7 @@
 import { PORTS, START_REPUTATION, getPort } from '../world';
 import type { ShipSpec } from '../ships';
 import type { Quest } from './quests';
+import type { SeaState } from './seaState';
 
 /**
  * Everything about a run that must survive a ship swap or a save: plain data, no functions or Maps,
@@ -39,6 +40,8 @@ export interface GameState {
   fleet: FleetEntry[];
   /** Game second the fleet's upkeep was last paid (at the last port). */
   upkeepAt: number;
+  /** The enemies afloat and the balls in the air when the game was saved at sea (absent when it was saved moored). */
+  sea?: SeaState;
   /** Game seconds: the clock and the weather are pure functions of it. */
   time: number;
 }

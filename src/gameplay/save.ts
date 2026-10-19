@@ -2,6 +2,7 @@ import { getShipSpec } from '../ships';
 import { GOODS, ISLANDS, PORTS, REPUTATION, REPUTATION_NATIONS, START_REPUTATION, TRADE, WORLD_BOUNDS, getPort } from '../world';
 import { MAX_CONSORTS, holdUsed, type FleetEntry, type GameState } from './state';
 import { sanitizeQuests } from './questSave';
+import { sanitizeSea } from './seaState';
 
 /** The bit of `Storage` the save needs (injectable for tests). */
 export interface StorageLike {
@@ -15,7 +16,7 @@ export interface StorageLike {
  * run's state. When `GameState` gains fields, bump `SAVE_VERSION` and add the step from the old version to `MIGRATIONS`;
  * `sanitizeState` fills in anything missing, so additive fields need a migration only when old values must be converted.
  */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 export interface SaveData {
   version: number;
   savedAt: string;
@@ -25,6 +26,8 @@ export interface SaveData {
 /** Steps from version `n` to `n + 1`, applied in order to the raw JSON. */
 export type Migration = (raw: Record<string, unknown>) => Record<string, unknown>;
 export const MIGRATIONS: Readonly<Record<number, Migration>> = {
+  // 4 -> 5: what is at sea (enemies, balls) is saved too; an old save has none and meets a fresh enemy.
+  4: (raw) => ({ ...raw, version: 5 }),
   // 3 -> 4: errands. An old run carries none.
   3: (raw) => {
     const state = isRecord(raw.state) ? raw.state : {};
@@ -132,6 +135,7 @@ export function sanitizeState(raw: unknown): GameState | null {
     market,
     reputation,
     quests: sanitizeQuests(raw.quests),
+    sea: sanitizeSea(raw.sea),
     questLog: Array.isArray(raw.questLog) ? raw.questLog.filter((x): x is string => typeof x === 'string' && x.length < 60).slice(-60) : [],
     fleet,
     upkeepAt: num(raw.upkeepAt, 0, 0, 1e9),

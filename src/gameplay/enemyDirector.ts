@@ -7,6 +7,7 @@ import { awardXp, killXp } from './plunder';
 import { questKill } from './quests';
 import { enemyNationFor, recordKill } from './reputation';
 import type { PlayerShip } from './sailing';
+import { restoreEnemy, saveEnemy, type SavedEnemy } from './seaState';
 import type { GameState } from './state';
 import { RESPAWN, STAGGER } from './tuning';
 
@@ -43,6 +44,10 @@ export interface EnemyDirector {
   /** A prize was taken into the fleet instead of being sunk: the same bookkeeping without the sinking. */
   takePrize(e: Enemy): void;
   step(dt: number): void;
+  /** The enemies afloat, for a save. */
+  save(): { enemies: SavedEnemy[]; counter: number; threat: number };
+  /** Put a saved sea back: the enemies replace the ones there. */
+  restore(sea: { enemies: readonly SavedEnemy[]; counter: number; threat: number }): void;
 }
 
 /** The enemies of a run: their spawning in squads, their orders, their fire, their sinking and the bookkeeping of a kill. */
@@ -94,6 +99,17 @@ export function createEnemyDirector(d: EnemyDeps): EnemyDirector {
     dropAll(): void {
       enemies = [];
       respawnIn = STAGGER;
+    },
+    save: () => ({ enemies: enemies.filter((e) => e.sinking < 0 && !e.gone).map(saveEnemy), counter, threat }),
+    restore(sea): void {
+      enemies = [];
+      sea.enemies.forEach((s, i) => {
+        const e = restoreEnemy(s, `e${sea.counter - sea.enemies.length + i + 1}`);
+        if (e) enemies.push(e);
+      });
+      counter = sea.counter;
+      threat = sea.threat;
+      respawnIn = enemies.length > 0 ? STAGGER : 0;
     },
     sunkCheck,
     takePrize(e): void {

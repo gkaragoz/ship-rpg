@@ -111,7 +111,7 @@ describe('the fleet in a save', () => {
   });
 
   it('migrates a version 1 save: no fleet, upkeep counted from then, the starting standing', () => {
-    expect(SAVE_VERSION).toBe(4);
+    expect(SAVE_VERSION).toBe(5);
     const old = newGameState(brig);
     const v1state: Record<string, unknown> = { ...old, time: 1234 };
     delete v1state.fleet;

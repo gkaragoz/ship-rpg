@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { GameView } from '../src/core';
 import { SAVE_KEY, SLOTS, createSaveStore, type StorageLike } from '../src/gameplay';
 import { newGameState } from '../src/gameplay/state';
-import { SAVE_SAFE_RANGE, whyNoSave } from '../src/app/saves';
+import { whyNoSave } from '../src/app/saves';
 import { getShipSpec } from '../src/ships';
 
 const memory = (): StorageLike & { data: Map<string, string> } => {
@@ -76,21 +76,15 @@ describe('save slots', () => {
   });
 });
 
-describe('no saving in a fight', () => {
+describe('saving at sea', () => {
   const view = (over: Partial<GameView>): GameView => ({ sunk: false, docked: null, enemies: [], ...over }) as unknown as GameView;
-  const foe = (distance: number, extra: Record<string, unknown> = {}) => ({ distance, sinking: -1, surrendered: false, ...extra });
 
-  it('allows it at sea with no enemy near, and in port whatever is outside', () => {
+  it('is allowed in a fight (what is at sea is saved as it stands), refused only for a sunk ship or before the game is ready', () => {
+    const foe = { distance: 50, sinking: -1, surrendered: false };
     expect(whyNoSave(view({}))).toBeNull();
-    expect(whyNoSave(view({ enemies: [foe(SAVE_SAFE_RANGE + 1)] as unknown as GameView['enemies'] }))).toBeNull();
-    expect(whyNoSave(view({ docked: 'douwesen', enemies: [foe(50)] as unknown as GameView['enemies'] }))).toBeNull();
-  });
-
-  it('refuses with an enemy near, a sunk ship, or before the game is ready; a wreck, a runner far off and a prize do not count', () => {
-    expect(whyNoSave(view({ enemies: [foe(SAVE_SAFE_RANGE - 1)] as unknown as GameView['enemies'] }))).toMatch(/Savaş/);
+    expect(whyNoSave(view({ enemies: [foe] as unknown as GameView['enemies'] }))).toBeNull();
+    expect(whyNoSave(view({ docked: 'douwesen' }))).toBeNull();
     expect(whyNoSave(view({ sunk: true }))).toMatch(/battı/);
     expect(whyNoSave(null)).toMatch(/hazır/);
-    expect(whyNoSave(view({ enemies: [foe(100, { sinking: 4 })] as unknown as GameView['enemies'] }))).toBeNull();
-    expect(whyNoSave(view({ enemies: [foe(100, { surrendered: true })] as unknown as GameView['enemies'] }))).toBeNull();
   });
 });
