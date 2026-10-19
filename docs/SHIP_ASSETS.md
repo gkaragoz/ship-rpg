@@ -45,28 +45,28 @@ Built by `tools/blender/pbrship.py` (geometry) + `pbrhull.py`/`pbrtex.py` (numpy
 | Budgets | LOD0 ≤ 8000 + 700 L, LOD1 ≤ 600 + 95 L, LOD2 ≤ 300 + 35 L (`meta.budgets`, same formula in the tests); LOD1 < 30 % and LOD2 < 60 % of the level above |
 | Size | < 2.2 MB per GLB |
 
-Content of the full-quality LOD0: planked hull with wales and gilt/trim bands, copper sheathing, gun ports with frames, lids (lower decks) and iron muzzles, weather-deck guns on carriages, bulwarks with stanchions and cap rails, castles with panelled walls, balustrades, doors and cabin windows, a stern gallery (windows with mullions, gilt cornices), quarter galleries, figurehead and beakhead, cathead and two anchors, rudder with pintles, keel and stem, hatch with grating, capstan, barrels, ship's wheel and binnacle, longboat on skids and a jolly boat on davits (galleon, battleship; the brig only has the jolly boat), lanterns, masts with iron hoops, tops, crosstrees, caps, a staved crow's nest on the topmast (every square-rigged mast of 20 m and up, a small lookout tub on the tallest fore-and-aft mast) with iron hoops, rope rail and lubber's hole, companion stairs with handrails from the waist to every castle level (the break rail is open where they come up), raised side gangways with balustrades between the quarterdeck and forecastle (ships of 40 m and up with both castles), rope-rail stanchions above the waist bulwark (24 m and up) and a taffrail on ships without a sterncastle (`pbrdetail.py`), channels and deadeyes, shrouds with ratlines, backstays and stays with sag, bowsprit with bobstay and jibs, yards with blocks, lifts and footropes, sails with boltropes and tattered feet, pennant and ensign; small ships get oars, baskets, nets and a cuddy. LOD1 keeps hull (all painted detail comes from the textures), deck, castles, masts, yards and coarse sails (about 7–12 % of LOD0); LOD2 is a silhouette.
+Content of the full-quality LOD0: planked hull with wales and gilt/trim bands, copper sheathing, gun ports with frames, lids (lower decks) and iron muzzles, weather-deck guns on carriages, bulwarks with stanchions and cap rails, castles with panelled walls, balustrades, doors and cabin windows, a stern gallery (windows with mullions, gilt cornices), quarter galleries, figurehead and beakhead, cathead and two anchors, rudder with pintles, keel and stem, hatch with grating, capstan, barrels, ship's wheel and binnacle, longboat on skids and a jolly boat on davits (galleon, battleship; the brig only has the jolly boat), lanterns, masts with iron hoops, tops, crosstrees, caps, a staved crow's nest on the topmast (every square-rigged mast of 20 m and up, a small lookout tub on the tallest fore-and-aft mast) with iron hoops, rope rail and lubber's hole, companion stairs with handrails from the waist to every castle level (the break rail is open where they come up), raised side gangways with balustrades between the quarterdeck and forecastle (ships of 40 m and up with both castles), rope-rail stanchions above the waist bulwark (24 m and up) and a taffrail on ships without a sterncastle (`pbrdetail.py`), channels and deadeyes, shrouds with ratlines, backstays and stays with sag, bowsprit with bobstay and jibs, yards with blocks, lifts and footropes, sails with boltropes and tattered feet, pennant and ensign; small ships get oars, baskets, nets and a cuddy. LOD1 keeps hull (all painted detail comes from the textures), deck, castles, masts, yards and coarse sails (about 6.5–12 % of LOD0); LOD2 is a silhouette.
 
 Measured (from `meta.json`):
 
 | Ship | LOD0 / LOD1 / LOD2 tris | LOD0 draw calls | Atlas | GLB |
 |---|---|---|---|---|
-| tartane | 10,132 / 1,443 / 511 | 7 | 1024² | 0.50 MB |
-| yacht | 12,592 / 1,473 / 527 | 7 | 1024² | 0.57 MB |
-| lugger | 13,314 / 1,539 / 549 | 9 | 1024² | 0.60 MB |
-| sloop | 10,678 / 1,488 / 528 | 7 | 1024² | 0.58 MB |
-| schooner | 12,960 / 1,606 / 578 | 9 | 1536² | 0.78 MB |
-| barque | 20,012 / 2,000 / 740 | 11 | 1536² | 1.04 MB |
-| xebec | 15,596 / 1,604 / 578 | 10 | 1536² | 0.85 MB |
-| galeoth | 14,098 / 1,566 / 562 | 8 | 1536² | 0.79 MB |
-| caravel | 20,510 / 1,941 / 721 | 11 | 1536² | 1.04 MB |
-| fleut | 21,946 / 2,021 / 745 | 11 | 1536² | 1.13 MB |
-| brig | 19,352 / 2,055 / 749 | 11 | 1536² | 0.99 MB |
-| pinnace | 19,574 / 1,889 / 701 | 11 | 1536² | 0.99 MB |
-| corvette | 26,168 / 2,253 / 835 | 13 | 2048² | 1.41 MB |
-| galleon | 30,870 / 2,199 / 817 | 13 | 2048² | 1.67 MB |
-| frigate | 30,144 / 2,319 / 857 | 13 | 2048² | 1.57 MB |
-| battleship | 37,710 / 2,423 / 897 | 13 | 2048² | 1.90 MB |
+| tartane | 10,276 / 1,443 / 511 | 7 | 1024² | 0.50 MB |
+| yacht | 13,368 / 1,553 / 527 | 7 | 1024² | 0.60 MB |
+| lugger | 13,474 / 1,539 / 549 | 9 | 1024² | 0.61 MB |
+| sloop | 11,502 / 1,568 / 528 | 7 | 1024² | 0.60 MB |
+| schooner | 13,920 / 1,686 / 578 | 9 | 1536² | 0.81 MB |
+| barque | 21,668 / 2,208 / 740 | 11 | 1536² | 1.11 MB |
+| xebec | 16,584 / 1,684 / 578 | 10 | 1536² | 0.89 MB |
+| galeoth | 15,138 / 1,694 / 562 | 8 | 1536² | 0.84 MB |
+| caravel | 22,510 / 2,197 / 721 | 11 | 1536² | 1.12 MB |
+| fleut | 23,762 / 2,229 / 745 | 11 | 1536² | 1.20 MB |
+| brig | 21,024 / 2,263 / 749 | 11 | 1536² | 1.05 MB |
+| pinnace | 21,274 / 2,097 / 701 | 11 | 1536² | 1.06 MB |
+| corvette | 28,464 / 2,541 / 835 | 13 | 2048² | 1.49 MB |
+| galleon | 35,762 / 2,551 / 817 | 13 | 2048² | 1.86 MB |
+| frigate | 32,440 / 2,607 / 857 | 13 | 2048² | 1.65 MB |
+| battleship | 43,522 / 2,807 / 897 | 13 | 2048² | 2.11 MB |
 
 GPU memory: textures are RGBA8 with mips on the GPU whatever the file format, about 3 × A² × 4 B × 1.33 per ship (tartane 17 MB, brig 38 MB, galleon and battleship 67 MB each) plus about 8 MB for the three 512² tiles, which every GLB embeds again (about 220 MB for the four); small ships use 1024² (length ≤ 20), 1536² (< 40), 2048² atlases; the full set of 16 would be roughly 0.7 GB if all were resident, so ships load on demand; KTX2/Basis is the next step if that matters. Oared ships (xebec, galeoth) get sweeps from `pbrdeck.oars`.
 
