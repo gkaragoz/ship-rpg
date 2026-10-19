@@ -40,7 +40,7 @@
   - [ ] polish: coast sounding/depth warning on the HUD
   - [x] save/load of discovered map and position (5f)
   - [ ] layout: at ~800 px width the dock hint overlaps the HUD compass and the harbour panel touches the minimap; check the mobile hint toast
-  - [ ] visual: shallows show large flat facets (smooth the depth tint), far sea shows horizontal banding (near/far seam or aliasing: investigate), island labels clipped at the top edge or hidden behind the minimap
+  - [x] visual: shallows' flat facets (depth lookup warped and roughened with the sea noise, smoothed tint) and far-sea ring banding (normals and crest height relax to the calm mean beyond ~350–1800 m); [ ] island labels clipped at the top edge or hidden behind the minimap
   - [ ] chart: fixed extent clips the ship marker near the south edge; no touch way to close it
   - [ ] runtime check of grounding in the browser (covered by unit tests only; upwind approaches end in irons)
   - [ ] ports feel empty: NPC ships sailing between islands (phase 5)

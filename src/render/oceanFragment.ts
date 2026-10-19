@@ -59,13 +59,15 @@ void main() {
   float wedge = smoothstep(0.0, 0.05, min(min(wuv.x, wuv.y), min(1.0 - wuv.x, 1.0 - wuv.y))) * uWakeOn;
   vec4 wk = texture2D(uWake, wuv) * wedge;
   tilt += vec2(texture2D(uWake, wuv + vec2(uWakeTexel, 0.0)).g - texture2D(uWake, wuv - vec2(uWakeTexel, 0.0)).g, texture2D(uWake, wuv + vec2(0.0, uWakeTexel)).g - texture2D(uWake, wuv - vec2(0.0, uWakeTexel)).g) * 5.0 * wedge;
-  vec3 n = normalize(vNormal + vec3(tilt.x, 0.0, tilt.y));
+  // Far away the coarse clip-map rings sample the waves too sparsely: their normals and crest heights band in rings, so both relax to the calm mean.
+  float far = smoothstep(350.0, 1800.0, dist);
+  vec3 n = normalize(mix(vNormal, vec3(0.0, 1.0, 0.0), far * 0.75) + vec3(tilt.x, 0.0, tilt.y));
 
   float wrap = clamp(dot(n, uSun) * 0.5 + 0.5, 0.0, 1.0);
   float diff = wrap * wrap;
   float ndv = clamp(dot(n, v), 0.0, 1.0);
   float fres = clamp(0.03 + 0.97 * pow(1.0 - ndv, 4.0), 0.0, 1.0);
-  float h01 = clamp(0.5 + vHeight / (uAmp * 1.6), 0.0, 1.0);
+  float h01 = mix(clamp(0.5 + vHeight / (uAmp * 1.6), 0.0, 1.0), 0.5, far * 0.8);
 
   vec3 col = mix(uDeep, uShallow, h01) * (0.45 + 0.75 * diff);
   // Light shining through the thin top of a wave towards the viewer.
@@ -73,10 +75,12 @@ void main() {
   col += vec3(0.05, 0.55, 0.5) * glow * 0.45 * (1.0 - uSea * 0.5);
 
   // Water depth from the baked terrain texture: lagoon tint in the shallows.
-  vec2 uv = (vWorld.xz - uTerrainMin) / uTerrainSize;
-  float ground = texture2D(uTerrain, uv).r * uTerrainScale.y + uTerrainScale.x;
+  // The baked texture has texels of several metres, so its bilinear ramps show as flat facets: the lookup is warped and the depth roughened with the noise.
+  vec2 uv = (vWorld.xz + (n1.rg - 0.5) * 7.0 + (n2.rg - 0.5) * 2.5 - uTerrainMin) / uTerrainSize;
+  float ground = texture2D(uTerrain, uv).r * uTerrainScale.y + uTerrainScale.x + (n2.b - 0.5) * 0.9;
   float depth = max(-ground, 0.0);
-  float shallow = 1.0 - smoothstep(0.0, 10.0, depth);
+  float shallow = 1.0 - smoothstep(0.0, 11.0, depth);
+  shallow *= shallow * (3.0 - 2.0 * shallow);
   col = mix(col, vec3(0.30, 0.80, 0.74) * (0.7 + 0.5 * diff), shallow * 0.75);
 
   vec3 refl = reflect(-v, n);
