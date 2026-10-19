@@ -121,6 +121,8 @@ export function avoidanceOffsets(patrols: readonly { x: number; z: number; lengt
 export const PATROL_RECOVERY = 5;
 
 export interface NpcFleet {
+  /** Ships before this id are patrols; from it on they are merchants (the ones that can be shot at). */
+  readonly firstMerchantId: number;
   update(dt: number): void;
   /** Shove patrol `id` aside by (dx, dz) metres and turn it by `dyaw` radians (a crash); it drifts back onto its rail. */
   nudge(id: number, dx: number, dz: number, dyaw: number): void;
@@ -139,10 +141,12 @@ export interface NpcFleet {
  */
 export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }): NpcFleet {
   const patrols = placePatrols(origin);
-  const traffic = createTraffic(); // merchants sailing from port to port; their ids follow the patrols'
+  const traffic = createTraffic();
+  const firstMerchantId = patrols.length; // merchants sailing from port to port; their ids follow the patrols'
   const shoved = patrols.map(() => ({ x: 0, z: 0, yaw: 0 }));
   let time = 0;
   return {
+    firstMerchantId,
     update(dt): void {
       time += dt;
       const keep = Math.exp(-dt / PATROL_RECOVERY);

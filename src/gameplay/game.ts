@@ -18,11 +18,12 @@ import { createCrew, crewCountFor } from './crew';
 import { crewLayout } from './crewLayout';
 import { createShipCrews } from './shipCrews';
 import { shipViews } from './shipViews';
+import { createMerchantBook, plunderMerchant } from './merchants';
 import { createDevHooks } from './devHooks';
 import { createNpcFleet } from './npcShips';
 import { createWeatherState } from './weatherState';
 import { createPlayerShip, stepPlayerShip, type PlayerShip } from './sailing';
-import { cloneState, newGameState, startPose, type GameState } from './state';
+import { cloneState, holdUsed, newGameState, startPose, type GameState } from './state';
 import { DOCK, ELEVATE_RATE, REPAIR_RATE } from './tuning';
 import { restoreShip, boardingView, captainView, cargoView, companyView, snapshot } from './stateView';
 import { runCommand, servicesView } from './harbour';
@@ -68,6 +69,8 @@ export function createGame(init: ShipSpec | GameState): Game {
   let crew = crewFor(spec);
   const shipCrews = createShipCrews(); // the sailors of the ships nearby, for show
   const npcs = createNpcFleet({ x: ship.x, z: ship.z }); // patrols around the start, on open water
+  const merchants = createMerchantBook(npcs.firstMerchantId); // the traders can be shot at, sunk and plundered
+  let others = npcs.view(wind, []); // the other ships as of the last step
   let dockedAt: Port | null = null;
 
   let balls: Ball[] = [];
@@ -197,6 +200,7 @@ export function createGame(init: ShipSpec | GameState): Game {
       player: { ship, spec, maxHp, targetable: !sunk && !dockedAt }, // a moored ship is safe in the harbour
       enemies: director.list(),
       consorts: fleet.consorts(),
+      merchants: merchants.targets(others, time),
       rng,
       surfaceAt: (x, z) => waveHeight(x, z, time, wind.from, seaAmp(sea), 0, weather.tuning),
       emit: (e) => events.push(e),
@@ -210,6 +214,12 @@ export function createGame(init: ShipSpec | GameState): Game {
         director.sunkCheck(e);
       },
       onConsortHit: (c, lost) => fleet.hit(c, lost),
+      onMerchantHit: (m, lost) => {
+        if (!merchants.hit(m.id, m.spec, lost, time)) return;
+        const o = others.find((x) => x.id === m.id);
+        const at = o ?? m.ship;
+        for (const e of plunderMerchant(st, m.spec, o?.nation ?? 'free', at, spec.stats.hold - holdUsed(st.hold), rng)) events.push(e);
+      },
     };
     balls = flyBalls(balls, dt, air, world);
   };
@@ -312,7 +322,8 @@ export function createGame(init: ShipSpec | GameState): Game {
       if (!dockedAt) fleet.step(dt);
       else for (const f of st.fleet) f.hp = Math.min(getShipSpec(f.specId)?.stats.hp ?? f.hp, f.hp + (getShipSpec(f.specId)?.stats.hp ?? 0) * REPAIR_RATE * dt); // moored: the fleet mends with the flagship
       // Ships that share the sea run into each other.
-      const crash = stepCrashes({ ship, spec, maxHp, active: !dockedAt && !sunk }, director.list(), npcs.view(wind, giveWay()), (id, dx, dz, dyaw) => npcs.nudge(id, dx, dz, dyaw));
+      others = merchants.mark(npcs.view(wind, giveWay()), time);
+      const crash = stepCrashes({ ship, spec, maxHp, active: !dockedAt && !sunk }, director.list(), others.filter((o) => !o.sunk), (id, dx, dz, dyaw) => npcs.nudge(id, dx, dz, dyaw));
       events.push(...crash.events);
       crash.apply(
         (lost) => ((hp = Math.max(0, hp - lost)), desk.loseCrew(lost, maxHp, 'hull'), checkPlayerSunk()),
@@ -327,7 +338,7 @@ export function createGame(init: ShipSpec | GameState): Game {
       if (dockedAt) syncShip(); // the yard's prices depend on the hull
       const n = nearest();
       const nearestPort = n && portView(n, ship, !dockedAt && canDock(n.port), insidePortZone(n.port, ship.x, ship.z), portClosed(st, n.port));
-      const ships = shipViews(shipCrews, ship, feel, director.list(), fleet.consorts(), npcs.view(wind, giveWay()));
+      const ships = shipViews(shipCrews, ship, feel, director.list(), fleet.consorts(), merchants.mark(npcs.view(wind, giveWay()), time));
       const afloat = director.list().filter((e) => e.sinking < 0);
       const drained = events;
       events = [];

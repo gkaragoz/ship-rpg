@@ -26,6 +26,7 @@ export function shipViews(
     enemies: enemies.map((e) => hull('e', e, COMBAT.enemyReload)),
     consorts: consorts.map((c) => hull('c', c, COMBAT.playerReload)),
     others: others.map((o) => {
+      if (o.sunk) return o;
       const crew = crews.view(`o:${o.id}`, { specId: o.specId, rudder: 0, sailTarget: o.sailLevel }, Math.hypot(o.x - from.x, o.z - from.z));
       return crew ? { ...o, crew } : o;
     }),

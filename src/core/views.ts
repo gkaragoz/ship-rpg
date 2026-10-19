@@ -217,6 +217,8 @@ export interface OtherShipView {
   id: number;
   /** The sailors on its deck while it is close (see `EnemyView.crew`). */
   crew?: CrewView[];
+  /** A merchant the captain sank: not drawn until a new one takes its round. */
+  sunk?: boolean;
   /** Which ship spec (and model) to draw. */
   specId: string;
   /** Nation id of its flag (see `world/nations.ts`); free when absent. */

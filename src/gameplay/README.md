@@ -30,3 +30,4 @@ Fixed-step only (see `core/loop.ts`); no wall-clock time. Quests, standing and t
 
 - `reputation.ts` the captain's standing with each nation (kills, fading, closed ports, which navies hunt him), `quests.ts` + `questSave.ts` the tavern's errands (offers by port and day, taking, settling, saving), `traffic.ts` merchants on sea lanes (A* over open water; part of `npcShips`' list of other ships).
 - `crew.ts` (a ship's deck life: wandering, the helm, climbing and hauling when the sails change, gunners at a broadside), `crewLayout.ts` (where the masts, helm and gun stations are), `crewData.ts` (tuning and `JOBS` timings), `shipCrews.ts` (the sailors of enemies, consorts and patrols near the player, created on first sight). All of it is for show.
+- `merchants.ts` (the traders under fire: hit points, sinking, respawn, the plunder and its standing cost).

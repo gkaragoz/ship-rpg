@@ -5,6 +5,7 @@ import { COMBAT, ballHitZone, ballSpeed, hitNormal, stepBall, type Ball } from '
 import { strike } from './damage';
 import type { Enemy } from './enemy';
 import type { Consort } from './fleet';
+import type { MerchantTarget } from './merchants';
 import type { PlayerShip } from './sailing';
 
 /** What a cannonball can meet, and what happens when it does: the game fills this in once per step. */
@@ -13,6 +14,8 @@ export interface ShotWorld {
   enemies: readonly Enemy[];
   /** The captain's other ships under sail: the enemies' balls can hit them too. */
   consorts: readonly Consort[];
+  /** Merchants afloat: the captain's balls can hit them (they are unarmed and fire nothing). */
+  merchants: readonly MerchantTarget[];
   rng: () => number;
   /** Height of the sea surface under a point (m). */
   surfaceAt(x: number, z: number): number;
@@ -21,6 +24,7 @@ export interface ShotWorld {
   onPlayerHit(lost: number, zone: HitZone): void;
   onEnemyHit(enemy: Enemy, lost: number): void;
   onConsortHit(consort: Consort, lost: number): void;
+  onMerchantHit(merchant: MerchantTarget, lost: number): void;
 }
 
 /**
@@ -54,6 +58,16 @@ export function resolveBall(b: Ball, w: ShotWorld): boolean {
       const n = hitNormal(b, e.ship);
       w.emit({ type: 'hit', owner: 'player', x: b.x, y: b.y, z: b.z, amount: lost, zone, nx: n.x, nz: n.z, speed: ballSpeed(b) });
       w.onEnemyHit(e, lost);
+      return true;
+    }
+    for (const m of w.merchants) {
+      const hit = ballHitZone(b, m.ship, m.spec);
+      if (!hit) continue;
+      // a merchant has no rigging or leaks of its own to keep: only the hull points it loses count
+      const lost = strike({ rigging: 1, flooding: 0, fire: 0 }, hit, b.damage, m.spec.stats.hp, w.rng());
+      const n = hitNormal(b, { ...m.ship, speed: 0 } as PlayerShip);
+      w.emit({ type: 'hit', owner: 'player', x: b.x, y: b.y, z: b.z, amount: lost, zone: hit, nx: n.x, nz: n.z, speed: ballSpeed(b) });
+      w.onMerchantHit(m, lost);
       return true;
     }
   }

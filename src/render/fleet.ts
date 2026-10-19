@@ -50,7 +50,7 @@ export function createFleet(scene: THREE.Scene): Fleet {
         if (!ship) continue;
         const dims = { length: ship.spec.length, beam: ship.spec.beam };
         const distance = Math.hypot(o.x - camera.position.x, o.z - camera.position.z);
-        ship.root.visible = distance < CULL_DISTANCE;
+        ship.root.visible = distance < CULL_DISTANCE && !o.sunk;
         if (!ship.root.visible) continue;
 
         const prev = levels[o.id] ?? null;
