@@ -14,6 +14,7 @@ import pbrao
 import pbrbody
 import pbrcastle
 import pbrdeck
+import pbrdetail
 import pbrguns
 import pbrhull
 import pbrlayout as LAY
@@ -97,6 +98,7 @@ def build_lod(level, spec, masts, mats, root, A, seed):
         if mast.m['height'] == tallest and detail:
             h = mast.m['height']
             pbrrig.flag_cloth(kit.flag, mast.w((0, h, 0)), (-max(1.5, h * 0.14), -0.1, 0), max(0.5, h * 0.025), 0.2, taper=0.9)
+    pbrdetail.build(kit, masts, tallest, level)
     step('stays', pbrrig.stays, kit, masts)
     step('bowsprit', pbrrig.bowsprit, kit, masts)
     lantern = pbrdeck.build(kit, masts, level)

@@ -77,9 +77,6 @@ def mast_static(kit, mast, tallest):
         for z in (-0.6, 0.6):
             wood.box(w((0, y2, z * half * 0.55)), (half * 1.1, 0.09, 0.09), SPAR)
         wood.box(w((0, y2 + 0.1, 0)), (r, 0.24, r), IRON)
-        if h >= 34:                                                                         # crow's nest on the topmast
-            kit.wood.revolve(w((0, y2 + 0.35, 0)), ax, [(0.62, 0), (0.7, 0.55), (0.72, 0.95)], SPAR, seg=10, smooth=False)
-            kit.atlas.revolve(w((0, y2 + 0.5, 0)), ax, [(0.65, 0), (0.65, 0.07)], seg=10, swatch='iron')
     fife_rail(kit, mast)
     shrouds(kit, mast, square)
     # backstays from the topmast head to the rail aft of the shrouds

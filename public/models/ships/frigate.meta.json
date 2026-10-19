@@ -4,12 +4,12 @@
   "beam": 13.2,
   "lods": {
     "LOD0": {
-      "tris": 30144,
+      "tris": 32440,
       "meshes": 13,
       "drawCalls": 13
     },
     "LOD1": {
-      "tris": 2319,
+      "tris": 2607,
       "meshes": 11,
       "drawCalls": 11
     },
@@ -178,7 +178,7 @@
     6.436,
     -4.086
   ],
-  "bytes": 1569660,
+  "bytes": 1652180,
   "pbr": true,
   "atlasPx": 2048,
   "tilePx": 512

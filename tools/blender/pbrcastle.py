@@ -37,6 +37,14 @@ def balustrade(kit, pts, height=0.9, spacing=0.55, tint=None):
         prev = p
 
 
+def stair_spec(s, end, t0, t1, height, level):
+    """Where the companion stairs of a castle level stand: z of each (one per side), width and run (m) toward the waist."""
+    t_wall = t1 if end == 'stern' else t0
+    hw = side_half_width(s, t_wall)
+    width = min(0.7 + 0.01 * s['length'], 1.3)
+    return dict(z=min(hw * 0.62, hw - width / 2 - 0.35), width=width, run=max(height * 1.5, 1.4))
+
+
 def castle_levels(s):
     """[(end, t0, t1, bottom lift, height)] for every castle level."""
     out = []
@@ -106,7 +114,13 @@ def castle(kit, end, t0, t1, lift, height, level):
         for side in (1, -1):
             balustrade(kit, [(tp[0], tp[1], side * (tp[2] - inset)) for tp in pts_t], 0.85)
         e = pts_t[-1] if end == 'stern' else pts_t[0]
-        balustrade(kit, [(e[0] - inset * (1 if end == 'stern' else -1), e[1], -e[2] + inset), (e[0] - inset * (1 if end == 'stern' else -1), e[1], e[2] - inset)], 0.85)
+        ex = e[0] - inset * (1 if end == 'stern' else -1)
+        sp = stair_spec(s, end, t0, t1, height, level)
+        gap = sp['width'] / 2 + 0.1
+        zs = [-e[2] + inset, -sp['z'] - gap, -sp['z'] + gap, sp['z'] - gap, sp['z'] + gap, e[2] - inset]
+        for a, b in ((0, 1), (2, 3), (4, 5)):                      # the break rail, open where the stairs come up
+            if zs[b] > zs[a] + 0.2:
+                balustrade(kit, [(ex, e[1], zs[a]), (ex, e[1], zs[b])], 0.85)
     return pts_t
 
 
