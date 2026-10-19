@@ -3,7 +3,7 @@ import { getShipSpec } from '../src/ships';
 import { COLLISION, collide, collideAll, hullMass, overlap, type Hull } from '../src/gameplay/collision';
 import { stepCrashes } from '../src/gameplay/crashes';
 import { createEnemy } from '../src/gameplay/enemy';
-import { createPlayerShip } from '../src/gameplay/sailing';
+import { SAILING, createPlayerShip, stepPlayerShip, type PlayerShip } from '../src/gameplay/sailing';
 
 const spec = (id: string) => {
   const s = getShipSpec(id);
@@ -12,7 +12,7 @@ const spec = (id: string) => {
 };
 // Open water far from any island, ships facing +x (heading 0) or -x (heading pi).
 const OPEN = { x: -9000, z: -9000 };
-const hull = (id: string, dx: number, heading: number, speed: number): Hull => {
+const hull = (id: string, dx: number, heading: number, speed: number): Hull & { ship: PlayerShip } => {
   const s = spec(id);
   const ship = createPlayerShip(OPEN.x + dx, OPEN.z, heading);
   ship.speed = speed;
@@ -87,8 +87,34 @@ describe('a crash', () => {
     b.ship.z += 1.5; // hit on the quarter, not dead astern
     const before = b.ship.heading;
     collide(a, b);
-    expect(b.ship.heading).not.toBe(before);
-    expect(Math.abs(b.ship.heading - before)).toBeLessThanOrEqual(COLLISION.maxSwing + 1e-9);
+    // the bow does not snap round: the blow becomes a yaw rate that the water damps out (see `stepPlayerShip`)
+    expect(b.ship.heading).toBe(before);
+    expect(b.ship.spin).not.toBe(0);
+    expect(Math.abs(b.ship.spin)).toBeLessThanOrEqual(COLLISION.maxSpin + 1e-9);
+    // the whole swing, once the spin has died away, is at most what one contact may turn the ship
+    expect(Math.abs(b.ship.spin) * SAILING.spinDecay).toBeLessThanOrEqual(COLLISION.maxSwing + 1e-9);
+  });
+
+  it('swings the bow over a moment and then lets it settle, instead of snapping the heading', () => {
+    const a = hull('brig', 0, 0, 6);
+    const b = hull('brig', 26, 0, 0);
+    b.ship.z += 1.5;
+    collide(a, b);
+    const total = b.ship.spin * SAILING.spinDecay;
+    const wind = { from: 0, speed: 0 };
+    let steps = 0;
+    let biggest = 0;
+    let last = b.ship.heading;
+    for (let i = 0; i < 60 * 6; i++) {
+      stepPlayerShip(b.ship, spec('brig'), wind, { rudder: 0, sailStep: 0 }, 1 / 60);
+      biggest = Math.max(biggest, Math.abs(b.ship.heading - last));
+      last = b.ship.heading;
+      steps++;
+    }
+    expect(steps).toBeGreaterThan(0);
+    expect(biggest).toBeLessThan(Math.abs(total) / 10); // no frame turns more than a tenth of the swing
+    expect(b.ship.heading).toBeCloseTo(total, 1); // and the bow ends up where the blow sent it
+    expect(b.ship.spin).toBe(0);
   });
 
   it('never moves a patrol, which only bounces the ship that meets it', () => {
@@ -154,13 +180,12 @@ describe('crash events', () => {
     const a = hull('brig', 0, 0, 6);
     const b = hull('brig', 26, 0, 0);
     b.ship.z += 1.5; // struck 1.5 m to starboard of its centre line (z is starboard when heading is 0)
-    const before = b.ship.heading;
     collide(a, b);
-    const toStarboardStrike = b.ship.heading - before;
+    const toStarboardStrike = b.ship.spin;
     const c = hull('brig', 0, 0, 6);
     const d = hull('brig', 26, 0, 0);
     d.ship.z -= 1.5;
     collide(c, d);
-    expect(Math.sign(d.ship.heading)).toBe(-Math.sign(toStarboardStrike));
+    expect(Math.sign(d.ship.spin)).toBe(-Math.sign(toStarboardStrike));
   });
 });

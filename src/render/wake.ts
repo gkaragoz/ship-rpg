@@ -6,7 +6,7 @@ import { MAX_STAMPS, type Stamp } from './wakeStamps';
 export const WAKE_AREA = 360;
 
 /** Foam fades out with this rate (1/s), ripple height faster; both spread a little every frame. */
-const FOAM_DECAY = 0.45;
+const FOAM_DECAY = 0.3;
 const HEIGHT_DECAY = 1.6;
 const SPREAD = 6;
 

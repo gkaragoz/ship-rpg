@@ -1,4 +1,4 @@
-import type { OtherShipView, WindView } from '../core';
+import { followCourse, type OtherShipView, type Track, type WindView } from '../core';
 import { terrainHeight, windAt } from '../world';
 import { getShipSpec } from '../ships';
 import { apparentView } from './enemyView';
@@ -94,7 +94,7 @@ const MAX_AVOID = 70;
  * ships that grows as they close, shared between two patrols and borne wholly by a patrol giving way to a ship that is
  * not on rails. Because it depends only on where everybody is, nobody ever jumps. Returns `[dx, dz]` per patrol.
  */
-export function avoidanceOffsets(patrols: readonly { x: number; z: number; length: number }[], giveWay: readonly WayShip[] = []): [number, number][] {
+export function avoidanceOffsets(patrols: readonly { x: number; z: number; length: number; heading?: number }[], giveWay: readonly WayShip[] = []): [number, number][] {
   return patrols.map((p, i) => {
     let ox = 0;
     let oz = 0;
@@ -104,9 +104,23 @@ export function avoidanceOffsets(patrols: readonly { x: number; z: number; lengt
       const d = Math.hypot(dx, dz) || 0.001;
       const safe = (p.length + length) / 2 + PATROL_CLEARANCE;
       if (d >= safe) return;
-      const k = ((safe - d) * share) / d;
-      ox += dx * k;
-      oz += dz * k;
+      let ux = dx / d;
+      let uz = dz / d;
+      if (p.heading !== undefined) {
+        // A ship heading straight at another is not pushed back along its own track but sheers to starboard, as the rule of the
+        // road asks of both (the push leans across the bow the more the other ship is ahead, and never jumps from side to side).
+        const fx = Math.cos(p.heading);
+        const fz = -Math.sin(p.heading);
+        const ahead = Math.max(0, -(ux * fx + uz * fz));
+        ux -= fz * ahead * 1.4;
+        uz += fx * ahead * 1.4;
+        const m = Math.hypot(ux, uz) || 1;
+        ux /= m;
+        uz /= m;
+      }
+      const k = (safe - d) * share;
+      ox += ux * k;
+      oz += uz * k;
     };
     patrols.forEach((q, j) => {
       if (j !== i) push(q.x, q.z, q.length, 0.5);
@@ -145,6 +159,8 @@ export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }
   const firstMerchantId = patrols.length; // merchants sailing from port to port; their ids follow the patrols'
   const shoved = patrols.map(() => ({ x: 0, z: 0, yaw: 0 }));
   let time = 0;
+  const tracks = new Map<number, Track>();
+  let courseTime = Number.NaN;
   return {
     firstMerchantId,
     update(dt): void {
@@ -184,12 +200,24 @@ export function createNpcFleet(origin: { x: number; z: number } = { x: 0, z: 0 }
         };
       });
       const raw = [...rails, ...traffic.views(time, wind, patrols.length)];
-      if (!giveWay) return raw; // on their rails exactly
-      // steer clear of each other and of the ships that give them no way (the player, the enemies)
-      const away = avoidanceOffsets(raw.map((o) => ({ x: o.x, z: o.z, length: getShipSpec(o.specId)?.length ?? 20 })), giveWay);
-      return raw.map((o, i) => {
-        const [dx, dz] = away[i] as [number, number];
-        return dx === 0 && dz === 0 ? o : { ...o, x: o.x + dx, z: o.z + dz };
+      let ships = raw; // on their rails exactly
+      if (giveWay) {
+        // steer clear of each other and of the ships that give them no way (the player, the enemies)
+        const away = avoidanceOffsets(raw.map((o) => ({ x: o.x, z: o.z, length: getShipSpec(o.specId)?.length ?? 20, heading: o.heading })), giveWay);
+        ships = raw.map((o, i) => {
+          const [dx, dz] = away[i] as [number, number];
+          return dx === 0 && dz === 0 ? o : { ...o, x: o.x + dx, z: o.z + dz };
+        });
+      }
+      // The bow follows the way the ship really goes (once per tick: the view is read several times a step).
+      if (time !== courseTime) {
+        const dt = time - courseTime;
+        for (const o of ships) tracks.set(o.id, followCourse(dt > 0 ? tracks.get(o.id) : undefined, o.x, o.z, o.heading, dt));
+        courseTime = time;
+      }
+      return ships.map((o) => {
+        const t = tracks.get(o.id);
+        return t ? { ...o, heading: t.heading } : o;
       });
     },
   };

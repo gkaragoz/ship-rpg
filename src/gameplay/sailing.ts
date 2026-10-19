@@ -31,6 +31,8 @@ export const SAILING = {
   heel: 0.14,
   /** Leeway: the angle (rad) between where the keel points and where the ship goes, at that heel (it grows and shrinks with it). */
   leeway: 0.07,
+  /** Time constant (s) in which the water damps the swing a crash gave the bow. */
+  spinDecay: 0.7,
 } as const;
 
 export interface PlayerShip {
@@ -52,12 +54,14 @@ export interface PlayerShip {
   /** Water in the hull, 0 dry … 1 swamped, and fire aboard, 0 … 1: they cost hull points and, flooded, speed (see `damage.ts`). */
   flooding: number;
   fire: number;
+  /** Yaw rate (rad/s) a crash gave the bow; the water damps it out within `SAILING.spinDecay` seconds (see `collision.ts`). */
+  spin: number;
   /** Heave, pitch and wave roll: the hull riding the sea (see `buoyancy.ts`). */
   body: Body;
 }
 
 export function createPlayerShip(x = 0, z = 0, heading = 0): PlayerShip {
-  return { x, z, heading, speed: 0, rudder: 0, sailTarget: 0.5, sailLevel: 0.5, efficiency: 0, roll: 0, grounded: 0, docked: false, rigging: 1, flooding: 0, fire: 0, body: createBody() };
+  return { x, z, heading, speed: 0, rudder: 0, sailTarget: 0.5, sailLevel: 0.5, efficiency: 0, roll: 0, grounded: 0, docked: false, rigging: 1, flooding: 0, fire: 0, spin: 0, body: createBody() };
 }
 
 export const maxSpeed = (spec: ShipSpec): number => spec.stats.speed * SAILING.speedScale;
@@ -86,6 +90,7 @@ export function stepPlayerShip(s: PlayerShip, spec: ShipSpec, wind: WindView, co
     s.rudder = 0;
     s.sailTarget = 0;
     s.grounded = 0;
+    s.spin = 0;
     s.rigging = repairRigging(s.rigging, true, dt);
     s.roll += (0 - s.roll) * Math.min(1, dt * 2);
     return;
@@ -113,7 +118,10 @@ export function stepPlayerShip(s: PlayerShip, spec: ShipSpec, wind: WindView, co
   const sailed = s.sailLevel > 0.05 ? SAILING.minAuthority : 0;
   const authority = Math.max(clamp(Math.abs(s.speed) / (0.4 * top), 0, 1), sailed, s.grounded > 0 ? 0.5 : 0);
   const previousHeading = s.heading;
-  s.heading = wrapAngle(s.heading - s.rudder * spec.stats.turn * SAILING.turnScale * authority * riggingTurnFactor(s.rigging) * sea.turn * dt);
+  // A crash swings the bow over a fraction of a second (the rudder's turn and the swing add), then the water damps it out.
+  s.heading = wrapAngle(s.heading - s.rudder * spec.stats.turn * SAILING.turnScale * authority * riggingTurnFactor(s.rigging) * sea.turn * dt + s.spin * dt);
+  s.spin *= Math.exp(-dt / SAILING.spinDecay);
+  if (Math.abs(s.spin) < 1e-4) s.spin = 0;
   // The hull cannot swing a corner onto the bottom; this also keeps a grounded ship from pinning itself.
   if (isBlocked(s, spec)) s.heading = previousHeading;
   s.speed *= 1 - 0.05 * Math.abs(s.rudder) * dt;

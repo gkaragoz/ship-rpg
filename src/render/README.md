@@ -14,7 +14,7 @@ three.js scenes. Depends on `core` types and static `world` data. It may import 
 - `waves.ts` generates the vertex-shader GLSL from the Gerstner table of `world/sea.ts` (the surface definition lives there; `tests/waves.test.ts` evaluates the GLSL to prove they agree); each wave fades with distance where the mesh is too coarse for it
 - `ocean.ts` (+ `oceanMesh.ts` clip-map levels around the camera, `oceanShader.ts` vertex shader and material, `oceanFragment.ts` pixel shader, `seaNoise.ts` tiling detail texture, `seaLook.ts` the day's colours per sea state, `quality.ts` presets and auto step-down), shallows and shore foam from a baked depth texture; `sky.ts` gradient dome with clouds
 - `rain.ts` rain streaks around the camera; `lamps.ts` night lamps (glowing windows and lanterns, a few real point lights); `gpuTimer.ts` GPU time of a frame
-- `wake.ts` + `wakeStamps.ts` foam and ripple map (half-float render targets) that ships and splashes paint into; the sea shader reads it
+- `wake.ts` + `wakeStamps.ts` + `wakeTrails.ts` (course over ground per ship, path-filled stamps) foam and ripple map (half-float render targets) that ships and splashes paint into; the sea shader reads it
 - `shipCrews.ts` the sailors of enemies and patrols; `crewPoses.ts` hand-made poses laid over the idle clip; `swimmers.ts` + `swimmerSim.ts` sailors thrown overboard that swim and drown
 - `ride.ts` floats patrol ships on the waves (and draws simulated ships with their own motion)
 - `portZones.ts` the gold entry rectangle, corner posts and anchor sign of every port near the ship (`world`'s `PORT_ZONE`)

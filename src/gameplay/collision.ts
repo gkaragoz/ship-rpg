@@ -1,5 +1,5 @@
 import type { ShipSpec } from '../ships';
-import { isBlocked, type PlayerShip } from './sailing';
+import { SAILING, isBlocked, type PlayerShip } from './sailing';
 import { strike } from './damage';
 
 /**
@@ -20,6 +20,8 @@ export const COLLISION = {
   swing: 0.6,
   /** Most a single contact may turn a ship (rad). */
   maxSwing: 0.35,
+  /** Fastest the bow may be swinging after crashes (rad/s). */
+  maxSpin: 0.45,
   /** The box is a little smaller than the full length and beam: the bow and stern are pointed, not square. */
   lengthFit: 0.46,
   beamFit: 0.42,
@@ -105,7 +107,10 @@ function swing(h: Hull, rx: number, rz: number, jx: number, jz: number, mass: nu
   const inertia = (mass * (h.spec.length ** 2 + h.spec.beam ** 2)) / 12;
   const torque = rx * -jz - -rz * jx; // z up is -z here
   const turn = Math.max(-COLLISION.maxSwing, Math.min(COLLISION.maxSwing, (torque / inertia) * COLLISION.swing));
-  h.ship.heading += turn;
+  // A ship with a state of its own takes the swing as a yaw rate the water damps out (it integrates to `turn`), so the
+  // bow comes round over a moment instead of snapping; a hull without one (a patrol) is turned at once.
+  if (typeof h.ship.spin === 'number') h.ship.spin = Math.max(-COLLISION.maxSpin, Math.min(COLLISION.maxSpin, h.ship.spin + turn / SAILING.spinDecay));
+  else h.ship.heading += turn;
 }
 
 /** Resolve the crash of one pair, if they touch. Moves the hulls apart, changes speeds and headings, returns the impact. */
@@ -186,6 +191,7 @@ export function collideAll(hulls: readonly Hull[]): Impact[] {
       h.ship.x = before[i]!.x;
       h.ship.z = before[i]!.z;
       h.ship.heading = before[i]!.heading;
+      if (typeof h.ship.spin === 'number') h.ship.spin = 0;
     }
   });
   return impacts;

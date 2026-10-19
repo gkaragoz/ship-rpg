@@ -53,6 +53,7 @@ export function restoreShip(ship: PlayerShip, st: GameState): Port | null {
   ship.rigging = st.ship.rigging;
   ship.flooding = st.ship.flooding;
   ship.fire = st.ship.fire;
+  ship.spin = 0;
   const port = st.pose.dockedAt ? getPort(st.pose.dockedAt) : undefined;
   ship.docked = !!port;
   return port ?? null;

@@ -5,7 +5,7 @@ import { stepCrashes } from '../src/gameplay/crashes';
 import { collideAll, type Hull } from '../src/gameplay/collision';
 import { createPlayerShip } from '../src/gameplay/sailing';
 import { SHAKE, addShake, decayShake } from '../src/render/shake';
-import type { GameEvent, OtherShipView } from '../src/core';
+import { COURSE, type GameEvent, type OtherShipView } from '../src/core';
 
 const spec = (id: string) => {
   const s = getShipSpec(id);
@@ -23,7 +23,10 @@ describe('patrols that are shoved', () => {
     const shoved = fleet.view()[0]!;
     expect(shoved.x - before.x).toBeCloseTo(12);
     expect(shoved.z - before.z).toBeCloseTo(-7);
-    expect(shoved.heading - before.heading).toBeCloseTo(0.3);
+    // the bow never snaps: it follows the way the shoved ship goes, at a limited turn rate
+    expect(shoved.heading).toBe(before.heading);
+    fleet.update(1 / 60);
+    expect(Math.abs(fleet.view()[0]!.heading - before.heading)).toBeLessThanOrEqual(COURSE.turnRate / 60 + 0.01);
     // The rail itself moves on, so compare with a fleet that was never shoved, after a few recovery times.
     const calm = createNpcFleet({ x: 0, z: 0 });
     for (let i = 0; i < 60 * PATROL_RECOVERY * 3; i++) {

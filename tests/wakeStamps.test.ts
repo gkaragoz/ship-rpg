@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createGame } from '../src/gameplay';
-import { getShipSpec } from '../src/ships';
-import { MAX_STAMPS, collectStamps, impactStamp, shipStamps, type ShipMotion, type Stamp } from '../src/render/wakeStamps';
+import { SHIP_SPECS, getShipSpec } from '../src/ships';
+import { FOAM, MAX_STAMPS, collectStamps, impactStamp, shipStamps, type ShipMotion, type Stamp } from '../src/render/wakeStamps';
 
 const ship = (over: Partial<ShipMotion> = {}): ShipMotion => ({ x: 100, z: 50, heading: 0, speed: 6, length: 20, beam: 6, sinking: -1, ...over });
 const stampsOf = (m: ShipMotion, dt = 1 / 60, sea = 0): Stamp[] => {
@@ -11,18 +11,48 @@ const stampsOf = (m: ShipMotion, dt = 1 / 60, sea = 0): Stamp[] => {
 };
 
 describe('shipStamps', () => {
-  it('lays a waterline ring, a bow wave, a stern wash and two arms behind a moving ship', () => {
+  it('lays a waterline ring, a bow wave, a stern wash, shoulders and diverging arms behind a moving ship', () => {
     const s = stampsOf(ship());
     expect(s.filter((x) => x.kind === 1)).toHaveLength(1);
-    expect(s.length).toBe(5);
-    const bow = s.find((x) => x.height > 0);
+    expect(s.length).toBe(1 + 1 + 1 + 2 + 2 * FOAM.armStart.length);
+    const bow = s.find((x) => x.kind === 0 && x.height > 0 && x.x > 100);
     const wash = s.find((x) => x.height < 0);
     expect(bow && bow.x > 100).toBe(true); // heading 0: the bow is to +x
     expect(wash && wash.x < 100).toBe(true);
-    // the arms sit either side of the wake
-    const arms = s.filter((x) => x.kind === 0 && x.height === 0);
-    expect(arms).toHaveLength(2);
-    expect(Math.sign(arms[0]!.z - 50)).toBe(-Math.sign(arms[1]!.z - 50));
+    // the shoulders and the arms sit either side of the wake, the arms ever wider the further back they start
+    const sides = s.filter((x) => x.kind === 0 && x.height >= 0 && x.x < 100);
+    expect(sides.length).toBe(2 + 2 * FOAM.armStart.length);
+    const arms = sides.filter((x) => x.height > 0).sort((a, b) => b.x - a.x);
+    const starboard = arms.filter((x) => x.z > 50);
+    const port = arms.filter((x) => x.z < 50);
+    expect(starboard).toHaveLength(FOAM.armStart.length);
+    expect(port).toHaveLength(FOAM.armStart.length);
+    expect(starboard[0]!.z - 50).toBeLessThan(starboard[1]!.z - 50);
+  });
+
+  it('lays the wash along the way the ship really goes, not where its bow points', () => {
+    const slip = stampsOf(ship({ heading: 0, course: -0.3 }));
+    const wash = slip.find((x) => x.height < 0)!;
+    expect(wash.heading).toBeCloseTo(-0.3);
+    expect(slip.find((x) => x.kind === 1)!.heading).toBe(0); // the hull's own ring stays with the hull
+    expect(stampsOf(ship()).find((x) => x.height < 0)!.heading).toBe(0); // no course: the bow's
+  });
+
+  it('leaves about the same foam where a ship has passed, whatever its size (a big ship is not a white-out)', () => {
+    // the foam a point of water gets from the wash while the ship passes over it: rate × time under the stamp
+    const passed = (id: string): number => {
+      const sp = getShipSpec(id)!;
+      const m = ship({ length: sp.length, beam: sp.beam, speed: 7 });
+      const wash = stampsOf(m, 1 / 60).find((x) => x.height < 0)!;
+      return wash.foam * 60 * ((0.675 * wash.length) / 7);
+    };
+    const small = passed('tartane');
+    for (const sp of SHIP_SPECS) {
+      const f = passed(sp.id);
+      expect(f).toBeGreaterThan(small * 0.9);
+      expect(f).toBeLessThan(small * 1.8);
+      expect(f).toBeLessThan(2); // a soft ceiling: the sea shader saturates smoothly from here
+    }
   });
 
   it('puts the bow ahead of the ship whichever way it points', () => {

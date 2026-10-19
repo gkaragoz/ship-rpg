@@ -24,6 +24,7 @@ import { rideWaves } from './ride';
 import { emitShipEffects } from './shipEffects';
 import { createScenery } from './scenery';
 import { collectStamps, type Stamp } from './wakeStamps';
+import { createWakeTrails } from './wakeTrails';
 import { seaAmp, waveHeight } from '../world';
 
 export interface ShipDims {
@@ -85,6 +86,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
   if (import.meta.env.DEV) (window as unknown as { __swimmers?: typeof swimmers }).__swimmers = swimmers;
   const shipCrews = createShipCrewRenderers(); // the sailors of the enemies and patrols nearby
   const stamps: Stamp[] = [];
+  const wakeTrails = createWakeTrails();
   const lamps = createLamps();
   lamps.setCount(LAMP_LIGHTS[graphics.lights]);
   let fleetShips: readonly Ship[] = [];
@@ -257,7 +259,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       chase.follow(ship, dims.length);
 
       // Ships and splashes paint foam and ripples into the wake map, which the sea then shows.
-      collectStamps(afloat, dt, player?.dims ?? null, (id) => actors.get(id)?.dims ?? null, camera.position.x, camera.position.z, env.wake.size / 2, stamps, env.sunShadow());
+      collectStamps(afloat, dt, player?.dims ?? null, (id) => actors.get(id)?.dims ?? null, camera.position.x, camera.position.z, env.wake.size / 2, stamps, env.sunShadow(), wakeTrails);
       const focus = player ? { position: player.model.position, length: player.dims.length } : undefined;
       const hung = [
         ...(player ? [{ root: player.model, length: player.dims.length }] : []),

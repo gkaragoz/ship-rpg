@@ -2,6 +2,8 @@ export { CONFIG } from './config';
 export { startLoop } from './loop';
 export type { LoopHandlers } from './loop';
 export { clamp, lerp, smoothstep, wrapAngle, angleDiff } from './math';
+export { COURSE, followCourse } from './course';
+export type { Track } from './course';
 export { createInput } from './input';
 export type { Input } from './input';
 export type { AimZoneView, ApparentWindView, ArcPointView, Attitude, BallView, Condition, Controls, EnemyView, GameEvent, GameView, HitZone, OtherShipView, Owner, PortView, ShipView, WindView } from './views';

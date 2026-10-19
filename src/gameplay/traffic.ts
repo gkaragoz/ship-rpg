@@ -1,4 +1,4 @@
-import type { OtherShipView, WindView } from '../core';
+import { angleDiff, type OtherShipView, type WindView } from '../core';
 import { PORTS, WORLD_BOUNDS, getPort, terrainHeight, type Port } from '../world';
 import { apparentView } from './enemyView';
 
@@ -22,7 +22,7 @@ export const TRAFFIC_LINES: readonly TrafficLine[] = [
  * Cruising speed of a merchant (m/s), seconds it lies at its berth, how far to the side of the anchorage the berth is (m,
  * so it never sits in the port's entry zone), the step of the water checks (m) and the least depth a lane needs (m).
  */
-export const TRAFFIC = { speed: 5.5, dwell: 50, berth: 70, step: 40, clearDepth: -8 } as const;
+export const TRAFFIC = { speed: 5.5, dwell: 50, berth: 70, step: 40, clearDepth: -8, ramp: 8, swing: 12 } as const;
 
 type Point = { x: number; z: number };
 
@@ -162,7 +162,8 @@ function makeLeg(from: Port, to: Port): Leg {
   const cum = [0];
   for (let i = 1; i < points.length; i++) cum.push((cum[i - 1] as number) + Math.hypot((points[i] as Point).x - (points[i - 1] as Point).x, (points[i] as Point).z - (points[i - 1] as Point).z));
   const length = cum[cum.length - 1] as number;
-  return { points, cum, length, sail: length / TRAFFIC.speed };
+  // the ship gets under way and comes alongside slowly (a linear ramp of `TRAFFIC.ramp` s each way), so it never starts crabwise at full pace
+  return { points, cum, length, sail: length / TRAFFIC.speed + TRAFFIC.ramp };
 }
 
 function makeShip(line: TrafficLine): Ship | null {
@@ -175,13 +176,22 @@ function makeShip(line: TrafficLine): Ship | null {
   return { line, legs, cycle, nation, heading: ports.map((p) => -p.outward) };
 }
 
+/** Metres sailed `u` seconds into a leg: speeding up over `TRAFFIC.ramp` s, cruising, slowing down over the same. */
+function sailedAt(leg: Leg, u: number): number {
+  const v = TRAFFIC.speed;
+  const ta = TRAFFIC.ramp;
+  if (u < ta) return (v * u * u) / (2 * ta);
+  if (u > leg.sail - ta) return leg.length - (v * (leg.sail - u) ** 2) / (2 * ta);
+  return (v * ta) / 2 + v * (u - ta);
+}
+
 /** Where a merchant is `t` seconds into its round: position, heading, and whether it is under way. */
 function trafficAt(ship: Ship, t: number): { x: number; z: number; heading: number; moving: boolean } {
   let rest = ((t % ship.cycle) + ship.cycle) % ship.cycle;
   for (let n = 0; n < ship.legs.length; n++) {
     const leg = ship.legs[n] as Leg;
     if (rest < leg.sail) {
-      const s = (rest / leg.sail) * leg.length;
+      const s = sailedAt(leg, rest);
       let i = 1;
       while (i < leg.cum.length - 1 && (leg.cum[i] as number) < s) i++;
       const a = leg.points[i - 1] as Point;
@@ -194,8 +204,14 @@ function trafficAt(ship: Ship, t: number): { x: number; z: number; heading: numb
     rest -= leg.sail;
     if (rest < TRAFFIC.dwell) {
       const last = leg.points[leg.points.length - 1] as Point;
-      const next = ship.heading[(n + 1) % ship.heading.length] as number;
-      return { x: last.x, z: last.z, heading: next, moving: false };
+      const berth = ship.heading[(n + 1) % ship.heading.length] as number;
+      // in the last seconds before casting off the bow swings round to the way the next leg starts (so the ship gets under way pointing where it goes)
+      const first = (ship.legs[(n + 1) % ship.legs.length] as Leg).points;
+      const a = first[0] as Point;
+      const b = first[1] as Point | undefined;
+      const out = b ? Math.atan2(-(b.z - a.z), b.x - a.x) : berth;
+      const k = Math.min(1, Math.max(0, (rest - (TRAFFIC.dwell - TRAFFIC.swing)) / TRAFFIC.swing));
+      return { x: last.x, z: last.z, heading: berth + angleDiff(out, berth) * (k * k * (3 - 2 * k)), moving: false };
     }
     rest -= TRAFFIC.dwell;
   }

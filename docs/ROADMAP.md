@@ -36,6 +36,7 @@
   - [x] fleet (5g): up to 3 consorts bought as consorts or taken as prizes, station keeping, fighting, being shot at, upkeep, Filo tab, saved (`docs/GAME_DESIGN.md` "The fleet", `tests/fleetYard.test.ts`)
   - [x] save slots: autosave + five of your own, "Devam et" continues the newest, no saving in a fight (`tests/saveSlots.test.ts`)
   - [x] tech debt, round 1: `core/views.ts` split into `views`, `crewViews`, `harbourViews`, `statusViews`; the shared Blender props replace the cone trees and boxes
+  - [x] motion and wake polish: crashes swing the bow as a damped yaw rate instead of a snap; patrols and merchants point where they go (`followCourse`), sheer to starboard instead of backing off, merchants ramp their speed at berths; ship wake rebuilt: deposits normalised by size (no white-out on the Battleship), laid along the real course, Kelvin arms, aerated-water shading with lit, lacy foam; looked at by eye in the browser on all 16 ships (peak foam 1.06–1.70); the unit test only checks the stamp deposit per ship (`docs/SEA.md`, `docs/GAME_DESIGN.md`). Open: enemy AI still steers with a bare rudder (its shoal-avoidance bias can flip sides) and keeps its ~4° leeway slide; stamp budget of 256 is untested with many ships close Open: avoidance between two hulls that coincide still jumps (the push has no direction at zero distance)
   - [ ] polish: ships at anchor, beach waves
   - [ ] polish: coast sounding/depth warning on the HUD
   - [x] save/load of discovered map and position (5f)

@@ -106,7 +106,14 @@ void main() {
   float shore = (1.0 - smoothstep(0.2 + 0.5 * breakup, 1.8, depth)) * (0.55 + 0.45 * pulse);
   float shade = clamp(wk.b, 0.0, 1.0); // a ship's shadow on the water
   col *= 1.0 - 0.5 * shade;
-  float trail = clamp(wk.r * 1.15 - (1.0 - lace) * 0.4, 0.0, 1.0);
+  // A ship's wake is aerated water, not paint: the foam in the map saturates softly (a big ship never clips to white), a milky cyan
+  // halo of bubbles surrounds a dense core that breaks into lace, and everything is lit by the light there is (night foam is dim).
+  float fresh = 1.0 - exp(-wk.r * 1.4);
+  float halo = smoothstep(0.03, 0.55, fresh) * (0.75 + 0.5 * (lace - 0.5));
+  // fine bubble clusters decide where the dense foam holds: solid near the stern, torn into patches and then specks as it ages
+  float fine = 0.5 * (texture2D(uNoise, fp / 0.55 + vec2(uTime * 0.04, -uTime * 0.02)).b + texture2D(uNoise, fp / 1.7 - vec2(uTime * 0.03, 0.0)).g);
+  float body = fresh * (0.38 + 0.9 * lace) + (fine - 0.5) * 0.85 * smoothstep(0.0, 0.5, fresh);
+  float trail = smoothstep(0.32, 0.7, body);
   // rain pocks the surface: tiny bright rings and a dulling of the glitter
   vec2 dp = vWorld.xz * 1.6 + vec2(0.0, uTime * 0.0);
   vec2 cell = floor(dp);
@@ -116,8 +123,13 @@ void main() {
   vec2 centre = 0.5 + (vec2(rnd.y, pick) - 0.5) * 0.5;
   float ringR = length(fract(dp) - centre) * 2.0;
   float drop = smoothstep(0.1, 0.0, abs(ringR - phase * 0.7)) * (1.0 - phase) * step(pick, uRain * 0.22) * (1.0 - smoothstep(40.0, 120.0, dist));
-  float white = clamp(max(max(max(caps, streak), shore), trail) + drop * 0.35, 0.0, 1.0);
+  float white = clamp(max(max(caps, streak), shore) + drop * 0.35, 0.0, 1.0);
   col = mix(col, mix(vec3(0.78, 0.88, 0.91), vec3(1.0), diff), white * 0.9);
+  vec3 foamLight = uHorizon * 0.35 + uSunColor * (0.25 + 0.6 * diff);
+  vec3 aeration = mix(uShallow, vec3(0.28, 0.80, 0.78), 0.55) * foamLight * 1.25;
+  col = mix(col, aeration, halo * 0.42 * (1.0 - trail));
+  col = mix(col, mix(vec3(0.56, 0.74, 0.79), vec3(0.86, 0.94, 0.95), smoothstep(0.45, 1.0, body)) * foamLight, trail * 0.8);
+  white = max(white, max(trail, halo * 0.6));
 
   // Sun glitter on the facets that face it, broader and weaker as the sea gets rough.
   float spec = pow(clamp(dot(n, normalize(uSun + v)), 0.0, 1.0), mix(220.0, 70.0, uSea));
