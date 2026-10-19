@@ -4,6 +4,7 @@ import type { GameView } from '../core';
 import { CONFIG } from '../core';
 import type { Ship, ShipLod } from '../ships';
 import { createCrewRenderer } from './crew';
+import { createChaseCamera } from './chaseCamera';
 import { createShipCrewRenderers } from './shipCrews';
 import { createSwimmers } from './swimmers';
 import { createFleet } from './fleet';
@@ -66,7 +67,6 @@ export interface SailingView {
   dispose(): void;
 }
 
-const UP = new THREE.Vector3(0, 1, 0);
 
 /** Open-sea scene: waves, sky and a chase camera that follows the player's ship. */
 export function createSailingView(host: HTMLElement, graphics: GraphicsSettings): SailingView {
@@ -135,11 +135,8 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
   const actors = new Map<string, Actor>();
   let shake = 0;
   const shakeOffset = new THREE.Vector3();
-  let lastHeading: number | null = null;
   let lastClock = performance.now();
-  const lastPos = new THREE.Vector3();
-  const target = new THREE.Vector3();
-  const offset = new THREE.Vector3();
+  const chase = createChaseCamera(camera, controls);
   const dummy = new THREE.Object3D();
 
   /** Put a ship on the waves under it, heeling with `roll` and sinking by `sinkTime` (−1 = afloat). */
@@ -165,7 +162,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       crew?.attach(next);
       controls.minDistance = nextDims.length * 0.7;
       controls.maxDistance = nextDims.length * 14; // far enough out to survey the gun landing zones
-      lastHeading = null; // re-frame the camera on the next draw
+      chase.reset(); // re-frame the camera on the next draw
     },
 
     setOthers(ships): void {
@@ -257,21 +254,7 @@ export function createSailingView(host: HTMLElement, graphics: GraphicsSettings)
       // Being hit shakes the camera; the offset is undone after drawing so it never drifts.
       shake = addShake(shake, view.events);
 
-      // Chase camera: carry the camera with the ship and swing it with the turns.
-      target.set(ship.x, dims.length * 0.12, ship.z);
-      if (lastHeading === null) {
-        offset.set(-dims.length * 1.9, dims.length * 0.7, 0).applyAxisAngle(UP, ship.heading);
-        camera.position.copy(target).add(offset);
-      } else {
-        camera.position.add(target.clone().sub(lastPos));
-        offset.copy(camera.position).sub(target).applyAxisAngle(UP, ship.heading - lastHeading);
-        camera.position.copy(target).add(offset);
-      }
-      lastHeading = ship.heading;
-      lastPos.copy(target);
-      controls.target.copy(target);
-      controls.update();
-      camera.position.y = Math.max(camera.position.y, 1.5);
+      chase.follow(ship, dims.length);
 
       // Ships and splashes paint foam and ripples into the wake map, which the sea then shows.
       collectStamps(afloat, dt, player?.dims ?? null, (id) => actors.get(id)?.dims ?? null, camera.position.x, camera.position.z, env.wake.size / 2, stamps, env.sunShadow());

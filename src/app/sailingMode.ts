@@ -1,48 +1,17 @@
 import { createAudio } from '../audio';
-import { createInput, type Controls, type GameView } from '../core';
+import { createInput, type GameView } from '../core';
 import { createGame, type GameState, type SaveStore, type SlotId } from '../gameplay';
 import { createAutoQuality, createSailingView, lowerQuality, nextQuality } from '../render';
 import { getSettings } from '../settings';
 import { createShip, getShipSpec, requestShipAsset, type Ship, type ShipLod, type ShipSpec } from '../ships';
 import { createHud, createMapUi, createPortPanel, createSettingsUI, reasonText, saveTab, weatherTab } from '../ui';
-import { getNation, sunState, weatherAt, type Weather } from '../world';
+import { getNation, sunState, weatherAt } from '../world';
 import { gameLines, renderLines } from './debugLines';
 import { describeSave, whyNoSave } from './saves';
 import { SLOW_REASONS, effectiveSpeed, stepSpeed } from './timeScale';
 import { applyGameSettings } from './gameSettings';
 import type { Mode } from './mode';
-
-const PORT = ['KeyA', 'ArrowLeft'];
-const STARBOARD = ['KeyD', 'ArrowRight'];
-const MORE_SAIL = ['KeyW', 'ArrowUp'];
-const LESS_SAIL = ['KeyS', 'ArrowDown'];
-const INTERACT = 'KeyF';
-const FIRE_PORT = 'KeyQ';
-const FIRE_STARBOARD = 'KeyE';
-const RESTART = 'KeyR';
-const BOARD = 'KeyB';
-const MAP = 'KeyM';
-const AIM = 'KeyG';
-const GUNS_UP = 'KeyX'; // longer range
-const GUNS_DOWN = 'KeyZ'; // shorter range
-const MUTE = 'KeyN';
-const QUALITY = 'KeyK';
-/** Game speed keys are matched by the character they type (+ = and - _, on the numpad too), so every keyboard layout works. */
-const FASTER = ['+', '='];
-const SLOWER = ['-', '_'];
-const GAME_KEYS = [...PORT, ...STARBOARD, ...MORE_SAIL, ...LESS_SAIL];
-
-/** The weather in a view, as the weather simulator's panel reads it. */
-const weatherOf = (v: GameView): Weather => ({
-  windSpeed: v.wind.speed,
-  windFrom: v.wind.from,
-  seaState: v.seaState,
-  cloud: v.weather.cloud,
-  fog: v.weather.fog,
-  rain: v.weather.rain,
-  lightning: v.weather.lightning,
-  tuning: v.weather.tuning,
-});
+import { AIM, FASTER, GAME_KEYS, MAP, MUTE, QUALITY, SLOWER, createControlReader, weatherOf } from './sailingKeys';
 
 /** Seconds of game time between automatic saves at sea (the game also saves on docking). */
 const AUTOSAVE_SECONDS = 60;
@@ -187,34 +156,7 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
   const onPointer = (): void => audio.resume(); // a click or drag also counts as a user gesture
   window.addEventListener('pointerdown', onPointer);
 
-  const any = (codes: string[], test: (code: string) => boolean): boolean => codes.some(test);
-  // A key press is one sail step, even when a frame runs several fixed updates.
-  let updated = false;
-  let stepTaken = false;
-  let interactTaken = false;
-  let fireTaken = false;
-  let boardTaken = false;
-
-  const controls = (): Controls => {
-    let sailStep: -1 | 0 | 1 = 0;
-    if (!stepTaken) {
-      if (any(MORE_SAIL, input.pressed)) sailStep = 1;
-      else if (any(LESS_SAIL, input.pressed)) sailStep = -1;
-      stepTaken = sailStep !== 0;
-    }
-    const rudder = (any(STARBOARD, input.isDown) ? 1 : 0) - (any(PORT, input.isDown) ? 1 : 0);
-    // Like sail steps, a single press must act once even if a frame runs several updates.
-    const interact = !interactTaken && input.pressed(INTERACT);
-    if (interact) interactTaken = true;
-    // Fire and restart presses are one-shot too; the game ignores repeats while reloading.
-    const firePort = !fireTaken && input.pressed(FIRE_PORT);
-    const fireStarboard = !fireTaken && input.pressed(FIRE_STARBOARD);
-    if (firePort || fireStarboard) fireTaken = true;
-    const elevate = ((input.isDown(GUNS_UP) ? 1 : 0) - (input.isDown(GUNS_DOWN) ? 1 : 0)) as -1 | 0 | 1;
-    const board = !boardTaken && input.pressed(BOARD);
-    if (board) boardTaken = true;
-    return { rudder, sailStep, interact, firePort, fireStarboard, elevate, board, restart: input.pressed(RESTART) };
-  };
+  const controls = createControlReader(input);
 
   /** The captain bought another ship: draw it in place of the old one. */
   const swapPlayer = (id: string): void => {
@@ -256,12 +198,12 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
     debugInfo: () => [...renderLines(view.stats(), store.get().graphics), ...(lastView ? gameLines(lastView) : [])],
     update(dt): void {
       if (paused) return; // the settings menu stops the game
-      const c = controls();
+      const c = controls.read();
       const { speed } = effectiveSpeed(speedRequest, lastView);
       game.update(dt, c);
       // Faster than 1x: more steps of the same size, the one-shot presses acted in the first
       for (let k = 1; k < speed; k++) game.update(dt, { rudder: c.rudder, sailStep: 0, elevate: c.elevate });
-      updated = true;
+      controls.stepped();
     },
     render(): void {
       const now = performance.now();
@@ -318,14 +260,7 @@ export function startSailingMode(host: HTMLElement, init: ShipSpec | GameState, 
         }
         Object.assign(window, { __perf: { fps, quality: store.get().graphics.water, frameMs: Math.round(autoQuality.frameMs * 10) / 10, ...view.stats(), crew: v.crew.length, others: v.others.length } });
       }
-      if (updated) {
-        input.endFrame(); // keep unconsumed presses if no update ran this frame
-        updated = false;
-        stepTaken = false;
-        interactTaken = false;
-        fireTaken = false;
-        boardTaken = false;
-      }
+      controls.endFrame();
     },
     dispose(): void {
       unsubscribe();

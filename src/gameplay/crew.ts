@@ -1,8 +1,9 @@
-import { angleDiff, clamp, type CrewAnim, type CrewLook, type CrewView } from '../core';
+import { angleDiff, clamp, type CrewView } from '../core';
 import type { Deck } from '../ships';
 import type { CrewLayout } from './crewLayout';
-import { CREW, CREW_PALETTE_SIZES, CREW_SPEED, CREW_VARIANTS, FIRST_FEMALE_VARIANT, JOBS } from './crewData';
-import { createRng, type Rng } from './rng';
+import { CREW, CREW_SPEED, CREW_VARIANTS, JOBS } from './crewData';
+import { makeLook, type Job, type Sailor } from './crewTypes';
+import { createRng } from './rng';
 
 export interface CrewSim {
   /** Advance by one fixed step (seconds). */
@@ -19,63 +20,6 @@ export interface CrewSim {
 /** How many sailors visibly work a deck of this length. */
 export const crewCountFor = (shipLength: number): number =>
   clamp(Math.round(shipLength * 0.5), CREW.minCount, CREW.maxCount);
-
-type JobKind = 'helm' | 'haul' | 'climb' | 'gun';
-/** `go`: walking to the spot; `work`: at it (the climb's way up); `top`: aloft; `down`: the way back; `fire`/`load`: a gun's two stages. */
-type Stage = 'go' | 'work' | 'top' | 'down' | 'fire' | 'load';
-
-interface Job {
-  kind: JobKind;
-  stage: Stage;
-  /** Where it is done (ship-local) and what the sailor faces there. */
-  x: number;
-  z: number;
-  faceX: number;
-  faceZ: number;
-  /** Climbing: how high above the deck. */
-  top: number;
-  /** Seconds left in this stage. */
-  left: number;
-  /** Seconds a gun stays loading (after the shot). */
-  load: number;
-}
-
-interface Sailor {
-  id: number;
-  x: number;
-  z: number;
-  heading: number;
-  anim: CrewAnim;
-  speed: number;
-  moving: boolean;
-  timer: number;
-  tx: number;
-  tz: number;
-  blocked: number;
-  look: CrewLook;
-  job: Job | null;
-  /** Seconds in the current animation (drives the procedural poses) and its 0…1 or −1…1 parameter. */
-  clock: number;
-  lean: number;
-  /** Height above the deck while climbing. */
-  lift: number;
-}
-
-function makeLook(rng: Rng, variant: number): CrewLook {
-  const female = variant >= FIRST_FEMALE_VARIANT;
-  const hairStyle: CrewLook['hairStyle'] = female ? (rng.chance(0.65) ? 'long' : 'short') : rng.chance(0.75) ? 'short' : 'none';
-  return {
-    variant,
-    skin: rng.int(CREW_PALETTE_SIZES.skin),
-    shirt: rng.int(CREW_PALETTE_SIZES.shirt),
-    pants: rng.int(CREW_PALETTE_SIZES.pants),
-    hair: rng.int(CREW_PALETTE_SIZES.hair),
-    hat: rng.int(CREW_PALETTE_SIZES.hat),
-    hairStyle,
-    hatStyle: rng.pick(['wide', 'bandana', 'cap', 'none'] as const),
-    beard: !female && rng.chance(0.45),
-  };
-}
 
 /**
  * Deterministic deck life for a ship's crew: sailors stand, then walk (sometimes run) to a random free spot, steering

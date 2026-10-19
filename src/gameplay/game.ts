@@ -10,13 +10,14 @@ import { planBroadside } from './gunnery';
 import { createSalvo } from './salvo';
 import { flyBalls, type ShotWorld } from './shots';
 import { stepAffliction } from './damage';
-import { ballViews, enemyView, playerView, portView } from './enemyView';
+import { ballViews, playerView, portView } from './enemyView';
 import type { Enemy } from './enemy';
 import { createEnemyDirector } from './enemyDirector';
 import { gunScatter, seaEffects, stepBody } from './buoyancy';
 import { createCrew, crewCountFor } from './crew';
 import { crewLayout } from './crewLayout';
 import { createShipCrews } from './shipCrews';
+import { shipViews } from './shipViews';
 import { createDevHooks } from './devHooks';
 import { createNpcFleet } from './npcShips';
 import { createWeatherState } from './weatherState';
@@ -326,20 +327,7 @@ export function createGame(init: ShipSpec | GameState): Game {
       if (dockedAt) syncShip(); // the yard's prices depend on the hull
       const n = nearest();
       const nearestPort = n && portView(n, ship, !dockedAt && canDock(n.port), insidePortZone(n.port, ship.x, ship.z), portClosed(st, n.port));
-      const enemyViews = director.list().map((e) => {
-        const v = enemyView(e, ship, feel(e.ship));
-        const crewView = shipCrews.view(`e:${e.id}`, { specId: e.spec.id, rudder: e.ship.rudder, sailTarget: e.ship.sailTarget, reload: e.reload, reloadSeconds: COMBAT.enemyReload }, v.distance);
-        return crewView ? { ...v, crew: crewView } : v;
-      });
-      const consortViews = fleet.consorts().map((c) => {
-        const v = enemyView(c, ship, feel(c.ship));
-        const crewView = shipCrews.view(`c:${c.id}`, { specId: c.spec.id, rudder: c.ship.rudder, sailTarget: c.ship.sailTarget, reload: c.reload, reloadSeconds: COMBAT.playerReload }, v.distance);
-        return crewView ? { ...v, crew: crewView } : v;
-      });
-      const others = npcs.view(wind, giveWay()).map((o) => {
-        const crewView = shipCrews.view(`o:${o.id}`, { specId: o.specId, rudder: 0, sailTarget: o.sailLevel }, Math.hypot(o.x - ship.x, o.z - ship.z));
-        return crewView ? { ...o, crew: crewView } : o;
-      });
+      const ships = shipViews(shipCrews, ship, feel, director.list(), fleet.consorts(), npcs.view(wind, giveWay()));
       const afloat = director.list().filter((e) => e.sinking < 0);
       const drained = events;
       events = [];
@@ -349,7 +337,7 @@ export function createGame(init: ShipSpec | GameState): Game {
         hour: hourAt(time, clock),
         weather: weatherState.view(weather),
         seaState: sea,
-        others,
+        others: ships.others,
         crew: crew?.view() ?? [],
         captain: captainView(st),
         cargo: cargoView(st, spec),
@@ -363,8 +351,8 @@ export function createGame(init: ShipSpec | GameState): Game {
         grounded: ship.grounded > 0,
         discoveredIslands: explore.islands(),
         discoveredPorts: explore.ports(),
-        enemies: enemyViews,
-        consorts: consortViews,
+        enemies: ships.enemies,
+        consorts: ships.consorts,
         balls: ballViews(balls),
         events: drained,
         sunk,
