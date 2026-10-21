@@ -100,6 +100,27 @@ Gotchas found while building it:
 - Merge coincident vertices (`PM.weld`) before AO and export: tubes and lathes only get smooth shading across ring seams that way, and degenerate pole faces disappear.
 - Llama sees `__name__` rendered as bold in its own chat; put the wrapper in a fenced code block.
 
+## Menu wallpaper (`make_wallpaper.py`)
+A golden-hour harbour for the main menu / wallpaper: the island (height field with beaches, forest, rock and dirt roads), the quay town and landmarks (the game's `world.glb` props as linked duplicates), moored galleon, brig and frigate (the real LOD0 ship GLBs, sails translucent so the low sun glows through, lanterns lit, mooring ropes), an anchored warship and sloop, a wooden jetty, an Ocean-modifier sea whose colour follows a baked depth map, a physical sky with a procedural cloud layer, a bounded haze volume and a flock of gulls. Cycles on the GPU (CUDA on the GTX 1080 Ti), OpenImageDenoise, AgX, then a numpy post pass (bloom, vignette, grade, grain).
+
+| File | Job |
+|---|---|
+| `make_wallpaper.py` | `CFG` (camera, sun, ship positions), stages, render settings, post and export |
+| `wp_common.py` | `Sandbox` (removes everything it created), GLB import, noise on numpy grids, material helpers |
+| `wp_terrain.py` | `Terrain` height field (blobs + noise + sea floor + quay plateau), vertex-coloured island mesh |
+| `wp_town.py` | landmarks, quay clutter, houses on terraces, trees and rocks (linked duplicates) |
+| `wp_harbour.py` | stone quay, jetty, ship placement, mooring ropes, boats |
+| `wp_water.py`, `wp_sky.py` | sea shader and Ocean modifier; sky, clouds, haze volume, gulls |
+
+Run (headless; the first two are quick checks):
+```
+blender -b --factory-startup --python tools/blender/make_wallpaper.py -- STAGE=preview   # 1600x900, 96 samples, ~1 min -> tools/blender/out/wallpaper_preview.png
+blender -b --factory-startup --python tools/blender/make_wallpaper.py -- STAGE=final     # 3840x2160, 320 samples, ~15 min -> public/images/menu_bg_4k.{png,webp}, menu_bg_1080.webp
+```
+Through Llama (same wrapper as the ships, one call): `STAGE = "build"` builds the scene in a new scene inside a `Sandbox` (the open scene is left as it was) and saves `tools/blender/out/wallpaper.blend`; then `blender -b tools/blender/out/wallpaper.blend --python tools/blender/make_wallpaper.py -- STAGE=render` renders it, so the long render never blocks the MCP socket.
+**Shot list (`STAGE=shots`, `wp_shots.py`).** `SHOTS` holds 20 square compositions of the same scene (camera, lens, f-stop, sun direction and height, exposure, haze, cloud cover): hero, bow and stern details, crane and quay, lantern bokeh, overlook, lighthouse, fort, warship silhouette, fog, midday, blue hour, storm, market street and more. One call builds the scene once and renders the frames at 256x256 (48 samples, about 11 s each on the GTX 1080 Ti) into `tools/blender/out/shots/NN_name.png`. Through Llama use `"STAGE": "shots"` with `"SHOT_RANGE": (1, 10)` or `"SHOT_LIST": [1, 4, 5]`; ten frames per call stays well inside the 300 s MCP timeout, and the importer's log is silenced (`loglevel=50`) so the tool result stays small (a long stdout overflows Llama's 16k context: "Context size has been exceeded"). Headless: `-- STAGE=shots SHOTS=1-20` (or `SHOTS=1,4,5`), `SIZE=1536 SAMPLES=256` for a chosen frame in high resolution (written to `out/shots_hi/`). The glTF importer leaves the ships' `rotation_euler` ignored (quaternion mode), so every ship's bow points to +X and its port side faces the quay; the shot list is written for that. A hung Llama web UI (request never reaches the server) is cured by stopping the open generations and regenerating the reply.
+Changing the picture: camera, sun and ships are in `CFG`; the sun direction is `sun_rot` (degrees, 0 = towards +Y, 90 = towards +X) and `sun_elev`. Notes from building it (Blender 5.2): the Sky Texture type is `MULTIPLE_SCATTERING` (no `NISHITA`) and has `aerosol_density`; a world volume swallows the sky, so the haze is a bounded box; `OceanModifier.spatial_size` is an int; the glTF importer reads the meshopt/WebP ship GLBs as they are; the sea floor must be below zero or the "sea" renders as sand.
+
 ## Crew
 `make_crew.py` builds six body types × 3 LODs, a 12-bone rig, Idle/Walk/Run actions and a palette atlas; details in `CREW.md`.
 Animations are authored in world axes and converted per bone (`key_pose`), so bone roll does not matter.

@@ -4,3 +4,5 @@ dist
 *.local
 
 __pycache__/
+tools/blender/out/
+public/images/*.png
