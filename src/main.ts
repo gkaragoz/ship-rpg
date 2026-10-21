@@ -7,7 +7,7 @@ import { createGameSaves, describeSave } from './app/saves';
 import { startGalleryMode } from './app/galleryMode';
 import { startSailingMode } from './app/sailingMode';
 import type { Mode } from './app/mode';
-import { createDebugOverlay } from './ui';
+import { createDebugOverlay, createLoadingBar } from './ui';
 
 const host = document.getElementById('app');
 if (!host) throw new Error('#app not found');
@@ -15,6 +15,7 @@ const root: HTMLElement = host;
 
 let mode: Mode | undefined;
 const saves = createGameSaves();
+const loadingBar = createLoadingBar();
 
 function showGallery(selectedId?: string): void {
   mode?.dispose();
@@ -33,16 +34,19 @@ function showSailing(init: ShipSpec | GameState): void {
     return;
   }
   // The crew walks the model's deck, which the game reads once at the start: have the model loaded first.
+  loadingBar.show(document.body);
   void requestShipAsset(spec.id).finally(() => {
     starting = false;
+    loadingBar.hide();
     mode?.dispose();
     mode = startSailingMode(root, init, () => showGallery(spec.id), saves, showSailing);
   });
 }
 
 // Blender models load first; if one fails the game falls back to procedural ships / no crew.
-root.textContent = 'Yükleniyor…';
+loadingBar.show(document.body);
 void Promise.all([loadShipAssets(), loadCrewAssets(), loadWorldAssets()]).then(() => {
+  loadingBar.hide();
   root.replaceChildren();
   showGallery();
   const settings = getSettings();

@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { enableShadows } from './shadows';
 import { POSED, applyPose, findBones, type PoseBones } from './crewPoses';
-import type { CrewAnim, CrewLook, CrewView } from '../core';
+import { tracked, type CrewAnim, type CrewLook, type CrewView } from '../core';
 
 /** Body types in asset order: 0-2 male, 3-5 female (docs/CREW.md). */
 const VARIANT_FILES = ['Male_Standard', 'Male_Broad', 'Male_Stout', 'Female_Standard', 'Female_Sturdy', 'Female_Stout'] as const;
@@ -40,7 +40,7 @@ export async function loadCrewAssets(base = `${import.meta.env.BASE_URL}models/c
         if (!r.ok) throw new Error(`crew.json: HTTP ${r.status}`);
         return r.json() as Promise<{ palette: Record<Tinted, string[]> }>;
       }),
-      Promise.all(VARIANT_FILES.map((f) => loader.loadAsync(`${base}${f}.glb`))),
+      Promise.all(VARIANT_FILES.map((f) => tracked((p) => loader.loadAsync(`${base}${f}.glb`, p)))),
     ]);
     kit = { scenes: gltfs.map((g) => g.scene), clips: gltfs.map((g) => g.animations), palette: meta.palette };
   } catch (err) {

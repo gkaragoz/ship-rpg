@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { tracked } from '../core';
 import { createDeck, type Deck, type ShipModelMeta } from './deck';
 
 /** A Blender-made ship model, loaded once and cloned per ship (geometry, textures and materials are shared). */
@@ -42,7 +43,7 @@ function sharpenTextures(scene: THREE.Object3D): void {
 
 async function fetchAsset(id: string, base: string): Promise<ShipAsset | undefined> {
   try {
-    const [gltf, res] = await Promise.all([gltfLoader().loadAsync(`${base}${id}.glb`), fetch(`${base}${id}.meta.json`)]);
+    const [gltf, res] = await Promise.all([tracked((p) => gltfLoader().loadAsync(`${base}${id}.glb`, p)), fetch(`${base}${id}.meta.json`)]);
     if (!res.ok) throw new Error(`${id}.meta.json: HTTP ${res.status}`);
     const meta = (await res.json()) as ShipModelMeta;
     sharpenTextures(gltf.scene);

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { tracked } from '../core';
 
 /**
  * The Blender world props (`public/models/world/world.glb`, contract in docs/WORLD_ASSETS.md): houses of every nation's
@@ -27,7 +28,7 @@ export function setWorldKit(next: WorldKit | null): void {
 /** Load the world GLB; on any failure the scenery stays procedural. */
 export async function loadWorldAssets(base = `${import.meta.env.BASE_URL}models/world/`): Promise<void> {
   try {
-    const gltf = await new GLTFLoader().loadAsync(`${base}world.glb`);
+    const gltf = await tracked((p) => new GLTFLoader().loadAsync(`${base}world.glb`, p));
     const geometries = new Map<string, THREE.BufferGeometry>();
     let material: THREE.Material | null = null;
     gltf.scene.traverse((o) => {

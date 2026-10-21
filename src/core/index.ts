@@ -11,5 +11,7 @@ export type { CrewAnim, CrewLook, CrewView } from './crewViews';
 export type { BoardingView, CaptainView, CargoView, CompanyView, TuningView, WeatherView } from './statusViews';
 export type { CommandResult, FleetShipView, MarketLineView, PortCommand, PortServicesView, QuestOfferView, QuestView, ShipOfferView, ShipyardView } from './harbourViews';
 export { createRng } from './rng';
+export { tracked, trackLoad, loadFraction, isLoading, subscribeLoad } from './loadProgress';
+export type { LoadHandle } from './loadProgress';
 export { HISTORY, createProfiler, frameColor } from './profiler';
 export type { Profiler, ProfilerStats } from './profiler';

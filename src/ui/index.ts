@@ -15,3 +15,5 @@ export type { SettingsHandlers, SettingsUI } from './settings';
 export { createPortPanel } from './portPanel';
 export { reasonText } from './portMarket';
 export type { PortPanel } from './portPanel';
+export { createLoadingBar } from './loadingBar';
+export type { LoadingBar } from './loadingBar';
