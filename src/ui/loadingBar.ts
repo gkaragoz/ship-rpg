@@ -36,8 +36,10 @@ export function createLoadingBar(): LoadingBar {
       notice.textContent = '© gkaragoz and Contributors';
       el.append(style, text, track, notice);
       parent.append(el);
+      let started = false; // before the first download is announced the bar reads 0, not 100
       const paint = (): void => {
-        const pct = isLoading() ? Math.floor(loadFraction() * 100) : 100;
+        if (isLoading()) started = true;
+        const pct = isLoading() ? Math.floor(loadFraction() * 100) : started ? 100 : 0;
         text.textContent = `${label}… %${pct}`;
         fill.style.width = `${pct}%`;
       };

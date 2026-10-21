@@ -7,6 +7,13 @@ A browser-based 3D naval RPG in the spirit of *Pirates of the Caribbean* (2003) 
 
 **Play now:** https://gkaragoz.github.io/ship-rpg/ (the in-game text is Turkish; code and docs are English)
 
+<p align="center">
+  <img src="docs/screenshots/sailing.jpg" alt="Sailing a Galleon into a port" width="800" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/gallery.jpg" alt="The ship gallery" width="800" />
+</p>
+
 ## Features
 
 - **16 ship types** from the Tartane to the Battleship, each a Blender-made GLB with 3 LODs (the procedural ship stays as the fallback), rigging with cloth-animated sails and flags, a walkable deck with a rigged crew.
@@ -51,7 +58,7 @@ The code is split into modules with enforced import directions (`core`, `ships`,
 
 ## Publishing
 
-Every push to `main` runs `.github/workflows/deploy.yml` (check, build, deploy to GitHub Pages). The build uses a relative `base`, so it also works under a sub-path. One-time setup: repository Settings → Pages → Source: **GitHub Actions**.
+Every push to `main` runs `.github/workflows/deploy.yml` (typecheck, lint, build, deploy to GitHub Pages; the full tests run in `ci.yml` beside it). The build uses a relative `base`, so it also works under a sub-path. One-time setup: repository Settings → Pages → Source: **GitHub Actions**.
 
 ## License
 
